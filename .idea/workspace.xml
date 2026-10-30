@@ -11,26 +11,13 @@
     </cargoProject>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b060abbc-0d3b-4e31-91a5-7f9f53f1dc28" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/LumaIDE.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/icons/128x128.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/icons/128x128@2x.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/icons/32x32.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/icons/Square107x107Logo.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/icons/Square142x142Logo.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/icons/Square150x150Logo.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/icons/Square284x284Logo.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/icons/Square30x30Logo.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/icons/Square310x310Logo.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/icons/Square44x44Logo.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/icons/Square71x71Logo.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/icons/Square89x89Logo.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/icons/StoreLogo.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/icons/icon.icns" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/icons/icon.ico" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/icons/icon.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/LICENSE" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+    <list default="true" id="b060abbc-0d3b-4e31-91a5-7f9f53f1dc28" name="Changes" comment="Literally the bare bones right now.">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/rust/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/rust/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/rust/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/rust/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tauri.conf.json" beforeDir="false" afterPath="$PROJECT_DIR$/tauri.conf.json" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -38,10 +25,17 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="205" />
+    <option name="cachedIndexableFilesCount" value="208" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="ExecutionTargetManager" SELECTED_TARGET="RsBuildProfile:dev" />
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Rust File" />
+      </list>
+    </option>
+  </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
@@ -66,61 +60,61 @@
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.0000000000000007" />
-      <entry key="MS500" value="1.0009111650307976" />
-      <entry key="S2" value="1.1737744108429387" />
-      <entry key="S5" value="1.5394303891794938" />
-      <entry key="S10" value="2.179306014049459" />
-      <entry key="S30" value="4.911366576321424" />
-      <entry key="S60" value="7.447873954045957" />
-      <entry key="M2" value="9.733151135520401" />
-      <entry key="M5" value="12.06424134141402" />
-      <entry key="M10" value="13.731632134339053" />
-      <entry key="M15" value="14.683033858706672" />
-      <entry key="M30" value="16.352716500877563" />
-      <entry key="H1" value="19.223773839958007" />
-      <entry key="H2" value="23.512567638313453" />
-      <entry key="H4" value="27.573925807377634" />
-      <entry key="D1" value="32.711708480920436" />
-      <entry key="W1" value="33.80976803364139" />
+      <entry key="MS100" value="1.3263367556011468E-44" />
+      <entry key="MS500" value="2.5060073930164083E-9" />
+      <entry key="S2" value="0.018166596432866847" />
+      <entry key="S5" value="0.511466842685534" />
+      <entry key="S10" value="1.7444500290986074" />
+      <entry key="S30" value="6.102455664383125" />
+      <entry key="S60" value="13.874268127241058" />
+      <entry key="M2" value="29.294706464244054" />
+      <entry key="M5" value="58.52728465124343" />
+      <entry key="M10" value="86.17728706721749" />
+      <entry key="M15" value="109.1504471470618" />
+      <entry key="M30" value="182.1565182234963" />
+      <entry key="H1" value="308.2267431981005" />
+      <entry key="H2" value="449.7359879950849" />
+      <entry key="H4" value="562.8852954430671" />
+      <entry key="D1" value="692.825478466809" />
+      <entry key="W1" value="719.4238054888532" />
     </decayedCancelled>
     <decayedSelected>
-      <entry key="MS100" value="0.0" />
-      <entry key="MS500" value="0.0" />
-      <entry key="S2" value="0.0" />
-      <entry key="S5" value="0.0" />
-      <entry key="S10" value="0.0" />
-      <entry key="S30" value="0.0" />
-      <entry key="S60" value="0.0" />
-      <entry key="M2" value="0.0" />
-      <entry key="M5" value="0.0" />
-      <entry key="M10" value="0.0" />
-      <entry key="M15" value="0.0" />
-      <entry key="M30" value="0.0" />
-      <entry key="H1" value="0.0" />
-      <entry key="H2" value="0.0" />
-      <entry key="H4" value="0.0" />
-      <entry key="D1" value="0.0" />
-      <entry key="W1" value="0.0" />
+      <entry key="MS100" value="1.0" />
+      <entry key="MS500" value="1.0" />
+      <entry key="S2" value="1.0000866464399485" />
+      <entry key="S5" value="1.0237192190113424" />
+      <entry key="S10" value="1.1541110271440216" />
+      <entry key="S30" value="1.6138168496007266" />
+      <entry key="S60" value="2.192855271589762" />
+      <entry key="M2" value="3.189401566121196" />
+      <entry key="M5" value="5.626763004713692" />
+      <entry key="M10" value="8.748283806914385" />
+      <entry key="M15" value="11.489476284905667" />
+      <entry key="M30" value="18.696539957389138" />
+      <entry key="H1" value="28.342048824814658" />
+      <entry key="H2" value="37.535322426796384" />
+      <entry key="H4" value="44.21411695030104" />
+      <entry key="D1" value="51.357553341678305" />
+      <entry key="W1" value="52.76050718766007" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="0.8350879194283694" />
-      <entry key="MS500" value="0.9650665752674026" />
-      <entry key="S2" value="1.1381767295683742" />
-      <entry key="S5" value="1.5033843838284122" />
-      <entry key="S10" value="2.1515964328150257" />
-      <entry key="S30" value="4.894353020974393" />
-      <entry key="S60" value="7.4361106134784745" />
-      <entry key="M2" value="9.725840610360997" />
-      <entry key="M5" value="12.06082126681515" />
-      <entry key="M10" value="13.729813479637853" />
-      <entry key="M15" value="14.681792796980401" />
-      <entry key="M30" value="16.3520757655444" />
-      <entry key="H1" value="19.223436503436783" />
-      <entry key="H2" value="23.5123858818826" />
-      <entry key="H4" value="27.573828653380808" />
-      <entry key="D1" value="32.711690957419805" />
-      <entry key="W1" value="33.80976548953683" />
+      <entry key="MS100" value="0.0010040174088438152" />
+      <entry key="MS500" value="0.251390147548283" />
+      <entry key="S2" value="0.7258420159790192" />
+      <entry key="S5" value="1.3890679702017406" />
+      <entry key="S10" value="2.782230273954427" />
+      <entry key="S30" value="7.590936858881887" />
+      <entry key="S60" value="15.935337439320925" />
+      <entry key="M2" value="32.36410257353274" />
+      <entry key="M5" value="64.06192805326776" />
+      <entry key="M10" value="94.85503341121373" />
+      <entry key="M15" value="120.5796978496695" />
+      <entry key="M30" value="200.80511298338197" />
+      <entry key="H1" value="336.53160437406615" />
+      <entry key="H2" value="487.2459282090724" />
+      <entry key="H4" value="607.084154847019" />
+      <entry key="D1" value="744.1800197668992" />
+      <entry key="W1" value="772.1838690514458" />
     </decayedShown>
   </component>
   <component name="ProjectColorInfo">{
@@ -132,39 +126,39 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Cargo.Build.executor": "Run",
-    "Cargo.Debug.executor": "Run",
-    "CidrDebugProfileConversion": "true",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.MCP Project settings loaded": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.rust.reset.selective.auto.import": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "app.teamhub.selectedTeam": "https://github.com/ParafieldDevelopment/LumaIDE",
-    "codeWithMe.voiceChat.enabledByDefault": "false",
-    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "git-widget-placeholder": "main",
-    "junie.onboarding.icon.badge.shown": "true",
-    "last_opened_file_path": "/Users/marklopezjr/RustroverProjects/LumaIDE/icons",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.jshint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.jshint": "",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
-    "org.rust.cargo.project.model.impl.CargoExternalSystemProjectAware.subscribe.first.balloon": "",
-    "org.rust.first.attach.projects": "true",
-    "python.packages.toolwindow.project.migrated.to.right.top.v2": "true",
-    "settings.editor.selected.configurable": "language.rust",
-    "to.speed.mode.migration.done": "true",
-    "ts.external.directory.path": "/Users/marklopezjr/RustroverProjects/LumaIDE/src/vite/node_modules/typescript/lib"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Cargo.Build.executor&quot;: &quot;Run&quot;,
+    &quot;Cargo.Debug.executor&quot;: &quot;Run&quot;,
+    &quot;CidrDebugProfileConversion&quot;: &quot;true&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.rust.reset.selective.auto.import&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;app.teamhub.selectedTeam&quot;: &quot;https://github.com/ParafieldDevelopment/LumaIDE&quot;,
+    &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Users/marklopezjr/RustroverProjects/LumaIDE/icons&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.jshint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.jshint&quot;: &quot;&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;org.rust.cargo.project.model.PROJECT_DISCOVERY&quot;: &quot;true&quot;,
+    &quot;org.rust.cargo.project.model.impl.CargoExternalSystemProjectAware.subscribe.first.balloon&quot;: &quot;&quot;,
+    &quot;org.rust.first.attach.projects&quot;: &quot;true&quot;,
+    &quot;python.packages.toolwindow.project.migrated.to.right.top.v2&quot;: &quot;true&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;ts.external.directory.path&quot;: &quot;/Applications/RustRover.app/Contents/plugins/javascript-plugin/jsLanguageServicesImpl/external&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/icons" />
@@ -173,11 +167,10 @@
       <recent name="$PROJECT_DIR$" />
     </key>
   </component>
-  <component name="RunManager" selected="Cargo.Build">
+  <component name="RunManager" selected="Cargo.Debug">
     <configuration name="Build" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
-      <option name="buildProfileId" value="dev" />
       <option name="command" value="tauri build" />
-      <option name="workingDirectory" value="file://." />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <envs />
       <option name="emulateTerminal" value="true" />
       <option name="channel" value="DEFAULT" />
@@ -194,7 +187,7 @@
     </configuration>
     <configuration name="Debug" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="command" value="tauri dev" />
-      <option name="workingDirectory" value="file://." />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <envs />
       <option name="emulateTerminal" value="true" />
       <option name="channel" value="DEFAULT" />
@@ -229,6 +222,10 @@
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Literally the bare bones right now." />
+    <option name="LAST_COMMIT_MESSAGE" value="Literally the bare bones right now." />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

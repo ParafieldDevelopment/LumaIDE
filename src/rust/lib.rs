@@ -1,14 +1,19 @@
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
+use std::sync::OnceLock;
+use tauri::{AppHandle, RunEvent};
 
+pub static APPLICATION: OnceLock<AppHandle> = OnceLock::new();
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
+pub fn start_tauri() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|app, event| {
+            match event {
+                RunEvent::Ready => {
+                    APPLICATION.set(app.clone()).expect("Variable APPLICATION already set");
+                }
+
+                _ => {}
+            }
+        });
 }
