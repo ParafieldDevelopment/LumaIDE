@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="ALL" />
+  </component>
+  <component name="CargoProjects">
+    <cargoProject FILE="$PROJECT_DIR$/Cargo.toml">
+      <package file="$PROJECT_DIR$">
+        <feature name="default" enabled="true" />
+      </package>
+    </cargoProject>
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="b060abbc-0d3b-4e31-91a5-7f9f53f1dc28" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/LumaIDE.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/icons/128x128.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/icons/128x128@2x.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/icons/32x32.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/icons/Square107x107Logo.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/icons/Square142x142Logo.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/icons/Square150x150Logo.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/icons/Square284x284Logo.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/icons/Square30x30Logo.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/icons/Square310x310Logo.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/icons/Square44x44Logo.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/icons/Square71x71Logo.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/icons/Square89x89Logo.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/icons/StoreLogo.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/icons/icon.icns" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/icons/icon.ico" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/icons/icon.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/LICENSE" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="EmbeddingIndexingInfo">
+    <option name="cachedIndexableFilesCount" value="205" />
+    <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
+  </component>
+  <component name="ExecutionTargetManager" SELECTED_TARGET="RsBuildProfile:dev" />
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;mas6y6&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/ParafieldDevelopment/LumaIDE&quot;,
+    &quot;accountId&quot;: &quot;c0d139fa-872f-4073-8a66-3df3f409e043&quot;
+  }
+}</component>
+  <component name="MacroExpansionManager">
+    <option name="directoryName" value="vBssVEYf" />
+  </component>
+  <component name="McpProjectServerCommands">
+    <commands />
+    <urls />
+  </component>
+  <component name="NextEditCompletionFeaturesState">
+    <decayedCancelled>
+      <entry key="MS100" value="1.0000000000000007" />
+      <entry key="MS500" value="1.0009111650307976" />
+      <entry key="S2" value="1.1737744108429387" />
+      <entry key="S5" value="1.5394303891794938" />
+      <entry key="S10" value="2.179306014049459" />
+      <entry key="S30" value="4.911366576321424" />
+      <entry key="S60" value="7.447873954045957" />
+      <entry key="M2" value="9.733151135520401" />
+      <entry key="M5" value="12.06424134141402" />
+      <entry key="M10" value="13.731632134339053" />
+      <entry key="M15" value="14.683033858706672" />
+      <entry key="M30" value="16.352716500877563" />
+      <entry key="H1" value="19.223773839958007" />
+      <entry key="H2" value="23.512567638313453" />
+      <entry key="H4" value="27.573925807377634" />
+      <entry key="D1" value="32.711708480920436" />
+      <entry key="W1" value="33.80976803364139" />
+    </decayedCancelled>
+    <decayedSelected>
+      <entry key="MS100" value="0.0" />
+      <entry key="MS500" value="0.0" />
+      <entry key="S2" value="0.0" />
+      <entry key="S5" value="0.0" />
+      <entry key="S10" value="0.0" />
+      <entry key="S30" value="0.0" />
+      <entry key="S60" value="0.0" />
+      <entry key="M2" value="0.0" />
+      <entry key="M5" value="0.0" />
+      <entry key="M10" value="0.0" />
+      <entry key="M15" value="0.0" />
+      <entry key="M30" value="0.0" />
+      <entry key="H1" value="0.0" />
+      <entry key="H2" value="0.0" />
+      <entry key="H4" value="0.0" />
+      <entry key="D1" value="0.0" />
+      <entry key="W1" value="0.0" />
+    </decayedSelected>
+    <decayedShown>
+      <entry key="MS100" value="0.8350879194283694" />
+      <entry key="MS500" value="0.9650665752674026" />
+      <entry key="S2" value="1.1381767295683742" />
+      <entry key="S5" value="1.5033843838284122" />
+      <entry key="S10" value="2.1515964328150257" />
+      <entry key="S30" value="4.894353020974393" />
+      <entry key="S60" value="7.4361106134784745" />
+      <entry key="M2" value="9.725840610360997" />
+      <entry key="M5" value="12.06082126681515" />
+      <entry key="M10" value="13.729813479637853" />
+      <entry key="M15" value="14.681792796980401" />
+      <entry key="M30" value="16.3520757655444" />
+      <entry key="H1" value="19.223436503436783" />
+      <entry key="H2" value="23.5123858818826" />
+      <entry key="H4" value="27.573828653380808" />
+      <entry key="D1" value="32.711690957419805" />
+      <entry key="W1" value="33.80976548953683" />
+    </decayedShown>
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 7,
+  &quot;fromUser&quot;: false
+}</component>
+  <component name="ProjectId" id="3LPqdB3orqxecRJdqxOinCaGm1Q" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Cargo.Build.executor": "Run",
+    "Cargo.Debug.executor": "Run",
+    "CidrDebugProfileConversion": "true",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.MCP Project settings loaded": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.rust.reset.selective.auto.import": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "app.teamhub.selectedTeam": "https://github.com/ParafieldDevelopment/LumaIDE",
+    "codeWithMe.voiceChat.enabledByDefault": "false",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
+    "git-widget-placeholder": "main",
+    "junie.onboarding.icon.badge.shown": "true",
+    "last_opened_file_path": "/Users/marklopezjr/RustroverProjects/LumaIDE/icons",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.jshint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.jshint": "",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
+    "org.rust.cargo.project.model.impl.CargoExternalSystemProjectAware.subscribe.first.balloon": "",
+    "org.rust.first.attach.projects": "true",
+    "python.packages.toolwindow.project.migrated.to.right.top.v2": "true",
+    "settings.editor.selected.configurable": "language.rust",
+    "to.speed.mode.migration.done": "true",
+    "ts.external.directory.path": "/Users/marklopezjr/RustroverProjects/LumaIDE/src/vite/node_modules/typescript/lib"
+  }
+}]]></component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/icons" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Cargo.Build">
+    <configuration name="Build" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+      <option name="buildProfileId" value="dev" />
+      <option name="command" value="tauri build" />
+      <option name="workingDirectory" value="file://." />
+      <envs />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Debug" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+      <option name="command" value="tauri dev" />
+      <option name="workingDirectory" value="file://." />
+      <envs />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <list>
+      <item itemvalue="Cargo.Debug" />
+      <item itemvalue="Cargo.Build" />
+    </list>
+  </component>
+  <component name="RustProjectSettings">
+    <option name="toolchainHomeDirectory" value="/opt/homebrew/bin" />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="b060abbc-0d3b-4e31-91a5-7f9f53f1dc28" name="Changes" comment="" />
+      <created>1793366137127</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1793366137127</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="XSLT-Support.FileAssociations.UIState">
+    <expand />
+    <select />
+  </component>
+</project>
