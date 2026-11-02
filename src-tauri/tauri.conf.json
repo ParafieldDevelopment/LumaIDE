@@ -4,8 +4,6 @@
   "version": "0.1.0",
   "identifier": "com.moonlight.luma",
   "build": {
-    "frontendDist": "dist",
-    "devUrl": "http://localhost:5173",
     "beforeDevCommand": {
       "script": "npm install && npm run dev",
       "cwd": "src/vite"
@@ -13,20 +11,12 @@
     "beforeBuildCommand": {
       "script": "npm install && npm run build",
       "cwd": "src/vite"
-    }
+    },
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist"
   },
   "app": {
     "withGlobalTauri": true,
-    "windows": [
-      {
-        "label": "main",
-        "title": "Luma",
-        "url": "index.html",
-        "width": 1400,
-        "height": 900,
-        "visible": false
-      }
-    ],
     "security": {
       "csp": null
     }
