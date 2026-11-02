@@ -1,7 +1,9 @@
-# Tauri + Vanilla
+> [!WARNING]
+> # PRE-ALPHA WARNING!
+> This project is still in development and is not yet ready for use.
+> 
+> Quite literally nothing is completed!
 
-This template should help get you started developing with Tauri in vanilla HTML, CSS and Javascript.
+# Luma IDE
 
-## Recommended IDE Setup
-
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+An Integrated Development Environment (IDE) for everything Lua/Luau related.
