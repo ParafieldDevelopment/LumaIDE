@@ -16,7 +16,14 @@ export default defineConfig({
   },
 
   build: {
-    outDir: resolve(__dirname, "../../../dist"),
+    outDir: resolve(__dirname, "../../../vite_dist"),
     emptyOutDir: true,
+    rolldownOptions: {
+      input: {
+        main: resolve(__dirname, "windows" ,"index.html"),
+        settings: resolve(__dirname, "windows", "settings.html"),
+        startup: resolve(__dirname, "windows", "startup.html")
+      }
+    }
   },
 });

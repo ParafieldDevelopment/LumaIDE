@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 luma-core = { path = "../luma-core" }
 log = "0.4.34"
+anyhow = "1.0.104"

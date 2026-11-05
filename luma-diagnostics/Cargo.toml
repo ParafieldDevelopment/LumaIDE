@@ -1,0 +1,8 @@
+[package]
+name = "luma-diagnostics"
+version = "0.1.0"
+edition = "2024"
+description = "Error/panic diagnostics for the Luma suite: reports, tracebacks, crash logs and the styled error page"
+
+[dependencies]
+dirs = "7.0.0"

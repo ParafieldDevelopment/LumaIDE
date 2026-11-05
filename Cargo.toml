@@ -1,3 +1,14 @@
 [workspace]
 
-members = ["luma-core", "luma-extensions", "luma-tauri"]
+members = ["luma-core", "luma-extensions", "luma-diagnostics", "luma-tauri"]
+
+resolver = "2"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+# Panic recovery (catch_unwind, diag hooks) requires unwinding panics.
+panic = "unwind"
+# Keep debug info so the traceback log in release builds still shows symbols.
+debug = "line-tables-only"
