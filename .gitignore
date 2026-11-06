@@ -12,6 +12,4 @@
 
 # Node
 node_modules/
-
-# idea
-.idea
+.idea/discord.xml

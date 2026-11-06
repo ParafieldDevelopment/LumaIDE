@@ -1,0 +1,141 @@
+/* ==========================================================================
+ * 17. TABS
+ * ========================================================================== */
+
+:root {
+  --lum-tabs-height: 34px;
+  --lum-tab-padding: 0 var(--lum-space-3);
+  --lum-tab-height: var(--lum-tabs-height);
+  --lum-tab-font-size: var(--lum-text-md);
+  --lum-tab-font-weight: var(--lum-font-weight-medium);
+  --lum-tab-radius: var(--lum-radius-md);
+  --lum-tab-fg: var(--lum-fg-muted);
+  --lum-tab-fg-active: var(--lum-fg-strong);
+  --lum-tab-fg-hover: var(--lum-fg);
+  --lum-tab-bg: transparent;
+  --lum-tab-bg-hover: var(--lum-bg-hover);
+  --lum-tab-bg-active: transparent;
+  --lum-tab-indicator: 2px solid var(--lum-accent);
+  --lum-tab-gap: 2px;
+  --lum-tab-min-width: fit-content;
+  --lum-tab-max-width: 220px;
+}
+
+.lum-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--lum-tab-gap);
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-bottom: 1px solid var(--lum-border);
+}
+
+/* --- Underline style (default) --- */
+.lum-tab {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--lum-space-2);
+  height: var(--lum-tab-height);
+  min-width: var(--lum-tab-min-width);
+  max-width: var(--lum-tab-max-width);
+  padding: var(--lum-tab-padding);
+  font-size: var(--lum-tab-font-size);
+  font-weight: var(--lum-tab-font-weight);
+  color: var(--lum-tab-fg);
+  background: var(--lum-tab-bg);
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color var(--lum-transition-fast), background var(--lum-transition-fast);
+
+  svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+  &:hover { color: var(--lum-tab-fg-hover); background: var(--lum-tab-bg-hover); }
+  &:focus-visible { outline: 2px solid var(--lum-focus-ring); outline-offset: -2px; border-radius: var(--lum-tab-radius); }
+
+  &[aria-selected="true"], &.active {
+    color: var(--lum-tab-fg-active);
+    background: var(--lum-tab-bg-active);
+    box-shadow: inset 0 -2px 0 var(--lum-accent);
+  }
+
+  &:disabled { opacity: 0.4; pointer-events: none; }
+}
+
+/* --- Editor-file style tabs (closable, boxed, IDE-flavored) --- */
+
+.lum-filetabs {
+  display: flex;
+  align-items: stretch;
+  overflow-x: auto;
+  background: var(--lum-bg-base);
+  border-bottom: 1px solid var(--lum-border);
+}
+
+.lum-filetab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lum-space-2);
+  padding: 0 var(--lum-space-2) 0 var(--lum-space-3);
+  min-width: 120px;
+  max-width: var(--lum-tab-max-width);
+  font-size: var(--lum-tab-font-size);
+  color: var(--lum-tab-fg);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background var(--lum-transition-fast), color var(--lum-transition-fast);
+  user-select: none;
+
+  .lum-filetab-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .lum-filetab-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    color: var(--lum-fg-subtle);
+    background: none;
+    border: none;
+    border-radius: var(--lum-radius-sm);
+    opacity: 0;
+    cursor: pointer;
+    transition: background var(--lum-transition-fast), opacity var(--lum-transition-fast);
+
+    &:hover { background: var(--lum-bg-hover); color: var(--lum-fg-strong); }
+  }
+
+  &:hover { background: var(--lum-bg-hover); color: var(--lum-tab-fg-hover); }
+  &:hover .lum-filetab-close, &[aria-selected="true"] .lum-filetab-close { opacity: 1; }
+
+  /* dirty (unsaved) dot */
+  &[data-dirty] .lum-filetab-close { opacity: 1; }
+  &[data-dirty] .lum-filetab-close::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--lum-fg-muted);
+  }
+  &[data-dirty]:hover .lum-filetab-close::before { display: none; }
+
+  &[aria-selected="true"], &.active {
+    color: var(--lum-tab-fg-active);
+    background: var(--lum-bg-app);
+    box-shadow: inset 0 2px 0 0 var(--lum-accent);
+
+    /* blend top with active file area */
+    &::before { content: ""; position: absolute; inset: auto 0 0; height: 1px; background: transparent; }
+  }
+}

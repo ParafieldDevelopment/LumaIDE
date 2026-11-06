@@ -1,0 +1,174 @@
+/* ==========================================================================
+ * 5. BUTTONS
+ * Variants: default(secondary), primary, danger, ghost, link
+ * Sizes: default, .lum-btn-sm, .lum-btn-lg
+ * Extras: .lum-btn-icon, .lum-icon-btn, [data-loading]
+ * ========================================================================== */
+
+:root {
+  --lum-button-height: var(--lum-control-height);
+  --lum-button-height-sm: var(--lum-control-height-sm);
+  --lum-button-height-lg: var(--lum-control-height-lg);
+  --lum-button-padding: 0 var(--lum-space-3);
+  --lum-button-gap: var(--lum-space-2);
+  --lum-button-border-radius: var(--lum-radius-md);
+  --lum-button-font-size: var(--lum-text-md);
+  --lum-button-font-weight: var(--lum-font-weight-medium);
+
+  /* Secondary (default) */
+  --lum-button-bg: var(--lum-bg-raised);
+  --lum-button-bg-hover: var(--lum-bg-hover);
+  --lum-button-bg-active: var(--lum-bg-active);
+  --lum-button-fg: var(--lum-fg);
+  --lum-button-border: 1px solid var(--lum-border-strong);
+  --lum-button-border-hover: 1px solid var(--lum-gray-600);
+
+  /* Primary */
+  --lum-button-primary-bg: var(--lum-accent);
+  --lum-button-primary-bg-hover: var(--lum-accent-hover);
+  --lum-button-primary-bg-active: var(--lum-accent-active);
+  --lum-button-primary-fg: var(--lum-accent-fg);
+  --lum-button-primary-border: none;
+  --lum-button-primary-shadow: 0 1px 3px rgba(0, 0, 0, 0.24);
+
+  /* Danger */
+  --lum-button-danger-bg: var(--lum-danger);
+  --lum-button-danger-bg-hover: var(--lum-danger-hover);
+  --lum-button-danger-bg-active: var(--lum-danger-active);
+  --lum-button-danger-fg: var(--lum-danger-fg);
+
+  /* Ghost */
+  --lum-button-ghost-bg: transparent;
+  --lum-button-ghost-bg-hover: var(--lum-bg-hover);
+  --lum-button-ghost-fg: var(--lum-fg-muted);
+  --lum-button-ghost-fg-hover: var(--lum-fg);
+  --lum-button-ghost-border: 1px solid transparent;
+}
+
+.lum-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lum-button-gap);
+  height: var(--lum-button-height);
+  padding: var(--lum-button-padding);
+  font-family: inherit;
+  font-size: var(--lum-button-font-size);
+  font-weight: var(--lum-button-font-weight);
+  white-space: nowrap;
+  color: var(--lum-button-fg);
+  background: var(--lum-button-bg);
+  border: var(--lum-button-border);
+  border-radius: var(--lum-button-border-radius);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--lum-transition-fast), border-color var(--lum-transition-fast), color var(--lum-transition-fast), opacity var(--lum-transition-fast);
+
+  svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  &:hover { background: var(--lum-button-bg-hover); border: var(--lum-button-border-hover); color: var(--lum-fg-strong); }
+  &:active { background: var(--lum-button-bg-active); }
+  &:focus-visible { outline: 2px solid var(--lum-focus-ring); outline-offset: 2px; }
+
+  &:disabled,
+  &[aria-disabled="true"] {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  &[data-loading] {
+    color: transparent;
+    pointer-events: none;
+    position: relative;
+    &::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      width: 14px;
+      height: 14px;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      /* currentColor is transparent; use accent via color attribute trick */
+      color: var(--lum-fg);
+      animation: lum-spin 0.7s linear infinite;
+    }
+  }
+}
+
+/* Sizes */
+.lum-btn-sm { height: var(--lum-button-height-sm); font-size: var(--lum-text-sm); padding: 0 var(--lum-space-2); }
+.lum-btn-lg { height: var(--lum-button-height-lg); font-size: var(--lum-text-lg); padding: 0 var(--lum-space-5); }
+.lum-btn-block { display: flex; width: 100%; }
+
+/* Icon-only button square proportions */
+.lum-btn-icon { width: var(--lum-button-height); padding: 0; }
+
+/* Primary */
+.lum-btn-primary {
+  color: var(--lum-button-primary-fg);
+  background: var(--lum-button-primary-bg);
+  border: var(--lum-button-primary-border);
+  box-shadow: var(--lum-button-primary-shadow);
+
+  &:hover { background: var(--lum-button-primary-bg-hover); }
+  &:active { background: var(--lum-button-primary-bg-active); }
+}
+
+/* Danger */
+.lum-btn-danger {
+  color: var(--lum-button-danger-fg);
+  background: var(--lum-button-danger-bg);
+  border: none;
+
+  &:hover { background: var(--lum-button-danger-bg-hover); }
+  &:active { background: var(--lum-button-danger-bg-active); }
+}
+
+/* Ghost */
+.lum-btn-ghost {
+  color: var(--lum-button-ghost-fg);
+  background: var(--lum-button-ghost-bg);
+  border: var(--lum-button-ghost-border);
+
+  &:hover { background: var(--lum-button-ghost-bg-hover); color: var(--lum-button-ghost-fg-hover); }
+  &:active { background: var(--lum-button-ghost-bg-hover); }
+}
+
+/* Link-style button */
+.lum-btn-link {
+  height: auto;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--lum-link);
+  font-weight: var(--lum-font-weight-medium);
+  text-decoration: none;
+  cursor: pointer;
+
+  &:hover { color: var(--lum-link-hover); text-decoration: underline; }
+}
+
+/* Bare icon button (titlebars, toolbars) */
+.lum-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--lum-control-height);
+  height: var(--lum-control-height);
+  color: var(--lum-fg-muted);
+  background: none;
+  border: none;
+  border-radius: var(--lum-radius-md);
+  cursor: pointer;
+  transition: background var(--lum-transition-fast), color var(--lum-transition-fast);
+
+  svg { width: 18px; height: 18px; }
+
+  &:hover { background: var(--lum-bg-hover); color: var(--lum-fg); }
+  &:active { background: var(--lum-bg-active); }
+  &:focus-visible { outline: 2px solid var(--lum-focus-ring); outline-offset: 1px; }
+  &:disabled { opacity: 0.4; pointer-events: none; }
+}

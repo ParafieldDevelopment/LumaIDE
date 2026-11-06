@@ -1,0 +1,41 @@
+/* ==========================================================================
+ * 27. CODE BLOCK
+ * ========================================================================== */
+
+:root {
+  --lum-code-bg: var(--lum-bg-sunken);
+  --lum-code-fg: var(--lum-fg);
+  --lum-code-radius: var(--lum-radius-md);
+  --lum-code-border: 1px solid var(--lum-border);
+}
+
+.lum-code {
+  padding: 1px 4px;
+  font-family: var(--lum-font-mono);
+  font-size: var(--lum-text-sm);
+  color: var(--lum-code-fg);
+  background: var(--lum-code-bg);
+  border-radius: var(--lum-code-radius);
+}
+
+pre.lum-code-block {
+  padding: var(--lum-space-3);
+  overflow-x: auto;
+  font-family: var(--lum-font-mono);
+  font-size: var(--lum-text-sm);
+  line-height: 1.6;
+  color: var(--lum-fg);
+  background: var(--lum-code-bg);
+  border: var(--lum-code-border);
+  border-radius: var(--lum-code-radius);
+  user-select: text;
+
+  .kw { color: var(--lum-syntax-keyword); }
+  .str { color: var(--lum-syntax-string); }
+  .num { color: var(--lum-syntax-number); }
+  .com { color: var(--lum-syntax-comment); font-style: italic; }
+  .fn { color: var(--lum-syntax-function); }
+  .type { color: var(--lum-syntax-type); }
+  .var { color: var(--lum-syntax-variable); }
+  .const { color: var(--lum-syntax-constant); }
+}

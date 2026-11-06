@@ -1,0 +1,59 @@
+/* ==========================================================================
+ * 8. RADIO BUTTON
+ * ========================================================================== */
+
+:root {
+  --lum-radio-size: 16px;
+  --lum-radio-bg: var(--lum-input-bg);
+  --lum-radio-bg-checked: var(--lum-accent);
+  --lum-radio-bg-hover: var(--lum-input-bg-hover);
+  --lum-radio-border: 1px solid var(--lum-border-strong);
+  --lum-radio-dot-fg: var(--lum-accent-fg);
+}
+
+.lum-radio {
+  appearance: none;
+  width: var(--lum-radio-size);
+  height: var(--lum-radio-size);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--lum-radio-bg);
+  border: var(--lum-radio-border);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background var(--lum-transition-fast), border-color var(--lum-transition-fast);
+
+  &::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--lum-radio-dot-fg);
+    opacity: 0;
+    scale: 0.4;
+    transition: opacity var(--lum-transition-fast), scale var(--lum-transition-fast);
+  }
+
+  &:hover:not(:disabled) { background: var(--lum-radio-bg-hover); }
+  &:checked { background: var(--lum-radio-bg-checked); border-color: transparent; }
+  &:checked::before { opacity: 1; scale: 1; }
+  &:focus-visible { outline: 2px solid var(--lum-focus-ring); outline-offset: 2px; }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+}
+
+.lum-radio-row {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lum-space-2);
+  cursor: pointer;
+}
+
+/* Radio group (vertical stack) */
+.lum-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lum-space-2);
+  &.horizontal { flex-direction: row; gap: var(--lum-space-4); }
+}

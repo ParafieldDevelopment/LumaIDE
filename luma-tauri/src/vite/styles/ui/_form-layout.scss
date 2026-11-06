@@ -1,0 +1,32 @@
+/* ==========================================================================
+ * 25. FORM LAYOUT (fieldset/label/help/error)
+ * ========================================================================== */
+
+.lum-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lum-fieldset-gap);
+  min-width: 0;
+
+  > .lum-label { cursor: default; }
+
+  > .lum-help {
+    font-size: var(--lum-fieldset-help-font-size);
+    color: var(--lum-fieldset-help-fg);
+    &[data-error] { color: var(--lum-fieldset-error-fg); font-weight: var(--lum-font-weight-medium); }
+  }
+}
+
+.lum-label {
+  font-size: var(--lum-label-font-size);
+  font-weight: var(--lum-label-font-weight);
+  color: var(--lum-label-fg);
+}
+
+.lum-form-lg {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lum-space-4);
+}
+
+.lum-form-row { display: flex; gap: var(--lum-space-3); > * { flex: 1; } }

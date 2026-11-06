@@ -1,0 +1,53 @@
+/* ==========================================================================
+ * 21. TABLE
+ * ========================================================================== */
+
+:root {
+  --lum-table-border: 1px solid var(--lum-border);
+  --lum-table-header-bg: var(--lum-bg-surface);
+  --lum-table-header-fg: var(--lum-fg-muted);
+  --lum-table-row-hover: var(--lum-bg-hover);
+  --lum-table-row-selected: var(--lum-accent-muted);
+  --lum-table-cell-padding: var(--lum-space-2) var(--lum-space-3);
+  --lum-table-font-size: var(--lum-text-md);
+  --lum-table-radius: var(--lum-radius-lg);
+}
+
+.lum-table-wrapper {
+  overflow: auto;
+  border: var(--lum-table-border);
+  border-radius: var(--lum-table-radius);
+}
+
+.lum-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--lum-table-font-size);
+
+  th {
+    position: sticky;
+    top: 0;
+    padding: var(--lum-table-cell-padding);
+    text-align: left;
+    font-weight: var(--lum-font-weight-semibold);
+    color: var(--lum-table-header-fg);
+    background: var(--lum-table-header-bg);
+    border-bottom: var(--lum-table-border);
+    white-space: nowrap;
+    user-select: none;
+
+    &[data-sortable] { cursor: pointer; &:hover { color: var(--lum-fg); } }
+    &[data-sorted="asc"], &[data-sorted="desc"] { color: var(--lum-accent); }
+  }
+
+  td {
+    padding: var(--lum-table-cell-padding);
+    border-bottom: var(--lum-table-border);
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  tbody tr { transition: background var(--lum-transition-fast); &:hover { background: var(--lum-table-row-hover); } }
+
+  tr.selected, tr[aria-selected="true"] { background: var(--lum-table-row-selected); }
+}

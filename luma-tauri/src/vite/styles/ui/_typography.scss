@@ -1,0 +1,50 @@
+/* ==========================================================================
+ * 4. TYPOGRAPHY
+ * ========================================================================== */
+
+h1, .lum-h1 { font-size: var(--lum-text-2xl); font-weight: var(--lum-font-weight-bold); color: var(--lum-fg-strong); }
+h2, .lum-h2 { font-size: var(--lum-text-xl);  font-weight: var(--lum-font-weight-semibold); color: var(--lum-fg-strong); }
+h3, .lum-h3 { font-size: var(--lum-text-lg);  font-weight: var(--lum-font-weight-semibold); color: var(--lum-fg); }
+h4, .lum-h4 { font-size: var(--lum-text-md);  font-weight: var(--lum-font-weight-medium); color: var(--lum-fg); }
+small, .lum-small { font-size: var(--lum-text-sm); }
+.lum-caption { font-size: var(--lum-text-xs); color: var(--lum-fg-muted); }
+.lum-text-muted { color: var(--lum-fg-muted); }
+.lum-text-subtle { color: var(--lum-fg-subtle); }
+.lum-text-strong { color: var(--lum-fg-strong); font-weight: var(--lum-font-weight-semibold); }
+.lum-text-success { color: var(--lum-success); }
+.lum-text-warning { color: var(--lum-warning); }
+.lum-text-danger { color: var(--lum-danger); }
+
+/* --------------------------------------------------------------------------
+ * Links
+ * -------------------------------------------------------------------------- */
+
+a, .lum-link {
+  color: var(--lum-link);
+  text-decoration: none;
+  transition: color var(--lum-transition-fast);
+
+  &:hover { color: var(--lum-link-hover); text-decoration: underline; }
+  &:visited { color: var(--lum-link-visited); }
+  &:focus-visible { outline: 2px solid var(--lum-focus-ring); outline-offset: 1px; }
+}
+
+/* --------------------------------------------------------------------------
+ * Keyboard key hints
+ * -------------------------------------------------------------------------- */
+
+kbd, .lum-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  font-family: var(--lum-font-mono);
+  font-size: var(--lum-text-xs);
+  color: var(--lum-fg-muted);
+  background: var(--lum-bg-raised);
+  border: 1px solid var(--lum-border-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--lum-radius-sm);
+}

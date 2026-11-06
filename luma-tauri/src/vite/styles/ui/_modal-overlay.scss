@@ -1,0 +1,73 @@
+/* ==========================================================================
+ * 15. DIALOG / MODAL / OVERLAY
+ * ========================================================================== */
+
+:root {
+  --lum-modal-width: 480px;
+  --lum-modal-bg: var(--lum-bg-overlay);
+  --lum-modal-border: 1px solid var(--lum-border-strong);
+  --lum-modal-radius: var(--lum-radius-xl);
+  --lum-modal-padding: var(--lum-space-5);
+  --lum-modal-shadow: var(--lum-shadow-3);
+  --lum-modal-title-size: var(--lum-text-lg);
+  --lum-backdrop-filter: var(--lum-overlay-blur);
+}
+
+.lum-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--lum-z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--lum-space-8);
+  background: var(--lum-backdrop);
+  backdrop-filter: var(--lum-backdrop-filter);
+  animation: lum-fade-in var(--lum-transition-fast);
+}
+
+.lum-modal {
+  width: var(--lum-modal-width);
+  max-width: 100%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  padding: var(--lum-modal-padding);
+  background: var(--lum-modal-bg);
+  border: var(--lum-modal-border);
+  border-radius: var(--lum-modal-radius);
+  box-shadow: var(--lum-modal-shadow);
+  animation: lum-pop-in var(--lum-transition-fast);
+
+  &.sm { --lum-modal-width: 360px; }
+  &.lg { --lum-modal-width: 720px; }
+  &.xl { --lum-modal-width: 960px; }
+}
+
+.lum-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--lum-space-3);
+  margin-bottom: var(--lum-space-3);
+  border-bottom: 1px solid var(--lum-border);
+
+  .lum-modal-title { font-size: var(--lum-modal-title-size); font-weight: var(--lum-font-weight-semibold); }
+}
+
+.lum-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: var(--lum-space-3);
+}
+
+.lum-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--lum-space-2);
+  padding-top: var(--lum-space-3);
+  border-top: 1px solid var(--lum-border);
+}
+
+/* Non-dismissable */
+.lum-modal[aria-modal="true"][data-static] .lum-overlay-literal { pointer-events: none; }

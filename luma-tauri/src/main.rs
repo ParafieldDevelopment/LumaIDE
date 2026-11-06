@@ -2,6 +2,7 @@
 
 pub mod startup_window;
 mod error_report;
+pub mod main_window;
 
 use std::panic::{self, AssertUnwindSafe};
 use std::process::ExitCode;
@@ -93,6 +94,9 @@ fn build_tauri_app() -> Result<tauri::App> {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}))
         .plugin(tauri_plugin_window_state::Builder::new().build())
+        .invoke_handler(
+            tauri::generate_handler![]
+        )
         .plugin(
             tauri_plugin_log::Builder::new()
                 .targets([tauri_plugin_log::Target::new(
@@ -109,7 +113,10 @@ fn build_tauri_app() -> Result<tauri::App> {
         .setup(|app| {
             log::info!("Tauri ready");
             error_report::set_app_handle(app.handle().clone());
+
             startup_window::startup_window(app.handle().clone()).context("Failed to initialize startup window")?;
+            main_window::main_window(app.handle().clone()).context("Failed to initialize main window")?;
+
             Ok(())
         })
         .build(tauri::generate_context!())

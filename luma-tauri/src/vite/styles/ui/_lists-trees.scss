@@ -1,0 +1,129 @@
+/* ==========================================================================
+ * 20. LISTS / TREES (IDE explorer flavor)
+ * ========================================================================== */
+
+:root {
+  --lum-list-item-height: 26px;
+  --lum-list-item-radius: var(--lum-radius-sm);
+  --lum-list-item-fg: var(--lum-fg);
+  --lum-list-item-bg-hover: var(--lum-bg-hover);
+  --lum-list-item-bg-selected: var(--lum-accent-muted);
+  --lum-list-item-fg-selected: var(--lum-fg-strong);
+  --lum-list-item-bg-active: var(--lum-bg-active);
+  --lum-tree-indent: 16px;
+}
+
+.lum-list {
+  display: flex;
+  flex-direction: column;
+  padding: var(--lum-space-1);
+}
+
+.lum-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--lum-space-2);
+  height: var(--lum-list-item-height);
+  min-width: 0;
+  padding: 0 var(--lum-space-2);
+  font-size: var(--lum-text-md);
+  color: var(--lum-list-item-fg);
+  background: none;
+  border: none;
+  border-radius: var(--lum-list-item-radius);
+  cursor: pointer;
+  overflow: hidden;
+  transition: background var(--lum-transition-fast);
+
+  &:hover { background: var(--lum-list-item-bg-hover); }
+  &.selected, &[aria-selected="true"] {
+    background: var(--lum-list-item-bg-selected);
+    color: var(--lum-list-item-fg-selected);
+  }
+  &:active { background: var(--lum-list-item-bg-active); }
+  &.disabled { opacity: 0.4; pointer-events: none; }
+
+  .lum-list-item-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .lum-list-item-trailing { margin-left: auto; flex-shrink: 0; }
+}
+
+/* ----- Multi-column virtual list (e.g. command palette results) ----- */
+.lum-list-item .lum-list-item-meta {
+  margin-left: auto;
+  font-size: var(--lum-text-xs);
+  color: var(--lum-fg-subtle);
+  flex-shrink: 0;
+}
+
+/* ----- Tree ----- */
+
+.lum-tree {
+  display: flex;
+  flex-direction: column;
+  padding: var(--lum-space-1);
+  font-size: var(--lum-text-md);
+}
+
+.lum-tree-item {
+  display: flex;
+  align-items: center;
+  gap: var(--lum-space-1);
+  height: var(--lum-list-item-height);
+  min-width: 0;
+  padding-left: calc(var(--lum-tree-indent) * var(--lum-tree-depth, 0) + var(--lum-space-2));
+  padding-right: var(--lum-space-2);
+  color: var(--lum-list-item-fg);
+  background: none;
+  border: none;
+  border-radius: var(--lum-list-item-radius);
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: background var(--lum-transition-fast);
+
+  &:hover { background: var(--lum-list-item-bg-hover); }
+  &.selected, &[aria-selected="true"] {
+    background: var(--lum-list-item-bg-selected);
+    color: var(--lum-list-item-fg-selected);
+  }
+  &.cut { opacity: 0.55; }
+}
+
+.lum-tree-chevron {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--lum-fg-subtle);
+  transition: transform var(--lum-transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  &::before {
+    content: "";
+    width: 5px;
+    height: 5px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(-45deg) translate(-1px, -1px);
+  }
+
+  &.open { transform: rotate(90deg) translate(0, 0); }
+  &.leaf { visibility: hidden; }
+}
+
+.lum-tree-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &.italic { color: var(--lum-fg-subtle); font-style: italic; } /* git-ignored */
+}
+
+.lum-tree-children { display: none; }
+.lum-tree-item.open + .lum-tree-children { display: flex; flex-direction: column; }

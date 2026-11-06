@@ -1,0 +1,83 @@
+/* ==========================================================================
+ * 7. CHECKBOX
+ * Custom-drawn native checkbox (appearance:none) for full theming.
+ * Treats :checked and :indeterminate.
+ * ========================================================================== */
+
+:root {
+  --lum-checkbox-size: 16px;
+  --lum-checkbox-border-radius: var(--lum-radius-sm);
+  --lum-checkbox-bg: var(--lum-input-bg);
+  --lum-checkbox-bg-checked: var(--lum-accent);
+  --lum-checkbox-bg-hover: var(--lum-input-bg-hover);
+  --lum-checkbox-border: 1px solid var(--lum-border-strong);
+  --lum-checkbox-border-checked: 1px solid transparent;
+  --lum-checkbox-check-fg: var(--lum-accent-fg);
+}
+
+.lum-checkbox {
+  appearance: none;
+  width: var(--lum-checkbox-size);
+  height: var(--lum-checkbox-size);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--lum-checkbox-check-fg);
+  background: var(--lum-checkbox-bg);
+  border: var(--lum-checkbox-border);
+  border-radius: var(--lum-checkbox-border-radius);
+  cursor: pointer;
+  transition: background var(--lum-transition-fast), border-color var(--lum-transition-fast);
+
+  &::before {
+    content: "";
+    /* checkmark */
+    width: 9px;
+    height: 5px;
+    border-left: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(-45deg) translate(0px, -1px);
+    opacity: 0;
+    scale: 0.5;
+    transition: opacity var(--lum-transition-fast), scale var(--lum-transition-fast);
+  }
+
+  &:hover:not(:disabled) { background: var(--lum-checkbox-bg-hover); }
+  &:checked, &:indeterminate { background: var(--lum-checkbox-bg-checked); border: var(--lum-checkbox-border-checked); }
+  &:checked::before { opacity: 1; scale: 1; }
+
+  &:indeterminate {
+    &::before {
+      width: 8px;
+      height: 0;
+      border: none;
+      border-top: 2px solid currentColor;
+      transform: none;
+      translate: 0 1px;
+      opacity: 1;
+      scale: 1;
+    }
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--lum-focus-ring);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+/* Checkbox row (label wrapping a checkbox) */
+.lum-checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lum-space-2);
+  cursor: pointer;
+
+  &:hover .lum-checkbox:not(:disabled) { background: var(--lum-checkbox-bg-hover); }
+  &.disabled { opacity: 0.4; cursor: not-allowed; }
+}

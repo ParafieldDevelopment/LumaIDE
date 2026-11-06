@@ -1,0 +1,125 @@
+/* ==========================================================================
+ * 16. MENUS / CONTEXT MENU / POPPOVER / TOOLTP
+ * ========================================================================== */
+
+:root {
+  --lum-menu-bg: var(--lum-bg-overlay);
+  --lum-menu-border: 1px solid var(--lum-border-strong);
+  --lum-menu-radius: var(--lum-radius-lg);
+  --lum-menu-padding: 4px;
+  --lum-menu-shadow: var(--lum-shadow-2);
+  --lum-menu-item-height: 26px;
+  --lum-menu-item-radius: var(--lum-radius-md);
+  --lum-menu-item-fg: var(--lum-fg);
+  --lum-menu-item-fg-hover: var(--lum-fg-strong);
+  --lum-menu-item-bg-hover: var(--lum-accent-muted);
+  --lum-menu-item-bg-active: var(--lum-accent);
+  --lum-menu-item-bg-active-fg: var(--lum-accent-fg);
+  --lum-menu-separator-color: var(--lum-border);
+  --lum-menu-shortcut-fg: var(--lum-fg-subtle);
+}
+
+.lum-menu {
+  z-index: var(--lum-z-popover);
+  min-width: 180px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: var(--lum-menu-padding);
+  background: var(--lum-menu-bg);
+  border: var(--lum-menu-border);
+  border-radius: var(--lum-menu-radius);
+  box-shadow: var(--lum-menu-shadow);
+  animation: lum-pop-in var(--lum-transition-fast);
+}
+
+.lum-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--lum-space-2);
+  height: var(--lum-menu-item-height);
+  padding: 0 var(--lum-space-2);
+  font-size: var(--lum-text-md);
+  color: var(--lum-menu-item-fg);
+  background: none;
+  border: none;
+  border-radius: var(--lum-menu-item-radius);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--lum-transition-fast);
+
+  svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+  &:hover, &[data-highlighted] { background: var(--lum-menu-item-bg-hover); color: var(--lum-menu-item-fg-hover); }
+  &:active { background: var(--lum-menu-item-bg-active); color: var(--lum-menu-item-bg-active-fg); }
+  &.danger { color: var(--lum-danger); &:hover { background: var(--lum-danger-muted); } }
+  &:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
+
+  .lum-menu-shortcut { margin-left: auto; color: var(--lum-menu-shortcut-fg); font-size: var(--lum-text-xs); }
+}
+
+.lum-menu-label {
+  padding: var(--lum-space-2) var(--lum-space-2) var(--lum-space-1);
+  font-size: var(--lum-text-xs);
+  font-weight: var(--lum-font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--lum-fg-subtle);
+}
+
+.lum-menu-separator {
+  height: 1px;
+  margin: var(--lum-space-1) 0;
+  background: var(--lum-menu-separator-color);
+}
+
+/* ----- Popover (positioned container, JS handles position) ----- */
+
+.lum-popover {
+  position: absolute;
+  z-index: var(--lum-z-popover);
+  padding: var(--lum-space-3);
+  background: var(--lum-menu-bg);
+  border: var(--lum-menu-border);
+  border-radius: var(--lum-menu-radius);
+  box-shadow: var(--lum-menu-shadow);
+  animation: lum-pop-in var(--lum-transition-fast);
+}
+
+/* ----- Tooltip (data-tip attribute driven) ----- */
+
+:root {
+  --lum-tooltip-fg: var(--lum-fg);
+  --lum-tooltip-radius: var(--lum-radius-md);
+  --lum-tooltip-font-size: var(--lum-text-xs);
+  --lum-tooltip-padding: 4px 8px;
+}
+
+.lum-tooltip {
+  position: relative;
+
+  &::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    translate: -50% 0;
+    padding: var(--lum-tooltip-padding);
+    font-size: var(--lum-tooltip-font-size);
+    white-space: nowrap;
+    color: var(--lum-tooltip-fg);
+    background: var(--lum-tooltip-bg);
+    border: 1px solid var(--lum-border-strong);
+    border-radius: var(--lum-tooltip-radius);
+    box-shadow: var(--lum-shadow-1);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    z-index: var(--lum-z-tooltip) + 1;
+    transition: opacity var(--lum-transition-fast) 0.35s, translate var(--lum-transition-fast);
+  }
+
+  &:hover::after {
+    opacity: 1;
+    visibility: visible;
+  }
+}

@@ -1,0 +1,181 @@
+/* ==========================================================================
+ * 6. FORM FIELDS
+ * ========================================================================== */
+
+:root {
+  --lum-input-height: var(--lum-control-height);
+  --lum-input-padding: 0 var(--lum-space-2);
+  --lum-input-border-radius: var(--lum-radius-md);
+  --lum-input-bg: var(--lum-bg-sunken);
+  --lum-input-bg-hover: var(--lum-bg-surface);
+  --lum-input-bg-focus: var(--lum-bg-sunken);
+  --lum-input-fg: var(--lum-fg);
+  --lum-input-placeholder: var(--lum-fg-subtle);
+  --lum-input-border: 1px solid var(--lum-border-strong);
+  --lum-input-border-hover: 1px solid var(--lum-gray-600);
+  --lum-input-border-focus: 1px solid var(--lum-border-focus);
+  --lum-caret-color: var(--lum-accent);
+
+  --lum-label-fg: var(--lum-fg-muted);
+  --lum-label-font-size: var(--lum-text-sm);
+  --lum-label-font-weight: var(--lum-font-weight-medium);
+
+  --lum-fieldset-gap: var(--lum-space-2);
+  --lum-fieldset-help-fg: var(--lum-fg-subtle);
+  --lum-fieldset-help-font-size: var(--lum-text-xs);
+  --lum-fieldset-error-fg: var(--lum-danger);
+}
+
+/* ----- Text inputs / selects / textareas (shared core) ----- */
+
+.lum-input,
+.lum-select,
+.lum-textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: var(--lum-text-md);
+  color: var(--lum-input-fg);
+  background: var(--lum-input-bg);
+  border: var(--lum-input-border);
+  border-radius: var(--lum-input-border-radius);
+  caret-color: var(--lum-caret-color);
+  transition: background var(--lum-transition-fast), border-color var(--lum-transition-fast), box-shadow var(--lum-transition-fast);
+
+  &::placeholder { color: var(--lum-input-placeholder); opacity: 1; }
+  &:hover:not(:disabled) { background: var(--lum-input-bg-hover); border: var(--lum-input-border-hover); }
+  &:focus-visible {
+    outline: none;
+    border: var(--lum-input-border-focus);
+    box-shadow: 0 0 0 1px var(--lum-border-focus);
+    background: var(--lum-input-bg-focus);
+  }
+  &:disabled { opacity: 0.45; cursor: not-allowed; }
+  &[aria-invalid="true"] {
+    border-color: var(--lum-danger);
+    box-shadow: 0 0 0 1px var(--lum-danger);
+  }
+}
+
+.lum-input,
+.lum-select {
+  height: var(--lum-input-height);
+  padding: var(--lum-input-padding);
+}
+
+.lum-textarea {
+  min-height: 64px;
+  padding: var(--lum-space-2);
+  resize: vertical;
+  line-height: var(--lum-line-height);
+  user-select: text;
+}
+
+.lum-input { user-select: text; cursor: text; }
+
+/* Size variants */
+.lum-input-sm, .lum-select-sm { height: var(--lum-control-height-sm); font-size: var(--lum-text-sm); }
+.lum-input-lg, .lum-select-lg { height: var(--lum-control-height-lg); font-size: var(--lum-text-lg); }
+
+/* Input with leading/trailing icon */
+.lum-input-group {
+  position: relative;
+  display: inline-flex;
+  width: 100%;
+
+  > svg {
+    position: absolute;
+    top: 50%;
+    translate: 0 -50%;
+    width: 15px;
+    height: 15px;
+    color: var(--lum-fg-subtle);
+    pointer-events: none;
+  }
+
+  &[data-icon="start"] > svg { left: var(--lum-space-2); }
+  &[data-icon="end"] > svg { right: var(--lum-space-2); }
+  &[data-icon="start"] .lum-input { padding-left: 28px; }
+  &[data-icon="end"] .lum-input { padding-right: 28px; }
+}
+
+/* ----- Number input (styled native spinners) ----- */
+
+.lum-input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+}
+
+.lum-number {
+  display: inline-flex;
+  align-items: stretch;
+  width: 120px;
+
+  .lum-input {
+    text-align: center;
+    width: 100%;
+  }
+
+  .lum-number-btn {
+    width: 20px;
+    color: var(--lum-fg-muted);
+    background: var(--lum-bg-raised);
+    border: 1px solid var(--lum-border);
+    cursor: pointer;
+    font-size: var(--lum-text-xs);
+    transition: background var(--lum-transition-fast);
+
+    &:first-child { border-radius: var(--lum-input-border-radius) 0 0 var(--lum-input-border-radius); }
+    &:last-child { border-radius: 0 var(--lum-input-border-radius) var(--lum-input-border-radius) 0; }
+    &:hover { background: var(--lum-bg-hover); color: var(--lum-fg); }
+  }
+}
+
+/* ----- Select ----- */
+
+.lum-select {
+  appearance: none;
+  cursor: pointer;
+  padding-right: 26px;
+
+  option { background: var(--lum-bg-surface); color: var(--lum-fg); }
+}
+
+.lum-select-wrapper {
+  position: relative;
+  display: inline-flex;
+  width: 100%;
+
+  &::after {
+    content: "";
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    width: 7px;
+    height: 7px;
+    border-right: 1.5px solid var(--lum-fg-muted);
+    border-bottom: 1.5px solid var(--lum-fg-muted);
+    transform: translateY(-60%) rotate(45deg);
+    pointer-events: none;
+  }
+}
+
+.lum-select:disabled {
+  cursor: not-allowed;
+}
+
+/* ----- Native select optgroup colors ----- */
+.lum-select optgroup {
+  color: var(--lum-fg-muted);
+  font-style: normal;
+}
+
+/* ----- Search field ----- */
+.lum-search .lum-input {
+  border-radius: var(--lum-radius-round);
+}

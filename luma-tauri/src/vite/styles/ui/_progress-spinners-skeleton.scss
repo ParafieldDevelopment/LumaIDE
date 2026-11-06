@@ -1,0 +1,121 @@
+/* ==========================================================================
+ * 11. PROGRESS / SPINNERS / SKELETON
+ * ========================================================================== */
+
+:root {
+  --lum-progress-height: 6px;
+  --lum-progress-radius: var(--lum-radius-round);
+  --lum-progress-track-bg: var(--lum-gray-800);
+  --lum-progress-bar-bg: var(--lum-accent);
+  --lum-progress-bar-striped-color: rgba(255, 255, 255, 0.22);
+  --lum-skeleton-bg: var(--lum-gray-800);
+  --lum-skeleton-highlight: var(--lum-gray-700);
+  --lum-spinner-color: var(--lum-accent);
+  --lum-spinner-size: 16px;
+  --lum-spinner-thickness: 2px;
+}
+
+/* ----- Determinate progress ----- */
+
+.lum-progress {
+  width: 100%;
+  height: var(--lum-progress-height);
+  background: var(--lum-progress-track-bg);
+  border-radius: var(--lum-progress-radius);
+  overflow: hidden;
+}
+
+.lum-progress-bar {
+  height: 100%;
+  background: var(--lum-progress-bar-bg);
+  border-radius: var(--lum-progress-radius);
+  width: 0%;
+  transition: width var(--lum-transition-slow);
+
+  &[data-striped] {
+    background-image: linear-gradient(45deg,
+      var(--lum-progress-bar-striped-color) 25%, transparent 25%,
+      transparent 50%, var(--lum-progress-bar-striped-color) 50%,
+      var(--lum-progress-bar-striped-color) 75%, transparent 75%);
+    background-size: 12px 12px;
+    animation: lum-progress-stripes 0.8s linear infinite;
+  }
+}
+
+/* Colors */
+.lum-progress-bar.success { background: var(--lum-success); }
+.lum-progress-bar.warning { background: var(--lum-warning); }
+.lum-progress-bar.danger  { background: var(--lum-danger); }
+
+/* ----- Indeterminate progress ----- */
+/* macOS-style: bar slides in from the left, accelerates across and exits
+ * right, then re-enters from the left. margin-left/%WIDTH percentages are
+ * relative to the TRACK, not the bar, so it can traverse the full width. */
+
+.lum-progress[data-indeterminate] .lum-progress-bar {
+  width: 40%;
+  animation: lum-progress-indeterminate 1.4s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+/* ----- Spinner ----- */
+
+.lum-spinner {
+  display: inline-block;
+  width: var(--lum-spinner-size);
+  height: var(--lum-spinner-size);
+  border: var(--lum-spinner-thickness) solid transparent;
+  border-top-color: var(--lum-spinner-color);
+  border-right-color: var(--lum-spinner-color);
+  border-radius: 50%;
+  animation: lum-spin 0.7s linear infinite;
+}
+
+.lum-spinner.sm { --lum-spinner-size: 12px; }
+.lum-spinner.lg { --lum-spinner-size: 28px; --lum-spinner-thickness: 3px; }
+.lum-spinner.success { --lum-spinner-color: var(--lum-success); }
+.lum-spinner.warning { --lum-spinner-color: var(--lum-warning); }
+.lum-spinner.danger  { --lum-spinner-color: var(--lum-danger); }
+
+/* ----- Dots loader ----- */
+
+.lum-dots {
+  display: inline-flex;
+  gap: 4px;
+
+  &::before,
+  &::after,
+  i {
+    content: "";
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--lum-fg-muted);
+    animation: lum-dots-pulse 1.2s ease-in-out infinite;
+  }
+
+  i { animation-delay: 0.15s; }
+  &::after { animation-delay: 0.3s; }
+}
+
+/* ----- Skeleton loader ----- */
+
+.lum-skeleton {
+  background: var(--lum-skeleton-bg);
+  border-radius: var(--lum-radius-md);
+  position: relative;
+  overflow: hidden;
+  min-height: 14px;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, var(--lum-skeleton-highlight), transparent);
+    transform: translateX(-100%);
+    animation: lum-skeleton-shimmer 1.6s infinite;
+  }
+
+  &.text { height: var(--lum-text-sm); margin-top: 4px; }
+  &.rect { height: 64px; }
+  &.circle { border-radius: 50%; width: 36px; height: 36px; }
+}

@@ -1,0 +1,373 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="ALL" />
+  </component>
+  <component name="CargoProjects">
+    <cargoProject FILE="$PROJECT_DIR$/Cargo.toml">
+      <package file="$PROJECT_DIR$/luma-core">
+        <feature name="default" enabled="true" />
+      </package>
+      <package file="$PROJECT_DIR$/luma-diagnostics">
+        <feature name="default" enabled="true" />
+      </package>
+      <package file="$PROJECT_DIR$/luma-extensions">
+        <feature name="default" enabled="true" />
+      </package>
+      <package file="$PROJECT_DIR$/luma-tauri">
+        <feature name="default" enabled="true" />
+      </package>
+    </cargoProject>
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="b060abbc-0d3b-4e31-91a5-7f9f53f1dc28" name="Changes" comment="windoww">
+      <change afterPath="$PROJECT_DIR$/.idea/LumaIDE.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/icon.svg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/main_window.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/style.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_accordion.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_alerts-toasts.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_animations.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_avatar.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_badges-chips.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_buttons.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_cards-panels.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_checkbox.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_code-block.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_command-palette.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_divider.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_form-fields.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_form-layout.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_foundation.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_index.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_lists-trees.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_menus-popovers.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_modal-overlay.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_navigation.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_progress-spinners-skeleton.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_radio.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_reduced-motion.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_slider.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_split-pane.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_switch.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_table.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_tabs.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_toolbar.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/ui/_typography.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/uicomponents.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/Index.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/Settings.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/Showcase.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/Startup.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumAccordion.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumAccordionItem.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumAlert.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumAvatar.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumBadge.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumBreadcrumbs.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumButton.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumCard.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumCheckbox.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumChip.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumCodeBlock.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumCommandPalette.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumDivider.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumField.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumFileTabs.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumIconBtn.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumInput.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumKbd.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumList.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumListItem.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumMenu.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumMenuItem.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumModal.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumNumber.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumPagination.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumProgress.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumRadio.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumSelect.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumSidenav.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumSidenavItem.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumSkeleton.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumSlider.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumSpinner.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumSwitch.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumTable.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumTabs.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumTextarea.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumToasts.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumToolbar.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumTooltip.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumTree.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumTreeNode.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/index.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/toasts.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/types.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/luma-tauri/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/luma-tauri/src/startup_window.rs" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/startup_window.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/luma-tauri/src/vite/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/vite/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/luma-tauri/src/vite/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/vite/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/luma-tauri/src/vite/windows/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/vite/windows/index.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/luma-tauri/src/vite/windows/settings.ts" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/vite/windows/settings.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/luma-tauri/src/vite/windows/startup.ts" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/vite/windows/startup.ts" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="EmbeddingIndexingInfo">
+    <option name="cachedIndexableFilesCount" value="60" />
+    <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
+  </component>
+  <component name="ExecutionTargetManager" SELECTED_TARGET="RsBuildProfile:dev" />
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Vue Composition API Component" />
+        <option value="Rust File" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;mas6y6&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/ParafieldDevelopment/LumaIDE.git&quot;,
+    &quot;accountId&quot;: &quot;a52e6066-0d91-4c9a-a3d2-c88cf57f819b&quot;
+  }
+}</component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$PROJECT_DIR$/src/rust/lib.rs" root0="SKIP_INSPECTION" />
+    <setting file="file://$PROJECT_DIR$/src/rust/splashscreen.rs" root0="SKIP_INSPECTION" />
+  </component>
+  <component name="MacroExpansionManager">
+    <option name="directoryName" value="vBssVEYf" />
+  </component>
+  <component name="McpProjectServerCommands">
+    <commands />
+    <urls />
+  </component>
+  <component name="NextEditCompletionFeaturesState">
+    <decayedCancelled>
+      <entry key="MS100" value="1.11429344653994" />
+      <entry key="MS500" value="1.793159074207382" />
+      <entry key="S2" value="2.514480354728658" />
+      <entry key="S5" value="2.782041822610763" />
+      <entry key="S10" value="2.886560678305149" />
+      <entry key="S30" value="2.961375035970879" />
+      <entry key="S60" value="3.013120107205085" />
+      <entry key="M2" value="3.7528503103395847" />
+      <entry key="M5" value="9.335013969435487" />
+      <entry key="M10" value="17.52955288734125" />
+      <entry key="M15" value="25.386857362637592" />
+      <entry key="M30" value="62.78744959243493" />
+      <entry key="H1" value="194.61938565006247" />
+      <entry key="H2" value="486.102922388617" />
+      <entry key="H4" value="930.2368189087397" />
+      <entry key="D1" value="1963.5453611228775" />
+      <entry key="W1" value="2290.5173746150735" />
+    </decayedCancelled>
+    <decayedSelected>
+      <entry key="MS100" value="0.0" />
+      <entry key="MS500" value="7.169960444725514E-223" />
+      <entry key="S2" value="2.90990754064359E-56" />
+      <entry key="S5" value="6.103116723195384E-23" />
+      <entry key="S10" value="7.812317894195123E-12" />
+      <entry key="S30" value="2.0763874200616848E-4" />
+      <entry key="S60" value="0.0206691816284151" />
+      <entry key="M2" value="0.3086833002096684" />
+      <entry key="M5" value="1.9862309984749114" />
+      <entry key="M10" value="4.469189202450818" />
+      <entry key="M15" value="6.812837304339855" />
+      <entry key="M30" value="14.400558524553839" />
+      <entry key="H1" value="30.991445806379357" />
+      <entry key="H2" value="58.952954062370765" />
+      <entry key="H4" value="96.59950853746956" />
+      <entry key="D1" value="178.9039517089687" />
+      <entry key="W1" value="204.258243465516" />
+    </decayedSelected>
+    <decayedShown>
+      <entry key="MS100" value="1.0771026992269168" />
+      <entry key="MS500" value="1.781067105054173" />
+      <entry key="S2" value="2.5097969702918745" />
+      <entry key="S5" value="2.779904193238928" />
+      <entry key="S10" value="2.885439518968485" />
+      <entry key="S30" value="2.961182481081986" />
+      <entry key="S60" value="3.0324467648160685" />
+      <entry key="M2" value="4.051701864728217" />
+      <entry key="M5" value="11.296587339470134" />
+      <entry key="M10" value="21.97165727964967" />
+      <entry key="M15" value="32.173383291315034" />
+      <entry key="M30" value="77.16340532970621" />
+      <entry key="H1" value="225.58682404300802" />
+      <entry key="H2" value="545.0331832629183" />
+      <entry key="H4" value="1026.8163409919764" />
+      <entry key="D1" value="2142.4422324402763" />
+      <entry key="W1" value="2494.774429022873" />
+    </decayedShown>
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 7,
+  &quot;fromUser&quot;: false
+}</component>
+  <component name="ProjectId" id="3LPqdB3orqxecRJdqxOinCaGm1Q" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Cargo.Build.executor": "Run",
+    "Cargo.Debug.executor": "Run",
+    "Cargo.Run.executor": "Run",
+    "CidrDebugProfileConversion": "true",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.MCP Project settings loaded": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.rust.reset.selective.auto.import": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "app.teamhub.selectedTeam": "https://github.com/ParafieldDevelopment/LumaIDE",
+    "codeWithMe.voiceChat.enabledByDefault": "false",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
+    "git-widget-placeholder": "main",
+    "junie.onboarding.icon.badge.shown": "true",
+    "last_opened_file_path": "C:/Users/mel02/RustroverProjects/LumaIDE/src-tauri",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.jshint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.jshint": "",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
+    "org.rust.cargo.project.model.impl.CargoExternalSystemProjectAware.subscribe.first.balloon": "",
+    "org.rust.first.attach.projects": "true",
+    "python.packages.toolwindow.project.migrated.to.right.top.v2": "true",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "to.speed.mode.migration.done": "true",
+    "ts.external.directory.path": "C:\\Users\\mel02\\RustroverProjects\\LumaIDE\\luma-tauri\\src\\vite\\node_modules\\typescript\\lib"
+  },
+  "keyToStringList": {
+    "vue.recent.templates": [
+      "Vue Composition API Component"
+    ]
+  }
+}]]></component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\mel02\RustroverProjects\LumaIDE\src-tauri" />
+      <recent name="$PROJECT_DIR$/icons" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\mel02\RustroverProjects\LumaIDE\luma-tauri\src\vite\styles" />
+      <recent name="C:\Users\mel02\RustroverProjects\LumaIDE\luma-tauri\src\vite\windows" />
+      <recent name="C:\Users\mel02\RustroverProjects\LumaIDE\luma-tauri\src\vite" />
+      <recent name="C:\Users\mel02\RustroverProjects\LumaIDE\luma-tauri\src\vite\ts" />
+      <recent name="C:\Users\mel02\RustroverProjects\LumaIDE\icons" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Cargo.Debug">
+    <configuration name="Build" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+      <option name="command" value="build" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <envs />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Build" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+      <option name="command" value="tauri build" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <envs />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Debug" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+      <option name="command" value="tauri dev" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$/luma-tauri" />
+      <envs />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <list>
+      <item itemvalue="Cargo.Debug" />
+      <item itemvalue="Cargo.Build" />
+    </list>
+  </component>
+  <component name="RustProjectSettings">
+    <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="b060abbc-0d3b-4e31-91a5-7f9f53f1dc28" name="Changes" comment="" />
+      <created>1793366137127</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1793366137127</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Literally the bare bones right now." />
+    <MESSAGE value="j" />
+    <MESSAGE value="i have no idea what i am doing x2" />
+    <MESSAGE value="restructure" />
+    <MESSAGE value="forgot to commit things" />
+    <MESSAGE value="Icon" />
+    <MESSAGE value="icon.icns" />
+    <MESSAGE value="rename" />
+    <MESSAGE value="error handling" />
+    <MESSAGE value="windoww" />
+    <option name="LAST_COMMIT_MESSAGE" value="windoww" />
+  </component>
+  <component name="XSLT-Support.FileAssociations.UIState">
+    <expand />
+    <select />
+  </component>
+</project>

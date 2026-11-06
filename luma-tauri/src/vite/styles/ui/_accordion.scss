@@ -1,0 +1,51 @@
+/* ==========================================================================
+ * 22. ACCORDION / COLLAPSIBLE
+ * ========================================================================== */
+
+.lum-accordion {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--lum-border);
+  border-radius: var(--lum-radius-lg);
+  overflow: hidden;
+
+  & > * + * { border-top: 1px solid var(--lum-border); }
+}
+
+.lum-accordion-item { display: flex; flex-direction: column; }
+
+.lum-accordion-header {
+  display: flex;
+  align-items: center;
+  gap: var(--lum-space-2);
+  padding: var(--lum-space-3);
+  font-size: var(--lum-text-md);
+  font-weight: var(--lum-font-weight-medium);
+  color: var(--lum-fg);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background var(--lum-transition-fast);
+
+  &:hover { background: var(--lum-bg-hover); }
+
+  &::after {
+    content: "";
+    width: 6px;
+    height: 6px;
+    margin-left: auto;
+    border-right: 1.5px solid var(--lum-fg-muted);
+    border-bottom: 1.5px solid var(--lum-fg-muted);
+    transform: rotate(45deg);
+    transition: transform var(--lum-transition);
+    flex-shrink: 0;
+  }
+}
+
+.lum-accordion-item.open > .lum-accordion-header::after { transform: rotate(225deg); }
+
+.lum-accordion-body {
+  padding: 0 var(--lum-space-3) var(--lum-space-3);
+  font-size: var(--lum-text-md);
+  color: var(--lum-fg-muted);
+}

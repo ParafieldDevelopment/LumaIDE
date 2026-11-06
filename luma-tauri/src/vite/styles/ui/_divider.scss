@@ -1,0 +1,25 @@
+/* ==========================================================================
+ * 24. DIVIDER
+ * ========================================================================== */
+
+.lum-divider {
+  border: none;
+  height: 1px;
+  margin: var(--lum-space-4) 0;
+  background: var(--lum-border);
+  flex-shrink: 0;
+
+  &.vertical { width: 1px; height: auto; align-self: stretch; margin: 0 var(--lum-space-2); }
+  &.dashed { background: none; border-top: 1px dashed var(--lum-border-strong); }
+  &.label {
+    display: flex;
+    align-items: center;
+    gap: var(--lum-space-2);
+    height: auto;
+    background: none;
+    &::before, &::after { content: ""; flex: 1; height: 1px; background: var(--lum-border); }
+    span { font-size: var(--lum-text-xs); color: var(--lum-fg-subtle); }
+  }
+}
+
+hr.lum-divider { height: 1px; }

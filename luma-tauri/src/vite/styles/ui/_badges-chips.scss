@@ -1,0 +1,79 @@
+/* ==========================================================================
+ * 12. BADGES / TAGS / CHIPS / COUNTERS
+ * ========================================================================== */
+
+:root {
+  --lum-badge-height: 18px;
+  --lum-badge-padding: 0 6px;
+  --lum-badge-font-size: var(--lum-text-xs);
+  --lum-badge-font-weight: var(--lum-font-weight-semibold);
+  --lum-badge-radius: var(--lum-radius-round);
+}
+
+.lum-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: var(--lum-badge-height);
+  padding: var(--lum-badge-padding);
+  font-size: var(--lum-badge-font-size);
+  font-weight: var(--lum-badge-font-weight);
+  white-space: nowrap;
+  color: var(--lum-fg-muted);
+  background: var(--lum-bg-raised);
+  border: 1px solid var(--lum-border);
+  border-radius: var(--lum-badge-radius);
+
+  svg { width: 12px; height: 12px; }
+}
+
+.lum-badge-primary { color: var(--lum-accent-fg); background: var(--lum-accent); border-color: transparent; }
+.lum-badge-success { color: var(--lum-success); background: var(--lum-success-muted); border-color: transparent; }
+.lum-badge-warning { color: var(--lum-warning); background: var(--lum-warning-muted); border-color: transparent; }
+.lum-badge-danger  { color: var(--lum-danger);  background: var(--lum-danger-muted);  border-color: transparent; }
+.lum-badge-info    { color: var(--lum-info);    background: var(--lum-info-muted);    border-color: transparent; }
+
+/* Soft (tinted) variants */
+.lum-badge-primary-soft { color: var(--lum-accent); background: var(--lum-accent-muted); border-color: transparent; }
+
+/* Dot-only status badge */
+.lum-badge-dot {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border-radius: 50%;
+  &.online  { background: var(--lum-success); }
+  &.idle    { background: var(--lum-warning); }
+  &.offline { background: var(--lum-gray-600); }
+  &.busy    { background: var(--lum-danger); }
+}
+
+/* ---- Removable chip/tag ---- */
+
+.lum-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 var(--lum-space-2);
+  font-size: var(--lum-text-sm);
+  color: var(--lum-fg);
+  background: var(--lum-bg-raised);
+  border: 1px solid var(--lum-border);
+  border-radius: var(--lum-radius-md);
+
+  .lum-chip-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    color: var(--lum-fg-subtle);
+    background: none;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+
+    &:hover { background: var(--lum-bg-hover); color: var(--lum-fg-strong); }
+  }
+}

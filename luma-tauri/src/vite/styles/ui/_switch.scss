@@ -1,0 +1,79 @@
+/* ==========================================================================
+ * 9. TOGGLE SWITCH
+ * Markup: <label class="lum-switch"><input type="checkbox"><span class="lum-switch-track"></span></label>
+ * Or plain: <input type="checkbox" class="lum-switch-input"> styled directly.
+ * ========================================================================== */
+
+:root {
+  --lum-switch-width: 34px;
+  --lum-switch-height: 18px;
+  --lum-switch-thumb-size: 14px;
+  --lum-switch-bg: var(--lum-bg-raised);
+  --lum-switch-bg-checked: var(--lum-accent);
+  --lum-switch-bg-hover: rgba(255, 255, 255, 0.10);
+  --lum-switch-border: 1px solid var(--lum-border-strong);
+  --lum-switch-thumb-bg: var(--lum-gray-200);
+  --lum-switch-thumb-bg-checked: var(--lum-accent-fg);
+  --lum-switch-glow: 0 0 4px rgba(88, 157, 246, 0.35);
+}
+
+.lum-switch {
+  position: relative;
+  display: inline-block;
+  width: var(--lum-switch-width);
+  height: var(--lum-switch-height);
+  cursor: pointer;
+
+  /* Visually hide the real input, keep focusability */
+  input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 1;
+  }
+}
+
+.lum-switch-track {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--lum-switch-bg);
+  border: var(--lum-switch-border);
+  border-radius: var(--lum-radius-round);
+  transition: background var(--lum-transition);
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 2px;
+    width: var(--lum-switch-thumb-size);
+    height: var(--lum-switch-thumb-size);
+    border-radius: 50%;
+    background: var(--lum-switch-thumb-bg);
+    transform: translateY(-50%);
+    transition: transform var(--lum-transition), background var(--lum-transition);
+  }
+}
+
+.lum-switch input:hover + .lum-switch-track { background: var(--lum-switch-bg-hover); }
+.lum-switch input:checked + .lum-switch-track {
+  background: var(--lum-switch-bg-checked);
+  border-color: transparent;
+  box-shadow: var(--lum-switch-glow);
+
+  &::before {
+    transform: translate(calc(var(--lum-switch-width) - var(--lum-switch-thumb-size) - 4px), -50%);
+    background: var(--lum-switch-thumb-bg-checked);
+  }
+}
+
+.lum-switch input:disabled { cursor: not-allowed; }
+.lum-switch input:disabled + .lum-switch-track { opacity: 0.4; }
+.lum-switch input:focus-visible + .lum-switch-track {
+  outline: 2px solid var(--lum-focus-ring);
+  outline-offset: 2px;
+}

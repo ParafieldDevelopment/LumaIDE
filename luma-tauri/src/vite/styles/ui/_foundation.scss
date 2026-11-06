@@ -1,0 +1,321 @@
+/* ==========================================================================
+ * LumaIDE — UI Component Style System (uicomponents.scss)
+ * ==========================================================================
+ *
+ * ARCHITECTURE (VS Code-style theming):
+ *
+ *   1. `:root` below defines the default theme as CSS custom properties.
+ *      All component styles reference these — never hard-coded values.
+ *
+ *   2. THERE ARE TWO VARIABLE TIERS:
+ *
+ *      a) Semantic tokens (--lum-bg-*, --lum-fg-*, --lum-accent-*, ...)
+ *         A theme that only wants to re-color the UI overrides these.
+ *
+ *      b) Component tokens (--lum-button-*, --lum-input-*, --lum-tab-*, ...)
+ *         A theme that wants to restyle ONE component (e.g. make all
+ *         switches pill-shaped) overrides these without touching anything
+ *         else.
+ *
+ *   3. HOW EXTENSIONS / THEMES WILL APPLY A THEME LATER:
+ *
+ *      Load theme CSS AFTER this stylesheet (higher source order = same
+ *      specificity wins), and simply re-declare variables, e.g.:
+ *
+ *        :root {
+ *          --lum-accent: #ff6b9d;
+ *          --lum-button-border-radius: 999px;
+ *        }
+ *
+ *      Optionally scope per theme with a data attribute when the loader
+ *      is built:
+ *
+ *        :root[data-luma-theme="nord"] { ... }
+ *
+ *      Because every component reads from variables, nothing else needs
+ *      to change for a theme to fully restyle the app.
+ *
+ * ========================================================================== */
+
+/* ==========================================================================
+ * 1. SERVICE / PRIMITIVE TOKENS
+ * Low-level building blocks. Themes usually override SEMANTIC tokens,
+ * not these — but they may for fine control.
+ * ========================================================================== */
+
+:root {
+  /* --- Core palette (neutral ramp) --- */
+  --lum-gray-0: #ffffff;
+  --lum-gray-50: #f5f5f5;
+  --lum-gray-100: #e8e8e8;
+  --lum-gray-150: #d9d9d9;
+  --lum-gray-200: #c8c8c8;
+  --lum-gray-300: #a9a9a9;
+  --lum-gray-400: #8c8c8c;
+  --lum-gray-500: #707070;
+  --lum-gray-600: #5a5a5a;
+  --lum-gray-700: #454545;
+  --lum-gray-800: #3c3f41;
+  --lum-gray-850: #313335;
+  --lum-gray-900: #2b2b2b;
+  --lum-gray-950: #252526;
+  --lum-gray-1000: #1e1f22;
+
+  /* --- Accent (violet, "Luma" glow) --- */
+  --lum-violet-300: #9fcbff;
+  --lum-violet-400: #87bfff;
+  --lum-violet-500: #589df6;
+  --lum-violet-600: #4682d8;
+  --lum-violet-700: #3569b0;
+  --lum-violet-800: #294f82;
+
+  /* --- State/functional ramps --- */
+  --lum-red-400: #f2707a;
+  --lum-red-500: #e5484d;
+  --lum-red-600: #cd2b31;
+  --lum-green-400: #46c78c;
+  --lum-green-500: #2fa66a;
+  --lum-green-600: #22855a;
+  --lum-yellow-400: #f5c542;
+  --lum-yellow-500: #d9a512;
+  --lum-orange-400: #f59e4c;
+  --lum-orange-500: #e07f2e;
+  --lum-blue-400: #5aa7f0;
+  --lum-blue-500: #3a8ee0;
+  --lum-blue-600: #2c6fba;
+  --lum-pink-500: #ec5b9b;
+  --lum-cyan-500: #35b6c9;
+  --lum-purple-500: #a55ee0;
+
+  /* --- Typography --- */
+  --lum-font-sans: "Segoe UI", "Inter", system-ui, -apple-system, sans-serif;
+  --lum-font-mono: "Cascadia Code", "JetBrains Mono", "Fira Code", Consolas, monospace;
+  --lum-font-weight-regular: 400;
+  --lum-font-weight-medium: 500;
+  --lum-font-weight-semibold: 600;
+  --lum-font-weight-bold: 700;
+  --lum-text-xs: 11px;
+  --lum-text-sm: 12px;
+  --lum-text-md: 13px;
+  --lum-text-lg: 15px;
+  --lum-text-xl: 18px;
+  --lum-text-2xl: 24px;
+  --lum-line-height: 1.5;
+  --lum-line-height-tight: 1.25;
+
+  /* --- Spacing scale --- */
+  --lum-space-1: 4px;
+  --lum-space-2: 8px;
+  --lum-space-3: 12px;
+  --lum-space-4: 16px;
+  --lum-space-5: 20px;
+  --lum-space-6: 24px;
+  --lum-space-8: 32px;
+  --lum-space-10: 40px;
+  --lum-space-12: 48px;
+
+  /* --- Radii --- */
+  --lum-radius-xs: 2px;
+  --lum-radius-sm: 3px;
+  --lum-radius-md: 4px;
+  --lum-radius-lg: 6px;
+  --lum-radius-xl: 8px;
+  --lum-radius-round: 999px;
+
+  /* --- Shadows / elevation --- */
+  --lum-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --lum-shadow-2: 0 4px 12px rgba(0, 0, 0, 0.32);
+  --lum-shadow-3: 0 12px 32px rgba(0, 0, 0, 0.45);
+
+  /* --- Motion --- */
+  --lum-transition-fast: 90ms ease;
+  --lum-transition: 150ms ease;
+  --lum-transition-slow: 250ms ease;
+
+  /* --- Z-index ladder --- */
+  --lum-z-dropdown: 1000;
+  --lum-z-sticky: 1100;
+  --lum-z-overlay: 1200;
+  --lum-z-modal: 1300;
+  --lum-z-popover: 1400;
+  --lum-z-tooltip: 1500;
+  --lum-z-toast: 1600;
+
+  /* --- Standard control metrics --- */
+  --lum-control-height: 28px;
+  --lum-control-height-sm: 24px;
+  --lum-control-height-lg: 34px;
+}
+
+/* ==========================================================================
+ * 2. SEMANTIC TOKENS  ( override these to re-color the whole app )
+ * ========================================================================== */
+
+:root {
+  /* --- Surfaces --- */
+  --lum-bg-app: var(--lum-gray-900);
+  --lum-bg-base: var(--lum-gray-900);
+  --lum-bg-surface: var(--lum-gray-850);
+  --lum-bg-raised: var(--lum-gray-800);
+  --lum-bg-sunken: var(--lum-gray-1000);
+  --lum-bg-overlay: var(--lum-gray-800);
+  --lum-bg-hover: rgba(255, 255, 255, 0.06);
+  --lum-bg-active: rgba(255, 255, 255, 0.10);
+  --lum-bg-transparent-hover: rgba(255, 255, 255, 0.04);
+
+  /* --- Foregrounds --- */
+  --lum-fg: var(--lum-gray-100);
+  --lum-fg-muted: var(--lum-gray-400);
+  --lum-fg-subtle: var(--lum-gray-500);
+  --lum-fg-strong: var(--lum-gray-0);
+  --lum-fg-disabled: var(--lum-gray-600);
+  --lum-fg-on-accent: #ffffff;
+
+  /* --- Accent --- */
+  --lum-accent: var(--lum-violet-500);
+  --lum-accent-hover: var(--lum-violet-400);
+  --lum-accent-active: var(--lum-violet-600);
+  --lum-accent-fg: #ffffff;
+  --lum-accent-muted: rgba(88, 157, 246, 0.20);
+
+  /* --- Functional / state colors (bg, fg pair) --- */
+  --lum-success: var(--lum-green-500);
+  --lum-success-hover: var(--lum-green-400);
+  --lum-success-fg: #ffffff;
+  --lum-success-muted: rgba(47, 166, 106, 0.16);
+
+  --lum-warning: var(--lum-yellow-500);
+  --lum-warning-hover: var(--lum-yellow-400);
+  --lum-warning-fg: #1a1500;
+  --lum-warning-muted: rgba(217, 165, 18, 0.16);
+
+  --lum-danger: var(--lum-red-500);
+  --lum-danger-hover: var(--lum-red-400);
+  --lum-danger-active: var(--lum-red-600);
+  --lum-danger-fg: #ffffff;
+  --lum-danger-muted: rgba(229, 72, 77, 0.16);
+
+  --lum-info: var(--lum-blue-500);
+  --lum-info-hover: var(--lum-blue-400);
+  --lum-info-fg: #ffffff;
+  --lum-info-muted: rgba(58, 142, 224, 0.16);
+
+  /* --- Syntax-ish / category accents (IDE flavor) --- */
+  --lum-syntax-keyword: var(--lum-violet-400);
+  --lum-syntax-string: var(--lum-green-400);
+  --lum-syntax-number: var(--lum-orange-400);
+  --lum-syntax-comment: var(--lum-gray-500);
+  --lum-syntax-function: var(--lum-blue-400);
+  --lum-syntax-type: var(--lum-cyan-500);
+  --lum-syntax-variable: var(--lum-pink-500);
+  --lum-syntax-constant: var(--lum-purple-500);
+  --lum-diff-add-bg: rgba(47, 166, 106, 0.14);
+  --lum-diff-remove-bg: rgba(229, 72, 77, 0.14);
+  --lum-diff-modify-bg: rgba(58, 142, 224, 0.14);
+
+  /* --- Borders --- */
+  --lum-border: var(--lum-gray-800);
+  --lum-border-muted: var(--lum-gray-850);
+  --lum-border-strong: var(--lum-gray-700);
+  --lum-border-focus: var(--lum-accent);
+
+  /* --- Selection & focus --- */
+  --lum-selection-bg: rgba(88, 157, 246, 0.34);
+  --lum-focus-ring: var(--lum-accent);
+
+  /* --- Link colors --- */
+  --lum-link: var(--lum-blue-400);
+  --lum-link-hover: var(--lum-blue-500);
+  --lum-link-visited: var(--lum-purple-500);
+
+  /* --- Scrollbars --- */
+  --lum-scrollbar-thumb: var(--lum-gray-700);
+  --lum-scrollbar-thumb-hover: var(--lum-gray-600);
+  --lum-scrollbar-track: transparent;
+
+  /* --- Misc --- */
+  --lum-backdrop: rgba(6, 7, 10, 0.62);
+  --lum-tooltip-bg: var(--lum-gray-800);
+  --lum-overlay-blur: blur(4px);
+}
+
+/* ==========================================================================
+ * 3. RESET / BASE
+ * ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--lum-font-sans);
+  font-size: var(--lum-text-md);
+  font-weight: var(--lum-font-weight-regular);
+  line-height: var(--lum-line-height);
+  color: var(--lum-fg);
+  background: var(--lum-bg-app);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+  user-select: none;
+  cursor: default;
+}
+
+code,
+pre,
+kbd,
+.mono {
+  font-family: var(--lum-font-mono);
+}
+
+::selection {
+  background: var(--lum-selection-bg);
+  color: var(--lum-fg-strong);
+}
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--lum-focus-ring);
+  outline-offset: 1px;
+}
+
+/* Thin themed scrollbars everywhere */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--lum-scrollbar-thumb) var(--lum-scrollbar-track);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--lum-scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--lum-scrollbar-thumb);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--lum-scrollbar-thumb-hover);
+}
