@@ -16,7 +16,7 @@ export default defineConfig({
   },
 
   build: {
-    outDir: resolve(__dirname, "../../../vite_dist"),
+    outDir: resolve(__dirname, "../../../dist"),
     emptyOutDir: true,
     rolldownOptions: {
       input: {

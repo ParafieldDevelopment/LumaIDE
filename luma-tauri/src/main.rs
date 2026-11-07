@@ -6,10 +6,16 @@ pub mod main_window;
 
 use std::panic::{self, AssertUnwindSafe};
 use std::process::ExitCode;
-
 use anyhow::{Context, Result};
 use luma_diagnostics::ErrorReport;
 use tauri::{RunEvent, WindowEvent};
+use tauri::webview::Color;
+const STARTUP_COLOR: Color = Color {
+    0: 6,
+    1: 7,
+    2: 10,
+    3: 158,
+};
 
 fn run_setup() -> Result<()> {
     luma_core::init().context("Failed to initialize Luma core")
@@ -115,7 +121,6 @@ fn build_tauri_app() -> Result<tauri::App> {
             error_report::set_app_handle(app.handle().clone());
 
             startup_window::startup_window(app.handle().clone()).context("Failed to initialize startup window")?;
-            main_window::main_window(app.handle().clone()).context("Failed to initialize main window")?;
 
             Ok(())
         })
