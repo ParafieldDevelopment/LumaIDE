@@ -19,7 +19,6 @@ tauri-plugin-clipboard-manager = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-deep-link = "2"
 tauri-plugin-os = "2"
-objc2-app-kit = { version = "0.3.2", features = ["NSColor", "NSWindow", "objc2-core-foundation"] }
 luma-core = { path = "../luma-core" }
 luma-diagnostics = { path = "../luma-diagnostics" }
 anyhow = "1.0.104"

@@ -19,7 +19,7 @@ pub fn startup_window(app: tauri::AppHandle) -> anyhow::Result<()> {
         )
 
             .visible(false)
-            .decorations(true)
+            .decorations(!cfg!(target_os = "windows"))
             .min_inner_size(650.0, 500.0)
             .title("Luma - Project Selection")
             .on_page_load(|window, _| {

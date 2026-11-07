@@ -1,5 +1,10 @@
 <script setup lang="ts">
 import { useWindow } from "~/vue/composables/useWindow.ts";
+import type {HTMLAttributes} from "vue";
+
+const props = defineProps<{
+  contentClass?: HTMLAttributes["class"];
+}>();
 
 const { state, minimize, toggleMaximize, close } = useWindow();
 </script>
@@ -13,7 +18,7 @@ const { state, minimize, toggleMaximize, close } = useWindow();
       unfocused: !state.isFocused
     }"
   >
-    <div class="titlebar-content">
+    <div class="titlebar-content" :class="props.contentClass">
       <slot />
     </div>
 
