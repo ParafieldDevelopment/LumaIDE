@@ -62,6 +62,9 @@ const { state, minimize, toggleMaximize, close } = useWindow();
 
 <style scoped lang="scss">
 header.titlebar {
+  -webkit-user-select: none;
+  user-select: none;
+
   display: flex;
   align-items: center;
 
@@ -105,7 +108,7 @@ header.titlebar {
   }
 
   &.macos { // traffic light buttons
-    margin-left: 80px;
+    padding-left: 70px;
   }
 
   &.unfocused {

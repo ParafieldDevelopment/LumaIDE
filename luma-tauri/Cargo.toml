@@ -7,7 +7,7 @@ edition = "2024"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["unstable", "dynamic-acl"] }
+tauri = { version = "2", features = ["dynamic-acl"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 tauri-plugin-log = "2"
@@ -19,10 +19,11 @@ tauri-plugin-clipboard-manager = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-deep-link = "2"
 tauri-plugin-os = "2"
-
+objc2-app-kit = { version = "0.3.2", features = ["NSColor", "NSWindow", "objc2-core-foundation"] }
 luma-core = { path = "../luma-core" }
 luma-diagnostics = { path = "../luma-diagnostics" }
 anyhow = "1.0.104"
+tauri-plugin-decorum = "1.1.1"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Graphics_Gdi"] }

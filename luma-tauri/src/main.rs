@@ -103,6 +103,7 @@ fn build_tauri_app() -> Result<tauri::App> {
         .join(".window-state.json");
 
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_decorum::init())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())

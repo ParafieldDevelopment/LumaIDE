@@ -12,14 +12,14 @@ pub fn startup_window(app: tauri::AppHandle) -> anyhow::Result<()> {
             .set_focus()
             .context("Failed to focus the startup window")?;
     } else {
-        let builder = WebviewWindowBuilder::new(
+        let mut builder = WebviewWindowBuilder::new(
             &app,
             "startup",
             WebviewUrl::App("windows/startup.html".into()),
         )
 
             .visible(false)
-            .decorations(false)
+            .decorations(true)
             .min_inner_size(650.0, 500.0)
             .title("Luma - Project Selection")
             .on_page_load(|window, _| {
@@ -33,10 +33,13 @@ pub fn startup_window(app: tauri::AppHandle) -> anyhow::Result<()> {
         {
             builder = builder
                 .title_bar_style(tauri::TitleBarStyle::Overlay)
-                .traffic_light_position(tauri::LogicalPosition::new(12.0, 16.0));
+                .hidden_title(true)
+                .traffic_light_position(
+                    tauri::LogicalPosition::new(15.0, 18.0)
+                );
         }
 
-        let _window = builder
+        let window = builder
             .build()
             .context("Failed to build window")?;
     }
