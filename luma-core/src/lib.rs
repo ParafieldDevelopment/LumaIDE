@@ -1,11 +1,17 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use std::fs::create_dir_all;
+use std::path::PathBuf;
+pub const APP_DATA_DIR_NAME: &str = "Luma";
+pub fn data_dir() -> Result<PathBuf> {
+    dirs::data_dir()
+        .context("Could not resolve the application data directory")
+        .map(|base| base.join(APP_DATA_DIR_NAME))
+}
+
 pub fn init() -> Result<()> {
-    let home_dir = dirs::home_dir().context("Could not determine home directory")?;
+    let luma_dir = data_dir()?;
 
-    let lumadir = home_dir.join(".luma");
-
-    create_dir_all(&lumadir).context("Failed to create Luma directory")?;
+    create_dir_all(&luma_dir).context("Failed to create the Luma data directory")?;
 
     Ok(())
 }

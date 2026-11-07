@@ -1,5 +1,5 @@
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
-use anyhow::{Context, Result};
+use anyhow::{Context};
 use crate::STARTUP_COLOR;
 
 pub fn startup_window(app: tauri::AppHandle) -> anyhow::Result<()> {
@@ -12,13 +12,15 @@ pub fn startup_window(app: tauri::AppHandle) -> anyhow::Result<()> {
             .set_focus()
             .context("Failed to focus the startup window")?;
     } else {
-        let mut builder = WebviewWindowBuilder::new(
+        let builder = WebviewWindowBuilder::new(
             &app,
             "startup",
             WebviewUrl::App("windows/startup.html".into()),
         )
+
             .visible(false)
             .decorations(false)
+            .min_inner_size(650.0, 500.0)
             .title("Luma - Project Selection")
             .on_page_load(|window, _| {
                 if let Err(err) = window.show() {

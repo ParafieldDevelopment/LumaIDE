@@ -5,4 +5,4 @@ edition = "2024"
 description = "Error/panic diagnostics for the Luma suite: reports, tracebacks, crash logs and the styled error page"
 
 [dependencies]
-dirs = "7.0.0"
+luma-core = { path = "../luma-core" }

@@ -138,11 +138,12 @@ pub fn install_panic_logger(meta: ReportMeta) {
     }));
 }
 pub fn crash_report_dir() -> PathBuf {
-    let base = dirs::home_dir()
-        .map(|home| home.join(".luma"))
-        .unwrap_or_else(std::env::temp_dir);
+    // Fall back to the OS temp directory if the Luma data directory cannot be
+    // resolved (crash paths must never fail to be writable for lack of a home dir).
+    let dir = luma_core::data_dir()
+        .map(|base| base.join("crash-reports"))
+        .unwrap_or_else(|_| std::env::temp_dir().join("luma-crash-reports"));
 
-    let dir = base.join("crash-reports");
     let _ = fs::create_dir_all(&dir);
     dir
 }

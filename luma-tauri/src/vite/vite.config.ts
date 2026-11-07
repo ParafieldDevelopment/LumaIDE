@@ -26,4 +26,10 @@ export default defineConfig({
       }
     }
   },
+  resolve: {
+    alias: {
+      // "~" maps to the Vite project root (there is no ./src directory here).
+      "~": fileURLToPath(new URL(".", import.meta.url)),
+    },
+  },
 });

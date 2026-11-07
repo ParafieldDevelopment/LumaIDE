@@ -2,13 +2,13 @@
 
 pub mod startup_window;
 mod error_report;
-pub mod main_window;
 
 use std::panic::{self, AssertUnwindSafe};
 use std::process::ExitCode;
 use anyhow::{Context, Result};
 use luma_diagnostics::ErrorReport;
-use tauri::{RunEvent, WindowEvent};
+use tauri::{Manager, RunEvent, WindowEvent};
+use tauri::ipc::{CapabilityBuilder};
 use tauri::webview::Color;
 const STARTUP_COLOR: Color = Color {
     0: 6,
@@ -53,7 +53,7 @@ fn main() -> ExitCode {
     };
 
     let run_outcome = panic::catch_unwind(AssertUnwindSafe(move || {
-        let mut app = app;
+        let app = app;
         app.run_return(move |handle, event| match &event {
             RunEvent::Ready => {
                 if let Some(report) = pending_report.take() {
@@ -94,12 +94,32 @@ fn main() -> ExitCode {
     }
 }
 fn build_tauri_app() -> Result<tauri::App> {
+    use tauri_plugin_window_state::StateFlags;
+
+    // Store window state in the shared Roaming/Luma directory instead of the
+    // bundle-identifier directory Tauri would use by default.
+    let window_state_path = luma_core::data_dir()
+        .context("Failed to resolve the Luma data directory")?
+        .join(".window-state.json");
+
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}))
-        .plugin(tauri_plugin_window_state::Builder::new().build())
+        .plugin(
+            tauri_plugin_window_state::Builder::new()
+                // DECORATIONS would re-apply a saved `decorations: true` on top of
+                // windows built with `.decorations(false)` (e.g. the startup window).
+                .with_state_flags(StateFlags::all() & !StateFlags::DECORATIONS)
+                // The plugin joins this onto `app_config_dir()`, but `Path::join`
+                // replaces the base when given an absolute path, so passing the
+                // full path stores window state in Roaming/Luma instead of the
+                // bundle-identifier directory.
+                .with_filename(window_state_path.to_string_lossy().into_owned())
+                .build(),
+        )
         .invoke_handler(
             tauri::generate_handler![]
         )
@@ -118,6 +138,18 @@ fn build_tauri_app() -> Result<tauri::App> {
         })
         .setup(|app| {
             log::info!("Tauri ready");
+
+            let capability = CapabilityBuilder::new("startup")
+                .window("*")
+                .permission("core:default")
+                .permission("core:window:default")
+                .permission("core:window:allow-close")
+                .permission("core:window:allow-minimize")
+                .permission("core:window:allow-toggle-maximize")
+                .permission("core:window:allow-start-dragging");
+
+            app.add_capability(capability)?;
+
             error_report::set_app_handle(app.handle().clone());
 
             startup_window::startup_window(app.handle().clone()).context("Failed to initialize startup window")?;
