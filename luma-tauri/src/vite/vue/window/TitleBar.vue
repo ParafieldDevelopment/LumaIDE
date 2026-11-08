@@ -18,7 +18,7 @@ const { state, minimize, toggleMaximize, close } = useWindow();
       unfocused: !state.isFocused
     }"
   >
-    <div class="titlebar-content" :class="props.contentClass">
+    <div :class="props.contentClass" class="titlebar-content">
       <slot />
     </div>
 

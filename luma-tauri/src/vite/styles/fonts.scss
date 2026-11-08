@@ -1,0 +1,68 @@
+/* ==========================================================================
+ * LumaIDE — Bundled default fonts
+ * ==========================================================================
+ *
+ * Fonts are served from `public/default_font/` (URL prefix: /default_font/).
+ *
+ *   - Montserrat      → normal/paragraph text      (--lum-font-sans)
+ *   - JetBrains Mono  → mono text & the code editor (--lum-font-mono,
+ *                       --lum-font-editor)
+ *
+ * Both are variable fonts, so every weight is available from the files below.
+ *
+ * NOTE: remove the Geist @font-face rules when the
+ * /default_font/geist/ folder exists — dev/build currently resolve them to a
+ * broken URL and the font files were never checked in,
+ * so any "Geist" usage falls back to the next font in the stack.
+ *
+ * USER OVERRIDES: users change fonts by overriding --lum-font-sans,
+ * --lum-font-mono or --lum-font-editor in style.scss (or from an injected
+ * theme sheet) — the @font-face declarations here stay untouched, and the
+ * fallback stacks in those tokens still apply if a custom font name is
+ * not installed.
+ * ========================================================================== */
+
+//noinspection CssUnknownTarget
+@font-face {
+  font-family: "Montserrat";
+  src: url("/default_font/montserrat/Montserrat[wght].ttf") format("truetype-variations"),
+       url("/default_font/montserrat/Montserrat[wght].ttf") format("truetype");
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+//noinspection CssUnknownTarget
+@font-face {
+  font-family: "Montserrat";
+  src: url("/default_font/montserrat/Montserrat-Italic[wght].ttf") format("truetype-variations"),
+       url("/default_font/montserrat/Montserrat-Italic[wght].ttf") format("truetype");
+  font-weight: 100 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* --------------------------------------------------------------------------
+ * JetBrains Mono — wght variable axis (Thin 100 … ExtraBold 800).
+ * The variable TTFs cover all supported scripts in a single file.
+ * -------------------------------------------------------------------------- */
+
+//noinspection CssUnknownTarget
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/default_font/jetbrains_mono/fonts/variable/JetBrainsMono[wght].ttf") format("truetype-variations"),
+       url("/default_font/jetbrains_mono/fonts/variable/JetBrainsMono[wght].ttf") format("truetype");
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+//noinspection CssUnknownTarget
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/default_font/jetbrains_mono/fonts/variable/JetBrainsMono-Italic[wght].ttf") format("truetype-variations"),
+       url("/default_font/jetbrains_mono/fonts/variable/JetBrainsMono-Italic[wght].ttf") format("truetype");
+  font-weight: 100 800;
+  font-style: italic;
+  font-display: swap;
+}

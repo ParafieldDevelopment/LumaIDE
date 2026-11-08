@@ -356,7 +356,7 @@ const commands = [
       <div class="showcase-row">
         <LumAvatar size="sm">A</LumAvatar>
         <LumAvatar>L</LumAvatar>
-        <LumAvatar size="lg" square status="online"><img alt="avatar" src="../public/Logo.svg" /></LumAvatar>
+        <LumAvatar size="lg" square status="online"><img alt="avatar" src="../public/logo.svg" /></LumAvatar>
         <LumAvatar size="lg" status="idle">Z</LumAvatar>
         <span class="lum-avatar-stack">
           <LumAvatar>M</LumAvatar>

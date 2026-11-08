@@ -20,7 +20,7 @@ export default defineConfig({
     emptyOutDir: true,
     rolldownOptions: {
       input: {
-        main: resolve(__dirname, "windows" ,"index.html"),
+        main: resolve(__dirname, "windows" ,"main.html"),
         settings: resolve(__dirname, "windows", "settings.html"),
         startup: resolve(__dirname, "windows", "startup.html")
       }
