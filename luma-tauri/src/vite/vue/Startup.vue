@@ -3,10 +3,11 @@ import TitleBar from "./window/TitleBar.vue";
 import { useWindow } from "~/vue/composables/useWindow.ts";
 import Projects from "~/vue/startup/Projects.vue";
 import { LumButton } from "~/vue/components";
-import { getAppVersion } from "~/luma/LumaBackend.ts";
+import {getAppVersion, loadTheme, openSettings, webviewReady} from "~/luma/LumaWindow.ts";
 import { onMounted, ref, computed } from "vue";
-import AboutLuma from "~/vue/AboutLuma.vue";
-import SearchIcon from "~/vue/icons/SearchIcon.vue";
+import AboutLuma from "~/vue/startup/AboutLuma.vue";
+import SettingsIcon from "~/vue/icons/SettingsIcon.vue";
+import { LumContextMenu } from "~/vue/components";
 
 const appVersion = ref("");
 const selectedButton = ref(1);
@@ -26,13 +27,18 @@ function selectMenu(button: number) {
 }
 
 onMounted(async () => {
+  await loadTheme();
+
   appVersion.value = await getAppVersion();
+
+  await webviewReady();
 });
 </script>
 
 <template>
+  <LumContextMenu />
   <TitleBar contentClass="startup-title">
-    <div class="startup-title">
+    <div class="title">
       <img
           src="/public/logo.svg"
           v-if="!useWindow().state.isMacOS"
@@ -46,7 +52,7 @@ onMounted(async () => {
     <div class="sidebar">
       <img src="/public/banner.png" alt="Luma Banner">
 
-      <div class="version">
+      <div class="version lum-selectable">
         <p>{{ appVersion }}</p>
       </div>
 
@@ -74,8 +80,8 @@ onMounted(async () => {
       </div>
 
       <footer>
-        <LumButton icon>
-          <SearchIcon />
+        <LumButton icon @click="openSettings">
+          <SettingsIcon />
         </LumButton>
       </footer>
     </div>
@@ -97,7 +103,7 @@ onMounted(async () => {
 </template>
 
 <style scoped lang="scss">
-.startup-title {
+.title {
   display: flex;
   align-items: center;
   gap: 10px;

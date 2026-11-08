@@ -46,7 +46,7 @@ import {
   LumTree,
   toast,
   type TreeNode,
-} from "./components";
+} from ".";
 import { computed, reactive, ref } from "vue";
 
 /* ---------------- theme override demo (what a theme/extension does) ---------------- */
@@ -420,7 +420,7 @@ const commands = [
         </template>
       </LumModal>
 
-      <LumCommandPalette v-model:open="paletteOpen" :commands="commands" @run="(id) => toast('info', 'Command', `Ran command #${id}`)" />
+      <LumCommandPalette v-model:open="paletteOpen" :commands="commands" @run="(id: string | number) => toast('info', 'Command', `Ran command #${id}`)" />
     </section>
 
     <!-- tabs -->

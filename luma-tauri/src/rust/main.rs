@@ -3,12 +3,14 @@
 pub mod startup_window;
 mod error_report;
 pub mod base_invokes;
+pub mod settings_window;
+pub mod debugging_window;
 
 use std::panic::{self, AssertUnwindSafe};
 use std::process::ExitCode;
 use anyhow::{Context, Result};
 use luma_diagnostics::ErrorReport;
-use tauri::{Manager, RunEvent, WindowEvent};
+use tauri::Manager;
 use tauri::ipc::{CapabilityBuilder};
 use tauri::webview::Color;
 const STARTUP_COLOR: Color = Color {
@@ -25,71 +27,46 @@ fn run_setup() -> Result<()> {
 fn main() -> ExitCode {
     luma_diagnostics::install_panic_logger(error_report::report_meta());
 
-    let mut pending_report: Option<ErrorReport> = match panic::catch_unwind(AssertUnwindSafe(run_setup)) {
+    match panic::catch_unwind(AssertUnwindSafe(run_setup)) {
         Ok(Ok(())) => {
             log::info!("Luma initialization completed");
-            None
         }
-        Ok(Err(error)) => Some(error_report::build_error_report(
-            "Initialization Failure",
-            "Luma IDE failed to initialize.".to_string(),
-            format!("{error:#}"),
-        )),
-        Err(payload) => Some(ErrorReport::from_panic_now(&payload)),
-    };
-
-    let bootstrapped_with_failure = pending_report.is_some();
+        Ok(Err(error)) => {
+            error_report::raise(&error_report::build_error_report(
+                "Initialization Failure",
+                "Luma IDE failed to initialize.".to_string(),
+                format!("{error:#}"),
+            ));
+            return ExitCode::FAILURE;
+        }
+        Err(payload) => {
+            error_report::raise(&ErrorReport::from_panic_now(&payload));
+            return ExitCode::FAILURE;
+        }
+    }
 
     let app = match build_tauri_app() {
         Ok(app) => app,
         Err(error) => {
-            let report = error_report::build_error_report(
+            error_report::raise(&error_report::build_error_report(
                 "Startup Failure",
                 "Luma could not start: the Tauri runtime failed to initialize.".to_string(),
                 format!("{error:#}"),
-            );
-            error_report::present(None, &report, error_report::report_meta());
+            ));
             return ExitCode::FAILURE;
         }
     };
 
     let run_outcome = panic::catch_unwind(AssertUnwindSafe(move || {
         let app = app;
-        app.run_return(move |handle, event| match &event {
-            RunEvent::Ready => {
-                if let Some(report) = pending_report.take() {
-                    let mechanism =
-                        error_report::present(Some(handle), &report, error_report::report_meta());
-                    if mechanism == error_report::Mechanism::FileOnly {
-                        handle.exit(1);
-                    }
-                }
-            }
-
-            RunEvent::WindowEvent { label, event: WindowEvent::Destroyed, .. }
-                if label == error_report::REPORT_WINDOW_LABEL =>
-            {
-                handle.exit(1);
-            }
-
-            _ => {}
-        })
+        app.run_return(move |_, _| {})
     }));
 
     match run_outcome {
-        Ok(code) => ExitCode::from(if bootstrapped_with_failure {
-            1
-        } else {
-            code.min(u8::MAX as i32) as u8
-        }),
+        Ok(code) => ExitCode::from(code.min(u8::MAX as i32) as u8),
 
         Err(payload) => {
-            let report = ErrorReport::from_panic_now(&payload);
-            error_report::present(
-                error_report::app_handle().as_ref(),
-                &report,
-                error_report::report_meta(),
-            );
+            error_report::raise(&ErrorReport::from_panic_now(&payload));
             ExitCode::FAILURE
         }
     }
@@ -114,7 +91,9 @@ fn build_tauri_app() -> Result<tauri::App> {
             tauri_plugin_window_state::Builder::new()
                 // DECORATIONS would re-apply a saved `decorations: true` on top of
                 // windows built with `.decorations(false)` (e.g. the startup window).
-                .with_state_flags(StateFlags::all() & !StateFlags::DECORATIONS)
+                .with_state_flags(
+                    StateFlags::all() & !StateFlags::DECORATIONS & !StateFlags::VISIBLE
+                )
                 // The plugin joins this onto `app_config_dir()`, but `Path::join`
                 // replaces the base when given an absolute path, so passing the
                 // full path stores window state in Roaming/Luma instead of the
@@ -124,7 +103,12 @@ fn build_tauri_app() -> Result<tauri::App> {
         )
         .invoke_handler(
             tauri::generate_handler![
-                
+
+                // base_invokes
+
+                base_invokes::webview_ready,
+                base_invokes::open_settings_window
+
             ]
         )
         .plugin(
@@ -135,11 +119,7 @@ fn build_tauri_app() -> Result<tauri::App> {
                 .level(log::LevelFilter::Info)
                 .build(),
         )
-        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .register_uri_scheme_protocol(error_report::REPORT_SCHEME, |_ctx, request| {
-            error_report::protocol_handler_response(&request)
-        })
         .setup(|app| {
             log::info!("Tauri ready");
 
@@ -153,8 +133,6 @@ fn build_tauri_app() -> Result<tauri::App> {
                 .permission("core:window:allow-start-dragging");
 
             app.add_capability(capability)?;
-
-            error_report::set_app_handle(app.handle().clone());
 
             startup_window::startup_window(app.handle().clone()).context("Failed to initialize startup window")?;
 

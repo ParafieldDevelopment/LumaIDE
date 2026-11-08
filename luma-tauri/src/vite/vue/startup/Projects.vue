@@ -1,6 +1,7 @@
 <script setup lang="ts">
-
 import {LumButton, LumInput} from "~/vue/components";
+import SearchIcon from "~/vue/icons/SearchIcon.vue";
+import Project from "~/vue/startup/Project.vue";
 </script>
 
 <template>
@@ -8,9 +9,7 @@ import {LumButton, LumInput} from "~/vue/components";
     <div class="header">
       <LumInput placeholder="Search Projects">
         <template #icon>
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-search">
-            <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
+          <SearchIcon />
         </template>
       </LumInput>
       <div class="buttons">
@@ -20,6 +19,7 @@ import {LumButton, LumInput} from "~/vue/components";
       </div>
     </div>
     <div class="projects">
+      <Project />
     </div>
   </div>
 </template>

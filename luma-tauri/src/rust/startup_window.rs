@@ -5,10 +5,6 @@ use crate::STARTUP_COLOR;
 pub fn startup_window(app: tauri::AppHandle) -> anyhow::Result<()> {
     if let Some(window) = app.get_webview_window("startup") {
         window
-            .show()
-            .context("Failed to show the startup window")?;
-
-        window
             .set_focus()
             .context("Failed to focus the startup window")?;
     } else {
@@ -20,13 +16,8 @@ pub fn startup_window(app: tauri::AppHandle) -> anyhow::Result<()> {
 
             .visible(false)
             .decorations(!cfg!(target_os = "windows"))
-            .min_inner_size(650.0, 500.0)
+            .min_inner_size(750.0, 500.0)
             .title("Luma - Project Selection")
-            .on_page_load(|window, _| {
-                if let Err(err) = window.show() {
-                    log::error!("Failed to show the startup window: {err:#}");
-                }
-            })
             .background_color(STARTUP_COLOR);
 
         #[cfg(target_os = "macos")]

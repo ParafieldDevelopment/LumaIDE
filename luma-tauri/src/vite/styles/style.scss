@@ -295,6 +295,61 @@ body {
   cursor: default;
 }
 
+/* ==========================================================================
+ * DRAG GUARD — nothing leaves the window by accident
+ * ==========================================================================
+ *
+ * Native dragging (images, links, selected text or arbitrary elements being
+ * pulled out of the window) is DISABLED for every element by default.
+ *
+ * Only these opt back in:
+ *
+ *   - `.lum-draggable`     — a component that is designed to be dragged
+ *                            (rows, cards, tiles, ...). `-webkit-user-drag:
+ *                            element` makes it natively draggable, no
+ *                            HTML attribute required.
+ *   - `draggable="true"`   — if the explicit attribute is set it is honored.
+ *
+ * Text entry controls (inputs, textareas, contenteditable) keep their normal
+ * caret/selection behavior so text can be selected, copied and drag-dropped
+ * INSIDE the app; `.lum-selectable` re-enables selection for text meant to
+ * be copied (code blocks, log output, ...).
+ * ========================================================================== */
+
+*,
+*::before,
+*::after {
+  -webkit-user-drag: none;
+}
+
+/* Opt-in: components that are MEANT to be dragged. */
+.lum-draggable {
+  -webkit-user-drag: element;
+}
+
+/* Explicit draggable="true" attribute is also honored. */
+[draggable="true"] {
+  -webkit-user-drag: auto;
+}
+
+/* Text entry keeps its selection / text-drag behavior. */
+input,
+textarea,
+[contenteditable=""],
+[contenteditable="true"] {
+  -webkit-user-drag: auto;
+  user-select: text;
+}
+
+/* Opt-in: text meant to be highlightable/copyable inside the app
+   (code blocks, log output, README text, ...). Applied to a container,
+   it re-enables selection for all of its text content. */
+.lum-selectable {
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
+}
+
 code,
 pre,
 kbd,

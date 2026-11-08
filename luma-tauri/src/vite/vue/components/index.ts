@@ -22,6 +22,7 @@ export { default as LumList } from "./LumList.vue";
 export { default as LumListItem } from "./LumListItem.vue";
 export { default as LumMenu } from "./LumMenu.vue";
 export { default as LumMenuItem } from "./LumMenuItem.vue";
+export { default as LumContextMenu } from "./LumContextMenu.vue";
 export { default as LumModal } from "./LumModal.vue";
 export { default as LumNumber } from "./LumNumber.vue";
 export { default as LumPagination } from "./LumPagination.vue";

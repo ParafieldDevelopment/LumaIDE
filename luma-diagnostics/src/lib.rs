@@ -2,7 +2,6 @@ use std::backtrace::Backtrace;
 use std::fmt::Write as _;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone)]
@@ -89,19 +88,50 @@ pub fn panic_payload_message(payload: &(dyn std::any::Any + Send)) -> String {
         "Fatal Exception Occurred".to_string()
     }
 }
-pub type PanicUiHandler = fn(ErrorReport);
+/// Locate the standalone `luma-crash-handler` executable, which is expected to
+/// sit next to the running binary (cargo places every workspace binary in the
+/// same target directory). Returns `None` when it is missing or unparsable.
+fn crash_handler_binary() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    let dir = exe.parent()?;
 
-static PANIC_UI_HANDLER: Mutex<Option<PanicUiHandler>> = Mutex::new(None);
+    let candidate = dir.join(format!("luma-crash-handler{}", std::env::consts::EXE_SUFFIX));
+    candidate.is_file().then_some(candidate)
+}
 
-pub fn set_panic_ui_handler(handler: PanicUiHandler) {
-    if let Ok(mut slot) = PANIC_UI_HANDLER.lock() {
-        *slot = Some(handler);
+/// Launch the standalone crash-handler subprocess, detached from this process
+/// so it survives the app exiting or aborting. `report_file`, when present, is
+/// the crash report the handler offers to open for the user.
+pub fn spawn_crash_dialog(report_file: Option<&std::path::Path>) -> Result<(), String> {
+    let handler =
+        crash_handler_binary().ok_or_else(|| "the luma-crash-handler executable could not be located".to_string())?;
+
+    let mut command = std::process::Command::new(&handler);
+    if let Some(file) = report_file {
+        command.arg(file);
     }
+
+    // Detach the handler so it is not tied to this process's lifecycle or
+    // killed alongside it, and let it break away from any kill-on-close job.
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+
+        const DETACHED_PROCESS: u32 = 0x0000_0008;
+        const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+        const CREATE_BREAKAWAY_FROM_JOB: u32 = 0x0100_0000;
+
+        command.creation_flags(
+            DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB,
+        );
+    }
+
+    command
+        .spawn()
+        .map(|_| ())
+        .map_err(|err| format!("failed to spawn {}: {err}", handler.display()))
 }
 
-fn panic_ui_handler() -> Option<PanicUiHandler> {
-    PANIC_UI_HANDLER.lock().ok().and_then(|slot| *slot)
-}
 pub fn install_panic_logger(meta: ReportMeta) {
     std::panic::set_hook(Box::new(move |info| {
         let message = match info.payload().downcast_ref::<&str>() {
@@ -131,10 +161,6 @@ pub fn install_panic_logger(meta: ReportMeta) {
             eprintln!("Luma panic reported to: {}", path.display());
         }
         eprintln!("Luma panic: {error_text}");
-
-        if let Some(panic_ui) = panic_ui_handler() {
-            panic_ui(report);
-        }
     }));
 }
 pub fn crash_report_dir() -> PathBuf {
@@ -149,7 +175,7 @@ pub fn crash_report_dir() -> PathBuf {
 }
 pub fn persist(report: &ErrorReport, meta: &mut ReportMeta) -> Option<PathBuf> {
     let path = crash_report_dir().join(format!(
-        "report-{}.txt",
+        "report-{}.log",
         file_timestamp(SystemTime::now())
     ));
 
@@ -203,48 +229,4 @@ fn plain_platform() -> String {
         std::env::consts::ARCH,
         std::env::consts::FAMILY
     )
-}
-pub fn html_escape(input: &str) -> String {
-    let mut out = String::with_capacity(input.len());
-    for ch in input.chars() {
-        match ch {
-            '&' => out.push_str("&amp;"),
-            '<' => out.push_str("&lt;"),
-            '>' => out.push_str("&gt;"),
-            '"' => out.push_str("&quot;"),
-            '\'' => out.push_str("&#39;"),
-            other => out.push(other),
-        }
-    }
-    out
-}
-pub fn render_error_page(report: &ErrorReport, meta: &ReportMeta) -> String {
-    let details = html_escape(&report.to_plain_text(meta));
-    let kind = html_escape(&report.kind);
-    let summary = html_escape(&report.summary);
-    let reported_line = match &meta.report_file {
-        Some(file) => format!(
-            "A copy of this report was also saved to <code>{}</code>.",
-            html_escape(&file.display().to_string())
-        ),
-        None => "The report could not be saved to disk.".to_string(),
-    };
-    let footer_meta = html_escape(&format!(
-        "{} v{} · {} · {}",
-        meta.app_name,
-        meta.app_version,
-        plain_platform(),
-        utc_timestamp(SystemTime::now())
-    ));
-
-    include_str!("error_page.html")
-        .replace("@@TITLE@@", &html_escape(&format!(
-            "{} — {}",
-            meta.app_name, report.kind
-        )))
-        .replace("@@KIND@@", &kind)
-        .replace("@@SUMMARY@@", &summary)
-        .replace("@@DETAILS@@", &details)
-        .replace("@@REPORTED_LINE@@", &reported_line)
-        .replace("@@FOOTER_META@@", &footer_meta)
 }

@@ -2,7 +2,23 @@
 name = "luma-diagnostics"
 version = "0.1.0"
 edition = "2024"
-description = "Error/panic diagnostics for the Luma suite: reports, tracebacks, crash logs and the styled error page"
+description = "Error/panic diagnostics for the Luma suite: reports, tracebacks, crash logs and the standalone native crash dialog"
+
+[[bin]]
+name = "luma-crash-handler"
+path = "src/bin/crash_handler.rs"
 
 [dependencies]
 luma-core = { path = "../luma-core" }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Shell",
+] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# Native NSAlert-based message dialogs; default features only matter on Linux
+# (GTK3/portal backends) and are not needed inside the macOS target.
+rfd = { version = "0.15", default-features = false }

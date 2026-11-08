@@ -7,6 +7,7 @@
       <sourceFolder url="file://$MODULE_DIR$/luma-tauri/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/luma-diagnostics/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/luma-diagnostics/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/luma-crash-handler/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/dist" />
       <excludeFolder url="file://$MODULE_DIR$/gen" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
