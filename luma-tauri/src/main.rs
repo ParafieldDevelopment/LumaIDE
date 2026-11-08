@@ -2,6 +2,7 @@
 
 pub mod startup_window;
 mod error_report;
+pub mod base_invokes;
 
 use std::panic::{self, AssertUnwindSafe};
 use std::process::ExitCode;
@@ -122,7 +123,9 @@ fn build_tauri_app() -> Result<tauri::App> {
                 .build(),
         )
         .invoke_handler(
-            tauri::generate_handler![]
+            tauri::generate_handler![
+                
+            ]
         )
         .plugin(
             tauri_plugin_log::Builder::new()

@@ -10,6 +10,7 @@ withDefaults(
   defineProps<{
     invalid?: boolean;
     size?: "sm" | "md" | "lg";
+    placeholder?: string;
   }>(),
   { size: "md" },
 );
@@ -26,6 +27,7 @@ const model = defineModel<string>({ default: "" });
       class="lum-input"
       :class="size !== 'md' ? `lum-input-${size}` : undefined"
       :aria-invalid="invalid || undefined"
+      :placeholder="placeholder"
       v-bind="$attrs"
     />
   </div>
@@ -36,6 +38,7 @@ const model = defineModel<string>({ default: "" });
     class="lum-input"
     :class="size !== 'md' ? `lum-input-${size}` : undefined"
     :aria-invalid="invalid || undefined"
+    :placeholder="placeholder"
     v-bind="$attrs"
   />
 </template>

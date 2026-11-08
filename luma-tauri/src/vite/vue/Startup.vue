@@ -1,134 +1,251 @@
 <script setup lang="ts">
 import TitleBar from "./window/TitleBar.vue";
-import {useWindow} from "~/vue/composables/useWindow.ts";
+import { useWindow } from "~/vue/composables/useWindow.ts";
 import Projects from "~/vue/startup/Projects.vue";
-import {LumButton} from "~/vue/components";
+import { LumButton } from "~/vue/components";
+import { getAppVersion } from "~/luma/LumaBackend.ts";
+import { onMounted, ref, computed } from "vue";
+import AboutLuma from "~/vue/AboutLuma.vue";
+import SearchIcon from "~/vue/icons/SearchIcon.vue";
+
+const appVersion = ref("");
+const selectedButton = ref(1);
+const previousButton = ref(1);
+
+const transitionName = computed(() =>
+    selectedButton.value > previousButton.value
+        ? "slide-up"
+        : "slide-down"
+);
+
+function selectMenu(button: number) {
+  if (selectedButton.value === button) return;
+
+  previousButton.value = selectedButton.value;
+  selectedButton.value = button;
+}
+
+onMounted(async () => {
+  appVersion.value = await getAppVersion();
+});
 </script>
 
 <template>
   <TitleBar contentClass="startup-title">
     <div class="startup-title">
-      <img src="/public/logo.svg" v-if="!useWindow().state.isMacOS" alt="Luma Logo">
+      <img
+          src="/public/logo.svg"
+          v-if="!useWindow().state.isMacOS"
+          alt="Luma Logo"
+      >
       <p>Welcome to Luma</p>
     </div>
   </TitleBar>
+
   <div class="main">
     <div class="sidebar">
       <img src="/public/banner.png" alt="Luma Banner">
+
+      <div class="version">
+        <p>{{ appVersion }}</p>
+      </div>
+
       <div class="buttons">
-        <button>
+        <button
+            :class="{ selected: selectedButton === 1 }"
+            @click="selectMenu(1)"
+        >
           Projects
         </button>
-        <button>
+
+        <button
+            :class="{ selected: selectedButton === 2 }"
+            @click="selectMenu(2)"
+        >
           Extensions
         </button>
-        <button>
+
+        <button
+            :class="{ selected: selectedButton === 3 }"
+            @click="selectMenu(3)"
+        >
           About Luma
         </button>
       </div>
+
       <footer>
         <LumButton icon>
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-settings">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
-            </path>
-          </svg>
+          <SearchIcon />
         </LumButton>
       </footer>
     </div>
+
     <div class="content">
-      <Projects/>
+      <Transition :name="transitionName" mode="out-in">
+        <div :key="selectedButton" class="page">
+          <Projects v-if="selectedButton === 1" />
+
+          <div v-else-if="selectedButton === 2">
+            <h1>Coming Soon!</h1>
+          </div>
+
+          <AboutLuma v-else-if="selectedButton === 3" />
+        </div>
+      </Transition>
     </div>
   </div>
 </template>
 
 <style scoped lang="scss">
-  .startup-title {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: var(--lum-gray-200);
+.startup-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--lum-gray-200);
 
-    img {
-      height: auto;
-      width: 20px;
-    }
+  img {
+    height: auto;
+    width: 20px;
+  }
+}
+
+.main {
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+
+  .version {
+    padding: 10px;
+    color: var(--lum-gray-200);
+    font-size: 12px;
+    text-align: center;
   }
 
-  .main {
-    height: 100%;
-    min-height: 0;
-    min-width: 0;
-    width: 100%;
-
+  .sidebar {
+    width: 200px;
+    flex-shrink: 0;
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
+    border-right: 1px solid var(--lum-border);
     overflow: hidden;
 
-    .sidebar {
-      width: 200px;
+    > img {
+      padding: 30px;
+      width: 100%;
+      height: auto;
       flex-shrink: 0;
-      display: flex;
-      flex-direction: column;
-      border-right: 1px solid var(--lum-border);
-      overflow: hidden;
+    }
 
-      > img {
-        padding: 30px;
-        width: 100%;
-        height: auto;
-        flex-shrink: 0;
-      }
+    .buttons {
+      flex: 1;
+      min-height: 0;
+      border-top: 1px solid var(--lum-border);
+      border-bottom: 1px solid var(--lum-border);
 
-      .buttons {
-        flex: 1;
-        min-height: 0;
-        border-top: 1px solid var(--lum-border);
-        border-bottom: 1px solid var(--lum-border);
-
-        button {
-          height: 50px;
-          width: 100%;
-          background-color: transparent;
-          border: none;
-          color: white;
-          font-family: var(--lum-font-sans);
-          transition: background-color 0.1s ease-in-out;
-
-          &:hover {
-            background-color: color-mix(
-                in srgb,
-                var(--lum-gray-700),
-                white 5%
-            );
-          }
-
-          &:active {
-            background-color: color-mix(
-                in srgb,
-                var(--lum-gray-700),
-                black 5%
-            );
-          }
-        }
-      }
-
-      footer {
-        display: flex;
+      button {
         height: 50px;
-        flex-shrink: 0;
         width: 100%;
-        align-items: center;
-        padding: 10px;
+        background-color: transparent;
+        border: none;
+        color: white;
+        font-family: var(--lum-font-sans);
+        transition: background-color 0.1s ease-in-out;
+
+        &:hover {
+          background-color: color-mix(
+              in srgb,
+              var(--lum-gray-700),
+              white 5%
+          );
+        }
+
+        &:active {
+          background-color: color-mix(
+              in srgb,
+              var(--lum-gray-700),
+              black 5%
+          );
+        }
+
+        &.selected {
+          border-left: 5px solid var(--lum-accent);
+        }
       }
     }
 
-    .content {
+    footer {
+      display: flex;
+      height: 50px;
+      flex-shrink: 0;
+      width: 100%;
+      align-items: center;
       padding: 10px;
-      flex: 1;
-      min-width: 0;
-      overflow: auto;
     }
   }
 
+  .content {
+    padding: 10px;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+
+    .page {
+      height: 100%;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+  }
+}
+
+/* Forward navigation: slide upward */
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition:
+      transform 0.2s ease,
+      opacity 0.2s ease;
+}
+
+.slide-up-enter-from {
+  opacity: 0;
+  transform: translateY(25px);
+}
+
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(-25px);
+}
+
+/* Backward navigation: slide downward */
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition:
+      transform 0.2s ease,
+      opacity 0.2s ease;
+}
+
+.slide-down-enter-from {
+  opacity: 0;
+  transform: translateY(-25px);
+}
+
+.slide-down-leave-to {
+  opacity: 0;
+  transform: translateY(25px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide-up-enter-active,
+  .slide-up-leave-active,
+  .slide-down-enter-active,
+  .slide-down-leave-active {
+    transition-duration: 0.01ms;
+  }
+}
 </style>
