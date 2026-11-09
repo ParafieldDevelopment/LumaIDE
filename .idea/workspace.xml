@@ -20,42 +20,9 @@
     </cargoProject>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b060abbc-0d3b-4e31-91a5-7f9f53f1dc28" name="Changes" comment="Completed startup window">
-      <change afterPath="$PROJECT_DIR$/luma-tauri/src/rust/debugging_window.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/luma-tauri/src/rust/settings_window.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/Debugging.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/icons/SettingsIcon.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/startup/Project.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/windows/debug.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/luma-tauri/src/vite/windows/debug.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/LumaIDE.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/LumaIDE.iml" afterDir="false" />
+    <list default="true" id="b060abbc-0d3b-4e31-91a5-7f9f53f1dc28" name="Changes" comment="macos traffic light position fixed">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-diagnostics/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/luma-diagnostics/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-diagnostics/src/error_page.html" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-diagnostics/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/luma-diagnostics/src/lib.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-tauri/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-tauri/gen/schemas/acl-manifests.json" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/gen/schemas/acl-manifests.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-tauri/gen/schemas/desktop-schema.json" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/gen/schemas/desktop-schema.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-tauri/gen/schemas/macOS-schema.json" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/gen/schemas/macOS-schema.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-tauri/gen/schemas/windows-schema.json" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/gen/schemas/windows-schema.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-tauri/src/base_invokes.rs" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/rust/base_invokes.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-tauri/src/error_report.rs" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/rust/error_report.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-tauri/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/rust/main.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-tauri/src/startup_window.rs" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/rust/startup_window.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-tauri/src/vite/luma/LumaBackend.ts" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/vite/luma/LumaWindow.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-tauri/src/vite/styles/style.scss" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/vite/styles/style.scss" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-tauri/src/vite/vue/AboutLuma.vue" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/startup/AboutLuma.vue" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-tauri/src/vite/vue/Main.vue" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/Main.vue" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-tauri/src/vite/vue/Settings.vue" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/Settings.vue" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-tauri/src/vite/vue/Showcase.vue" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/LumShowcaseDemo.vue" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-tauri/src/vite/vue/Startup.vue" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/Startup.vue" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/components/index.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-tauri/src/vite/vue/icons/SearchIcon.vue" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/icons/SearchIcon.vue" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-tauri/src/vite/vue/startup/Projects.vue" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/vite/vue/startup/Projects.vue" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-tauri/src/vite/windows/main.ts" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/vite/windows/main.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-tauri/src/vite/windows/settings.ts" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/vite/windows/settings.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/luma-tauri/src/vite/windows/startup.ts" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/vite/windows/startup.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/luma-tauri/src/rust/settings_window.rs" beforeDir="false" afterPath="$PROJECT_DIR$/luma-tauri/src/rust/settings_window.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -66,7 +33,7 @@
     <option name="cachedIndexableFilesCount" value="157" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
-  <component name="ExecutionTargetManager" SELECTED_TARGET="RsBuildProfile:release" />
+  <component name="ExecutionTargetManager" SELECTED_TARGET="RsBuildProfile:dev" />
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
       <list>
@@ -104,61 +71,61 @@
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="2.16879688691873" />
-      <entry key="MS500" value="4.636967034938728" />
-      <entry key="S2" value="7.338050358176178" />
-      <entry key="S5" value="8.730396809627933" />
-      <entry key="S10" value="10.524157045126913" />
-      <entry key="S30" value="16.113997918166103" />
-      <entry key="S60" value="20.603266836523158" />
-      <entry key="M2" value="24.902144595580783" />
-      <entry key="M5" value="31.006026302504914" />
-      <entry key="M10" value="39.21036950344975" />
-      <entry key="M15" value="49.86348670693728" />
-      <entry key="M30" value="98.29920551721604" />
-      <entry key="H1" value="210.67158791398785" />
-      <entry key="H2" value="397.921197076188" />
-      <entry key="H4" value="744.267729258984" />
-      <entry key="D1" value="2501.9013663774635" />
-      <entry key="W1" value="3420.7281888863213" />
+      <entry key="MS100" value="1.0139855951594516" />
+      <entry key="MS500" value="1.520198567742709" />
+      <entry key="S2" value="2.733533709824653" />
+      <entry key="S5" value="3.386968477808376" />
+      <entry key="S10" value="3.671989639354678" />
+      <entry key="S30" value="3.886232693679064" />
+      <entry key="S60" value="4.085466345150227" />
+      <entry key="M2" value="6.078965942566565" />
+      <entry key="M5" value="15.718354397092787" />
+      <entry key="M10" value="28.333670682753624" />
+      <entry key="M15" value="40.38960368503256" />
+      <entry key="M30" value="87.98773426355861" />
+      <entry key="H1" value="198.6670844356578" />
+      <entry key="H2" value="386.5612517661295" />
+      <entry key="H4" value="733.8253584208697" />
+      <entry key="D1" value="2498.181956671779" />
+      <entry key="W1" value="3424.0227290624052" />
     </decayedCancelled>
     <decayedSelected>
-      <entry key="MS100" value="1.0278101173723472E-145" />
-      <entry key="MS500" value="1.0055011639859177E-29" />
-      <entry key="S2" value="5.6311311781239865E-8" />
-      <entry key="S5" value="0.0012596162588196479" />
-      <entry key="S10" value="0.035491072945455567" />
-      <entry key="S30" value="0.3286301349062794" />
-      <entry key="S60" value="0.5741357558144634" />
-      <entry key="M2" value="0.7868666654182512" />
-      <entry key="M5" value="1.2185217475781807" />
-      <entry key="M10" value="2.137857753416982" />
-      <entry key="M15" value="3.313220559887854" />
-      <entry key="M30" value="8.436118857759958" />
-      <entry key="H1" value="21.17514791786422" />
-      <entry key="H2" value="44.59504643280019" />
-      <entry key="H4" value="88.2053024458044" />
-      <entry key="D1" value="273.09579845691337" />
-      <entry key="W1" value="360.82549292737514" />
+      <entry key="MS100" value="0.0" />
+      <entry key="MS500" value="1.268457877966996E-291" />
+      <entry key="S2" value="1.887204713231072E-73" />
+      <entry key="S5" value="8.13443896756874E-30" />
+      <entry key="S10" value="2.852093786601125E-15" />
+      <entry key="S30" value="1.4181503494134462E-5" />
+      <entry key="S60" value="0.003771568849765367" />
+      <entry key="M2" value="0.06377564655742211" />
+      <entry key="M5" value="0.4459999127841739" />
+      <entry key="M10" value="1.29339015167704" />
+      <entry key="M15" value="2.3700136321242695" />
+      <entry key="M30" value="7.1349829252142385" />
+      <entry key="H1" value="19.47383907591122" />
+      <entry key="H2" value="42.76605424656919" />
+      <entry key="H4" value="86.37756846752457" />
+      <entry key="D1" value="272.144397910562" />
+      <entry key="W1" value="360.6456485407903" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="1.6899300792200134" />
-      <entry key="MS500" value="4.398506884561658" />
-      <entry key="S2" value="7.230187283748774" />
-      <entry key="S5" value="8.647277305562051" />
-      <entry key="S10" value="10.492078938752659" />
-      <entry key="S30" value="16.395356497646993" />
-      <entry key="S60" value="21.14303962150408" />
-      <entry key="M2" value="25.666523936112068" />
-      <entry key="M5" value="32.210585470610354" />
-      <entry key="M10" value="41.335608863445685" />
-      <entry key="M15" value="53.163512892046555" />
-      <entry key="M30" value="106.71873242012074" />
-      <entry key="H1" value="231.82649549070888" />
-      <entry key="H2" value="442.49556375255986" />
-      <entry key="H4" value="832.4532459943682" />
-      <entry key="D1" value="2774.9867366777607" />
-      <entry key="W1" value="3781.5516749191174" />
+      <entry key="MS100" value="0.04131435161517913" />
+      <entry key="MS500" value="0.7367743735481012" />
+      <entry key="S2" value="2.2403045568240834" />
+      <entry key="S5" value="3.1178454433542258" />
+      <entry key="S10" value="3.520829142777259" />
+      <entry key="S30" value="3.831594828568131" />
+      <entry key="S60" value="4.06107296048713" />
+      <entry key="M2" value="6.126593036916447" />
+      <entry key="M5" value="16.153178143013168" />
+      <entry key="M10" value="29.61626656838296" />
+      <entry key="M15" value="42.7480340691736" />
+      <entry key="M30" value="95.10758941907055" />
+      <entry key="H1" value="218.12175567057292" />
+      <entry key="H2" value="429.3071958884494" />
+      <entry key="H4" value="820.1834114797932" />
+      <entry key="D1" value="2770.3159394135537" />
+      <entry key="W1" value="3784.666368372924" />
     </decayedShown>
   </component>
   <component name="ProjectColorInfo">{
