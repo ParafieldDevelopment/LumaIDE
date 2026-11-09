@@ -13,3 +13,4 @@
 # Node
 node_modules/
 .idea/discord.xml
+.idea/workspace.xml
