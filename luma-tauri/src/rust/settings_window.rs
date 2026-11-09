@@ -1,5 +1,6 @@
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use anyhow::{Context};
+use log::error;
 use crate::STARTUP_COLOR;
 
 pub fn settings_window(
@@ -80,6 +81,12 @@ pub fn settings_window(
     if let Some(parent) = parent.cloned() {
         window.on_window_event(move |event| {
             if matches!(event, WindowEvent::Destroyed) {
+                if let Err(err) = parent.set_focus() {
+                    log::error!(
+                        "Failed to restore parent window focus: {err}   "
+                    )
+                }
+
                 if let Err(err) = parent.set_enabled(true) {
                     log::error!(
                         "Failed to re-enable parent window: {err}"

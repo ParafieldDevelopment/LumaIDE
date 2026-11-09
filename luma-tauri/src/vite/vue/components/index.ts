@@ -24,6 +24,7 @@ export { default as LumMenu } from "./LumMenu.vue";
 export { default as LumMenuItem } from "./LumMenuItem.vue";
 export { default as LumContextMenu } from "./LumContextMenu.vue";
 export { default as LumModal } from "./LumModal.vue";
+export { default as LumModals } from "./LumModals.vue";
 export { default as LumNumber } from "./LumNumber.vue";
 export { default as LumPagination } from "./LumPagination.vue";
 export { default as LumProgress } from "./LumProgress.vue";
@@ -45,3 +46,4 @@ export { default as LumTreeNode } from "./LumTreeNode.vue";
 
 export * from "./types";
 export * from "./toasts";
+export * from "./modals";

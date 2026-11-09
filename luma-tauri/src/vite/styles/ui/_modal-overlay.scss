@@ -23,7 +23,6 @@
   padding: var(--lum-space-8);
   background: var(--lum-backdrop);
   backdrop-filter: var(--lum-backdrop-filter);
-  animation: lum-fade-in var(--lum-transition-fast);
 }
 
 .lum-modal {
@@ -37,11 +36,10 @@
   border: var(--lum-modal-border);
   border-radius: var(--lum-modal-radius);
   box-shadow: var(--lum-modal-shadow);
-  animation: lum-pop-in var(--lum-transition-fast);
 
-  &.sm { --lum-modal-width: 360px; }
-  &.lg { --lum-modal-width: 720px; }
-  &.xl { --lum-modal-width: 960px; }
+  &.lum-sm { --lum-modal-width: 360px; }
+  &.lum-lg { --lum-modal-width: 720px; }
+  &.lum-xl { --lum-modal-width: 960px; }
 }
 
 .lum-modal-header {
@@ -71,3 +69,27 @@
 
 /* Non-dismissable */
 .lum-modal[aria-modal="true"][data-static] .lum-overlay-literal { pointer-events: none; }
+
+/* Modal transitions */
+.lum-modal-enter-active,
+.lum-modal-leave-active {
+  transition: opacity 200ms ease;
+}
+
+.lum-modal-enter-from,
+.lum-modal-leave-to {
+  opacity: 0;
+}
+
+.lum-modal-enter-active .lum-modal,
+.lum-modal-leave-active .lum-modal {
+  transition:
+          opacity 200ms ease,
+          transform 200ms ease;
+}
+
+.lum-modal-enter-from .lum-modal,
+.lum-modal-leave-to .lum-modal {
+  opacity: 0;
+  transform: translateY(10px) scale(0.97);
+}

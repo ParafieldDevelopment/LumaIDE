@@ -26,7 +26,6 @@ import {
   LumListItem,
   LumMenu,
   LumMenuItem,
-  LumModal,
   LumNumber,
   LumPagination,
   LumProgress,
@@ -41,13 +40,14 @@ import {
   LumTabs,
   LumTable,
   LumTextarea,
-  LumToasts,
+  modal,
   LumTooltip,
   LumTree,
   toast,
   type TreeNode,
 } from ".";
 import { computed, reactive, ref } from "vue";
+import LumToolbar from "~/vue/components/LumToolbar.vue";
 
 /* ---------------- theme override demo (what a theme/extension does) ---------------- */
 
@@ -102,9 +102,21 @@ const toggleProgress = () => {
 
 const chips = ref(["typescript", "rust", "tauri", "vue"]);
 
-const modalOpen = ref(false);
 const paletteOpen = ref(false);
 const menuOpen = ref(false);
+
+function openExampleModal() {
+  modal("Example modal", "Dialog with overlay backdrop, header, scrollable body and footer actions.", {
+    actions: [
+      { label: "Cancel" },
+      {
+        label: "Confirm",
+        variant: "primary",
+        onClick: () => toast("success", "Confirmed", "Modal action completed."),
+      },
+    ],
+  });
+}
 
 const activeTab = ref(1);
 const tabs = [
@@ -356,7 +368,7 @@ const commands = [
       <div class="showcase-row">
         <LumAvatar size="sm">A</LumAvatar>
         <LumAvatar>L</LumAvatar>
-        <LumAvatar size="lg" square status="online"><img alt="avatar" src="../public/logo.svg" /></LumAvatar>
+        <LumAvatar size="lg" square status="online"><img alt="avatar" src="/public/logo.svg" /></LumAvatar>
         <LumAvatar size="lg" status="idle">Z</LumAvatar>
         <span class="lum-avatar-stack">
           <LumAvatar>M</LumAvatar>
@@ -391,7 +403,7 @@ const commands = [
       <h2>Overlays</h2>
 
       <div class="showcase-row">
-        <LumButton variant="primary" @click="modalOpen = true">Open modal</LumButton>
+        <LumButton variant="primary" @click="openExampleModal">Open modal</LumButton>
         <LumButton @click="paletteOpen = true">Command palette</LumButton>
         <LumTooltip data-tip="Tooltip with data-tip attribute">
           <LumButton variant="ghost">Hover for tooltip</LumButton>
@@ -410,15 +422,6 @@ const commands = [
           </LumMenu>
         </div>
       </div>
-
-      <LumModal v-model:open="modalOpen">
-        <template #title>Example modal</template>
-        Dialog with overlay backdrop, header, scrollable body and footer actions.
-        <template #footer>
-          <LumButton @click="modalOpen = false">Cancel</LumButton>
-          <LumButton variant="primary" @click="modalOpen = false; toast('success', 'Confirmed', 'Modal action completed.')">Confirm</LumButton>
-        </template>
-      </LumModal>
 
       <LumCommandPalette v-model:open="paletteOpen" :commands="commands" @run="(id: string | number) => toast('info', 'Command', `Ran command #${id}`)" />
     </section>
@@ -567,8 +570,6 @@ const commands = [
     <footer class="lum-caption" style="padding: 24px 0 48px; text-align: center">
       Themeable everything — override <code class="lum-code">--lum-*</code> variables to restyle any component.
     </footer>
-
-    <LumToasts />
   </div>
 </template>
 

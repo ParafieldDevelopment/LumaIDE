@@ -3,7 +3,7 @@ import {useWindow} from "~/vue/composables/useWindow.ts";
 import TitleBar from "~/vue/window/TitleBar.vue";
 import {onMounted} from "vue";
 import {loadTheme, webviewReady} from "~/luma/LumaWindow.ts";
-import { LumContextMenu } from "~/vue/components";
+import {LumContextMenu, LumModals, LumToasts} from "~/vue/components";
 
 onMounted(async () => {
   await loadTheme();
@@ -25,6 +25,8 @@ onMounted(async () => {
   </TitleBar>
 
   <div class="main">
+    <LumToasts />
+    <LumModals />
   </div>
 </template>
 

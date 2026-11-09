@@ -20,6 +20,7 @@
 }
 
 .lum-list-item {
+  font-family: inherit;
   display: flex;
   align-items: center;
   gap: var(--lum-space-2);
@@ -70,6 +71,7 @@
 }
 
 .lum-tree-item {
+  font-family: inherit;
   display: flex;
   align-items: center;
   gap: var(--lum-space-1);

@@ -2,7 +2,7 @@
 import TitleBar from "./window/TitleBar.vue";
 import { useWindow } from "~/vue/composables/useWindow.ts";
 import Projects from "~/vue/startup/Projects.vue";
-import { LumButton } from "~/vue/components";
+import {LumButton, LumModals, LumToasts} from "~/vue/components";
 import {getAppVersion, loadTheme, openSettings, webviewReady} from "~/luma/LumaWindow.ts";
 import { onMounted, ref, computed } from "vue";
 import AboutLuma from "~/vue/startup/AboutLuma.vue";
@@ -99,6 +99,9 @@ onMounted(async () => {
         </div>
       </Transition>
     </div>
+
+    <LumToasts />
+    <LumModals />
   </div>
 </template>
 

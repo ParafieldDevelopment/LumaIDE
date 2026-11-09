@@ -1,0 +1,3 @@
+[submodule "luma-tauri/src/vite/editor"]
+	path = luma-tauri/src/vite/editor
+	url = https://github.com/ParafieldDevelopment/monaco-editor

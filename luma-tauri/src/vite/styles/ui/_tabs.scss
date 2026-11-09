@@ -32,6 +32,7 @@
 
 /* --- Underline style (default) --- */
 .lum-tab {
+  font-family: inherit;
   position: relative;
   display: inline-flex;
   flex: 0 0 auto;
@@ -66,76 +67,196 @@
   &:disabled { opacity: 0.4; pointer-events: none; }
 }
 
-/* --- Editor-file style tabs (closable, boxed, IDE-flavored) --- */
+/* --- Editor-file style tabs (JetBrains-style: boxed, rounded, spaced) --- */
 
 .lum-filetabs {
+  --lum-filetabs-height: 40px;
+  --lum-filetabs-bg: var(--lum-bg-secondary);
+  --lum-filetabs-border: var(--lum-border);          // bar bottom border
+  --lum-filetab-height: 28px;
+  --lum-filetab-radius: 6px;
+  --lum-filetab-border: var(--lum-border);           // box outline
+  --lum-filetab-border-active: var(--lum-border-strong, var(--lum-border));
+  --lum-filetab-active-bg: var(--lum-bg-app);
+  --lum-filetab-hover-bg: rgba(255, 255, 255, 0.05);
+  --lum-filetabs-active-color: var(--lum-text-primary);
+  --lum-filetabs-inactive-color: var(--lum-text-secondary);
+
   display: flex;
-  align-items: stretch;
-  overflow-x: auto;
-  background: var(--lum-bg-base);
-  border-bottom: 1px solid var(--lum-border);
-}
-
-.lum-filetab {
-  position: relative;
-  display: inline-flex;
   align-items: center;
-  gap: var(--lum-space-2);
-  padding: 0 var(--lum-space-2) 0 var(--lum-space-3);
-  min-width: 120px;
-  max-width: var(--lum-tab-max-width);
-  font-size: var(--lum-tab-font-size);
-  color: var(--lum-tab-fg);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  transition: background var(--lum-transition-fast), color var(--lum-transition-fast);
-  user-select: none;
+  gap: 4px;                       // space between boxes
 
+  width: 100%;
+  height: var(--lum-filetabs-height);
+  min-height: var(--lum-filetabs-height);
+  padding: 0 8px;                 // space before first / after last box
+  box-sizing: border-box;
+
+  overflow-x: auto;
+  overflow-y: hidden;
+
+  background: var(--lum-filetabs-bg);
+  border-bottom: 1px solid var(--lum-filetabs-border);
+
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  // Individual file tab (the box)
+  .lum-filetab {
+    position: relative;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+
+    flex: 0 0 auto;
+
+    min-width: 90px;
+    max-width: 220px;
+    height: var(--lum-filetab-height);
+
+    padding: 0 6px 0 10px;
+    box-sizing: border-box;
+
+    border: 1px solid transparent;
+    border-radius: var(--lum-filetab-radius);
+
+    background: transparent;
+    color: var(--lum-filetabs-inactive-color);
+
+    font: inherit;
+    font-size: 12px;
+    font-weight: 400;
+
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+
+    transition:
+            background 120ms ease,
+            border-color 120ms ease,
+            color 120ms ease;
+
+    // Hover: faint box appears
+    &:hover {
+      background: var(--lum-filetab-hover-bg);
+      border-color: var(--lum-filetab-border);
+      color: var(--lum-filetabs-active-color);
+    }
+
+    // Active tab: filled box with visible border
+    &[data-active] {
+      background: var(--lum-filetab-active-bg);
+      border-color: var(--lum-filetab-border-active);
+      color: var(--lum-filetabs-active-color);
+      font-weight: 500;
+    }
+
+    // Keyboard focus
+    &:focus-visible {
+      outline: 1px solid var(--lum-accent);
+      outline-offset: 1px;
+      z-index: 1;
+    }
+  }
+
+  // File name
   .lum-filetab-name {
+    display: block;
+
+    flex: 1;
+    min-width: 0;
+
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
+  // Close button
   .lum-filetab-close {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+
+    flex: 0 0 18px;
+
     width: 18px;
     height: 18px;
-    flex-shrink: 0;
-    color: var(--lum-fg-subtle);
-    background: none;
+    padding: 0;
+
     border: none;
-    border-radius: var(--lum-radius-sm);
+    border-radius: 4px;
+
+    background: transparent;
+    color: var(--lum-filetabs-inactive-color);
+
     opacity: 0;
     cursor: pointer;
-    transition: background var(--lum-transition-fast), opacity var(--lum-transition-fast);
 
-    &:hover { background: var(--lum-bg-hover); color: var(--lum-fg-strong); }
+    transition:
+            opacity 100ms ease,
+            background 100ms ease,
+            color 100ms ease;
+
+    svg {
+      display: block;
+    }
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--lum-filetabs-active-color);
+    }
+
+    &:focus-visible {
+      opacity: 1;
+      outline: 1px solid var(--lum-accent);
+    }
   }
 
-  &:hover { background: var(--lum-bg-hover); color: var(--lum-tab-fg-hover); }
-  &:hover .lum-filetab-close, &[aria-selected="true"] .lum-filetab-close { opacity: 1; }
-
-  /* dirty (unsaved) dot */
-  &[data-dirty] .lum-filetab-close { opacity: 1; }
-  &[data-dirty] .lum-filetab-close::before {
-    content: "";
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--lum-fg-muted);
+  // Show close button when hovering or when tab is active
+  .lum-filetab:hover .lum-filetab-close,
+  .lum-filetab[data-active] .lum-filetab-close {
+    opacity: 1;
   }
-  &[data-dirty]:hover .lum-filetab-close::before { display: none; }
 
-  &[aria-selected="true"], &.active {
-    color: var(--lum-tab-fg-active);
-    background: var(--lum-bg-app);
-    box-shadow: inset 0 2px 0 0 var(--lum-accent);
+  // Unsaved changes indicator
+  .lum-filetab[data-dirty] {
+    .lum-filetab-close {
+      opacity: 0;
+    }
 
-    /* blend top with active file area */
-    &::before { content: ""; position: absolute; inset: auto 0 0; height: 1px; background: transparent; }
+    .lum-filetab-name::after {
+      content: "";
+
+      display: inline-block;
+
+      width: 6px;
+      height: 6px;
+      margin-left: 7px;
+
+      vertical-align: middle;
+
+      border-radius: 50%;
+      background: var(--lum-text-secondary);
+    }
+
+    &:hover,
+    &[data-active] {
+      .lum-filetab-close {
+        opacity: 1;
+      }
+    }
   }
+
+  // Remaining space after tabs
+  .lum-filetabs-spacer {
+    flex: 1 0 0;
+    min-width: 0;
+  }
+
+
 }
