@@ -24,7 +24,7 @@ const projects: ProjectObject[] = []
     <div class="projects" v-for="project in projects" v-if="projects.length > 0">
       <Project :project="project" />
     </div>
-    <div class="projects" 1wsœQ~>cr3f4gthy6t75
+    <div class="projects">
       <p>No projects :(</p>
     </div>
   </div>
