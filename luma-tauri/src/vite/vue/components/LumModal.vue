@@ -30,45 +30,43 @@ onBeforeUnmount(() => document.removeEventListener("keydown", onKey));
 </script>
 
 <template>
-  <Teleport to="body">
-    <Transition name="lum-modal" appear>
+  <Transition name="lum-modal" appear>
+    <div
+        v-if="open"
+        class="lum-overlay"
+        @click.self="!props.persistent && (open = false)"
+    >
       <div
-          v-if="open"
-          class="lum-overlay"
-          @click.self="!props.persistent && (open = false)"
+          class="lum-modal"
+          :class="props.size !== 'md' ? `lum-${props.size}` : undefined"
+          role="dialog"
+          aria-modal="true"
+          v-bind="$attrs"
       >
-        <div
-            class="lum-modal"
-            :class="props.size !== 'md' ? `lum-${props.size}` : undefined"
-            role="dialog"
-            aria-modal="true"
-            v-bind="$attrs"
-        >
-          <div class="lum-modal-header">
-            <span class="lum-modal-title">
-              <slot name="title" />
-            </span>
+        <div class="lum-modal-header">
+          <span class="lum-modal-title">
+            <slot name="title" />
+          </span>
 
-            <button
-                class="lum-icon-btn"
-                aria-label="Close"
-                @click="open = false"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 6 6 18M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+          <button
+              class="lum-icon-btn"
+              aria-label="Close"
+              @click="open = false"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
 
-          <div class="lum-modal-body">
-            <slot />
-          </div>
+        <div class="lum-modal-body">
+          <slot />
+        </div>
 
-          <div v-if="$slots.footer" class="lum-modal-footer">
-            <slot name="footer" />
-          </div>
+        <div v-if="$slots.footer" class="lum-modal-footer">
+          <slot name="footer" />
         </div>
       </div>
-    </Transition>
-  </Teleport>
+    </div>
+  </Transition>
 </template>

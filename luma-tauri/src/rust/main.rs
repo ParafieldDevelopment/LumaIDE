@@ -4,7 +4,7 @@ pub mod startup_window;
 mod error_report;
 pub mod base_invokes;
 pub mod settings_window;
-pub mod debugging_window;
+pub mod tauri_utils;
 
 use std::panic::{self, AssertUnwindSafe};
 use std::process::ExitCode;
@@ -13,6 +13,8 @@ use luma_diagnostics::ErrorReport;
 use tauri::Manager;
 use tauri::ipc::{CapabilityBuilder};
 use tauri::webview::Color;
+use tauri_plugin_prevent_default::Flags;
+
 const STARTUP_COLOR: Color = Color {
     0: 6,
     1: 7,
@@ -86,6 +88,13 @@ fn build_tauri_app() -> Result<tauri::App> {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_os::init())
+        .plugin(
+            tauri_plugin_prevent_default::Builder::new()
+                .with_flags(
+                    Flags::all() & !Flags::CONTEXT_MENU & !Flags::DEV_TOOLS
+                )
+                .build()
+        )
         .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}))
         .plugin(
             tauri_plugin_window_state::Builder::new()
@@ -107,7 +116,8 @@ fn build_tauri_app() -> Result<tauri::App> {
                 // base_invokes
 
                 base_invokes::webview_ready,
-                base_invokes::open_settings_window
+                base_invokes::open_settings_window,
+                base_invokes::open_devtools,
 
             ]
         )
@@ -130,7 +140,8 @@ fn build_tauri_app() -> Result<tauri::App> {
                 .permission("core:window:allow-close")
                 .permission("core:window:allow-minimize")
                 .permission("core:window:allow-toggle-maximize")
-                .permission("core:window:allow-start-dragging");
+                .permission("core:window:allow-start-dragging")
+                .permission("core:window:allow-set-focus");
 
             app.add_capability(capability)?;
 

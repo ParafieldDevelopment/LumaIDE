@@ -18,6 +18,7 @@ pub fn startup_window(app: tauri::AppHandle) -> anyhow::Result<()> {
             .decorations(!cfg!(target_os = "windows"))
             .min_inner_size(750.0, 500.0)
             .title("Luma - Project Selection")
+            .focused(true)
             .background_color(STARTUP_COLOR);
 
         #[cfg(target_os = "macos")]

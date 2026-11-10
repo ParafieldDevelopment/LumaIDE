@@ -1,57 +1,65 @@
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
-use anyhow::{Context};
-use log::error;
+use tauri::{
+    Manager,
+    Runtime,
+    WebviewUrl,
+    WebviewWindow,
+    WebviewWindowBuilder,
+    WindowEvent,
+};
+
+use anyhow::Context;
+use log::{error, info};
+
 use crate::STARTUP_COLOR;
+use crate::tauri_utils::with_parent;
 
 pub fn settings_window(
     app: tauri::AppHandle,
     parent: Option<&tauri::WebviewWindow>,
 ) -> anyhow::Result<()> {
-    log::info!(
+    info!(
         "settings_window called (parent={:?})",
         parent.map(|p| p.label())
     );
 
-    // Reuse the existing settings window.
+    // Reuse an existing settings window.
     if let Some(window) = app.get_webview_window("settings") {
         window
             .set_focus()
-            .context("Failed to focus the settings window")?;
+            .context("Failed to focus settings window")?;
 
         return Ok(());
     }
 
-    let mut builder = WebviewWindowBuilder::new(
+    // Create the settings window builder.
+    let builder = WebviewWindowBuilder::new(
         &app,
         "settings",
         WebviewUrl::App("windows/settings.html".into()),
     )
         .visible(false)
-        .focused(false)
+        .focused(true)
         .decorations(!cfg!(target_os = "windows"))
         .min_inner_size(750.0, 500.0)
         .title("Luma - Settings")
         .background_color(STARTUP_COLOR);
 
-    // macOS window configuration.
+    // macOS configuration.
     #[cfg(target_os = "macos")]
-    {
-        builder = builder
-            .title_bar_style(tauri::TitleBarStyle::Overlay)
-            .hidden_title(true)
-            .traffic_light_position(
-                tauri::LogicalPosition::new(15.0, 18.0),
-            );
-    }
+    let builder = builder
+        .title_bar_style(tauri::TitleBarStyle::Overlay)
+        .hidden_title(true)
+        .traffic_light_position(
+            tauri::LogicalPosition::new(15.0, 18.0),
+        );
 
-    // Attach the settings window to its parent.
+    // Attach the parent.
+    let builder = with_parent(builder, parent)
+        .context("Failed to attach parent window")?;
+
+    // Windows requires manual modality.
+    #[cfg(target_os = "windows")]
     if let Some(parent) = parent {
-        builder = builder
-            .parent(parent)
-            .context("Failed to set parent window")?;
-
-        // Windows requires manual modality.
-        #[cfg(target_os = "windows")]
         parent
             .set_enabled(false)
             .context("Failed to disable parent window")?;
@@ -66,7 +74,7 @@ pub fn settings_window(
             #[cfg(target_os = "windows")]
             if let Some(parent) = parent {
                 if let Err(recovery_err) = parent.set_enabled(true) {
-                    log::error!(
+                    error!(
                         "Failed to restore parent window: {recovery_err}"
                     );
                 }
@@ -77,21 +85,19 @@ pub fn settings_window(
     };
 
     // Restore the parent when settings is destroyed.
-    #[cfg(target_os = "windows")]
     if let Some(parent) = parent.cloned() {
         window.on_window_event(move |event| {
-            if matches!(event, WindowEvent::Destroyed) {
-                if let Err(err) = parent.set_focus() {
-                    log::error!(
-                        "Failed to restore parent window focus: {err}   "
-                    )
-                }
+            if !matches!(event, WindowEvent::Destroyed) {
+                return;
+            }
 
-                if let Err(err) = parent.set_enabled(true) {
-                    log::error!(
-                        "Failed to re-enable parent window: {err}"
-                    );
-                }
+            #[cfg(target_os = "windows")]
+            if let Err(err) = parent.set_enabled(true) {
+                error!("Failed to re-enable parent window: {err}");
+            }
+
+            if let Err(err) = parent.set_focus() {
+                error!("Failed to restore parent window focus: {err}");
             }
         });
     }

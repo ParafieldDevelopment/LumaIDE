@@ -4,11 +4,24 @@ import TitleBar from "~/vue/window/TitleBar.vue";
 import {onMounted} from "vue";
 import {loadTheme, webviewReady} from "~/luma/LumaWindow.ts";
 import {LumContextMenu, LumModals, LumToasts} from "~/vue/components";
+import {invoke} from "@tauri-apps/api/core";
 
 onMounted(async () => {
   await loadTheme();
   await webviewReady();
 })
+
+window.addEventListener("keydown", async (event) => {
+  if (event.key === "F12") {
+    event.preventDefault();
+    return;
+  }
+
+  if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "i") {
+    event.preventDefault();
+    await invoke("open_devtools");
+  }
+});
 </script>
 
 <template>
@@ -27,6 +40,7 @@ onMounted(async () => {
   <div class="main">
     <LumToasts />
     <LumModals />
+    <LumContextMenu />
   </div>
 </template>
 

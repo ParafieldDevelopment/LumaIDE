@@ -2,7 +2,7 @@ use anyhow::Context;
 use crate::settings_window::settings_window;
 
 #[tauri::command]
-pub fn webview_ready(window: tauri::WebviewWindow) -> Result<(), tauri::ipc::InvokeError> {
+pub async fn webview_ready(window: tauri::WebviewWindow) -> Result<(), tauri::ipc::InvokeError> {
     log::info!("webview_ready label={}", window.label());
 
     window.show()
@@ -25,6 +25,15 @@ pub async fn open_settings_window(app_handle: tauri::AppHandle,window: tauri::We
     }
 
     result.map_err(tauri::ipc::InvokeError::from_anyhow)?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn open_devtools(window: tauri::WebviewWindow) -> Result<(), tauri::ipc::InvokeError> {
+    log::info!("open_devtools label={}", window.label());
+
+    window.open_devtools();
 
     Ok(())
 }

@@ -77,7 +77,7 @@ fn show_crash_dialog(report_file: Option<&Path>) -> Result<(), String> {
         .set_description(DIALOG_MESSAGE)
         .set_level(rfd::MessageLevel::Error)
         .set_buttons(rfd::MessageButtons::YesNo)
-        .blocking_show();
+        .show();
 
     if answer == rfd::MessageDialogResult::Yes {
         handle_report_request(report_file)?;

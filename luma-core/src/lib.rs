@@ -13,7 +13,7 @@ pub fn init() -> Result<()> {
 
     create_dir_all(&luma_dir).context("Failed to create the Luma data directory")?;
 
-
+    
 
     Ok(())
 }
