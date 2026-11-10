@@ -7,3 +7,5 @@ edition = "2024"
 luma-core = { path = "../luma-core" }
 log = "0.4.34"
 anyhow = "1.0.104"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

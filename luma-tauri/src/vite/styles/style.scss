@@ -256,10 +256,14 @@
  * 3. RESET / BASE
  * ========================================================================== */
 
+
 *,
 *::before,
 *::after {
   box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
 }
 
 * {
@@ -291,64 +295,69 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overflow: hidden;
-  user-select: none;
   cursor: default;
 }
 
 /* ==========================================================================
- * DRAG GUARD — nothing leaves the window by accident
+ * DRAG GUARD
  * ==========================================================================
  *
- * Native dragging (images, links, selected text or arbitrary elements being
- * pulled out of the window) is DISABLED for every element by default.
+ * Selection and native dragging are disabled globally.
  *
- * Only these opt back in:
+ * Opt-ins:
  *
- *   - `.lum-draggable`     — a component that is designed to be dragged
- *                            (rows, cards, tiles, ...). `-webkit-user-drag:
- *                            element` makes it natively draggable, no
- *                            HTML attribute required.
- *   - `draggable="true"`   — if the explicit attribute is set it is honored.
+ *   .lum-draggable   — Allows native element dragging.
+ *   draggable="true" — Explicitly enables native dragging.
+ *   .lum-selectable  — Allows text selection and copying.
  *
- * Text entry controls (inputs, textareas, contenteditable) keep their normal
- * caret/selection behavior so text can be selected, copied and drag-dropped
- * INSIDE the app; `.lum-selectable` re-enables selection for text meant to
- * be copied (code blocks, log output, ...).
+ * Text entry controls retain normal selection behavior.
  * ========================================================================== */
 
+/* Native dragging is disabled globally. */
 *,
 *::before,
 *::after {
   -webkit-user-drag: none;
 }
 
-/* Opt-in: components that are MEANT to be dragged. */
+/* Explicitly draggable elements. */
 .lum-draggable {
   -webkit-user-drag: element;
 }
 
-/* Explicit draggable="true" attribute is also honored. */
 [draggable="true"] {
   -webkit-user-drag: auto;
 }
 
-/* Text entry keeps its selection / text-drag behavior. */
+/* Text entry controls retain normal selection. */
 input,
 textarea,
+select,
 [contenteditable=""],
-[contenteditable="true"] {
+[contenteditable="true"],
+[contenteditable="plaintext-only"] {
   -webkit-user-drag: auto;
+  -webkit-user-select: text;
   user-select: text;
 }
 
-/* Opt-in: text meant to be highlightable/copyable inside the app
-   (code blocks, log output, README text, ...). Applied to a container,
-   it re-enables selection for all of its text content. */
-.lum-selectable {
+/* Explicitly selectable content. */
+.lum-selectable,
+.lum-selectable *,
+.lum-selectable *::before,
+.lum-selectable *::after {
   -webkit-user-select: text;
   user-select: text;
+}
+
+/* Selectable content should indicate text interaction. */
+.lum-selectable {
   cursor: text;
 }
+
+/* ==========================================================================
+ * TYPOGRAPHY
+ * ========================================================================== */
 
 code,
 pre,
@@ -362,6 +371,10 @@ kbd,
   color: var(--lum-fg-strong);
 }
 
+/* ==========================================================================
+ * FOCUS
+ * ========================================================================== */
+
 :focus {
   outline: none;
 }
@@ -371,7 +384,10 @@ kbd,
   outline-offset: 1px;
 }
 
-/* Thin themed scrollbars everywhere */
+/* ==========================================================================
+ * SCROLLBARS
+ * ========================================================================== */
+
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--lum-scrollbar-thumb) var(--lum-scrollbar-track);

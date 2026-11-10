@@ -118,6 +118,7 @@ fn build_tauri_app() -> Result<tauri::App> {
                 base_invokes::webview_ready,
                 base_invokes::open_settings_window,
                 base_invokes::open_devtools,
+                base_invokes::open_project,
 
             ]
         )
@@ -141,6 +142,10 @@ fn build_tauri_app() -> Result<tauri::App> {
                 .permission("core:window:allow-minimize")
                 .permission("core:window:allow-toggle-maximize")
                 .permission("core:window:allow-start-dragging")
+                .permission("core:window:allow-set-focus")
+                .permission("notification:allow-is-permission-granted")
+                .permission("notification:allow-request-permission")
+                .permission("notification:allow-notify")
                 .permission("core:window:allow-set-focus");
 
             app.add_capability(capability)?;

@@ -37,3 +37,11 @@ pub async fn open_devtools(window: tauri::WebviewWindow) -> Result<(), tauri::ip
 
     Ok(())
 }
+
+
+#[tauri::command]
+pub async fn open_project(uuid: String) -> Result<() ,tauri::ipc::InvokeError> {
+    log::info!("opening project {}", uuid);
+
+    Ok(())
+}

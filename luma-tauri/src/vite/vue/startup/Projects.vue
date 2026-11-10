@@ -2,6 +2,9 @@
 import {LumButton, LumInput} from "~/vue/components";
 import SearchIcon from "~/vue/icons/SearchIcon.vue";
 import Project from "~/vue/startup/Project.vue";
+import {ProjectObject} from "~/luma/ProjectObject.ts";
+
+const projects: ProjectObject[] = []
 </script>
 
 <template>
@@ -18,8 +21,11 @@ import Project from "~/vue/startup/Project.vue";
         <LumButton>Clone Repository</LumButton>
       </div>
     </div>
-    <div class="projects">
-      <Project />
+    <div class="projects" v-for="project in projects" v-if="projects.length > 0">
+      <Project :project="project" />
+    </div>
+    <div class="projects" 1wsœQ~>cr3f4gthy6t75
+      <p>No projects :(</p>
     </div>
   </div>
 </template>
@@ -48,7 +54,12 @@ import Project from "~/vue/startup/Project.vue";
   }
 
   .projects {
+    display: flex;
+    flex-direction: column;
+
     padding: 1rem;
     overflow-y: auto;
+
+    gap: 0.5rem;
   }
 </style>

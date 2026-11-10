@@ -1,6 +1,7 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { platform } from "@tauri-apps/plugin-os";
 import { reactive, readonly } from "vue";
+import {waitUntilReady} from "~/luma/LumaWindow.ts";
 
 const appWindow = getCurrentWindow();
 
@@ -18,6 +19,8 @@ async function initializeWindow() {
     if (initialization) return initialization;
 
     initialization = (async () => {
+        await waitUntilReady()
+
         state.isMaximized = await appWindow.isMaximized();
         state.isFocused = await appWindow.isFocused();
 
@@ -41,6 +44,7 @@ async function initializeWindow() {
 }
 
 export function useWindow() {
+
     // Make sure the native event listeners are initialized.
     void initializeWindow().catch(console.error);
 
