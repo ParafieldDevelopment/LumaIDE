@@ -2363,12 +2363,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 
 [[package]]
+name = "luma-api"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "log",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "luma-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "dirs",
  "log",
+ "luma-api",
  "serde",
  "serde_json",
 ]
@@ -2390,7 +2401,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "log",
- "luma-core",
+ "luma-api",
  "serde",
  "serde_json",
 ]
@@ -2403,6 +2414,7 @@ dependencies = [
  "log",
  "luma-core",
  "luma-diagnostics",
+ "luma-extensions",
  "serde",
  "serde_json",
  "tauri",

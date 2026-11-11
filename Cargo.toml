@@ -1,6 +1,6 @@
 [workspace]
 
-members = ["luma-core", "luma-extensions", "luma-diagnostics", "luma-tauri"]
+members = ["luma-core", "luma-extensions", "luma-diagnostics", "luma-tauri", "luma-api"]
 
 resolver = "2"
 

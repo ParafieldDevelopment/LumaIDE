@@ -1,5 +1,4 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
 pub mod startup_window;
 mod error_report;
 pub mod base_invokes;
@@ -23,7 +22,10 @@ const STARTUP_COLOR: Color = Color {
 };
 
 fn run_setup() -> Result<()> {
-    luma_core::init().context("Failed to initialize Luma core")
+    luma_core::init().context("Failed to initialize Luma core")?;
+    luma_extensions::init().context("Failed to initialize Luma extensions")?;
+
+    Ok(())
 }
 
 fn main() -> ExitCode {

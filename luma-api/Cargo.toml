@@ -1,0 +1,10 @@
+[package]
+name = "luma-api"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+log = "0.4.34"
+anyhow = "1.0.104"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

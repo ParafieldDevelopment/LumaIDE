@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { LumContextMenu, LumModals } from "./components";
 import { invoke } from "@tauri-apps/api/core";
+import TitleBar from "~/vue/window/TitleBar.vue";
 
 window.addEventListener("keydown", async (event) => {
   if (event.key === "F12") {
@@ -16,6 +17,8 @@ window.addEventListener("keydown", async (event) => {
 </script>
 
 <template>
+  <TitleBar/>
+
   <LumContextMenu />
   <LumModals />
 </template>
