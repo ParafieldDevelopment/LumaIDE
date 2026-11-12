@@ -40,8 +40,13 @@ pub async fn open_devtools(window: tauri::WebviewWindow) -> Result<(), tauri::ip
 
 
 #[tauri::command]
-pub async fn open_project(uuid: String) -> Result<() ,tauri::ipc::InvokeError> {
+pub async fn open_project(uuid: String) -> Result<(), tauri::ipc::InvokeError> {
     log::info!("opening project {}", uuid);
+
+    if let Some(core) = luma_core::CORE_API.get() {
+        core.open_project(&uuid)
+            .map_err(tauri::ipc::InvokeError::from_anyhow)?;
+    }
 
     Ok(())
 }

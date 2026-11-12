@@ -2,6 +2,7 @@ use std::{
     collections::HashMap,
     fs,
     path::Path,
+    sync::Arc,
 };
 
 use anyhow::{anyhow, bail, Context, Result};
@@ -15,20 +16,337 @@ use serde::{Deserialize, Serialize};
 #[serde(untagged)]
 pub enum ConfigurationValue {
     String(String),
-    Boolean(bool),
+
+    // Integer values.
+    Int(i64),
+    Integer(i64),
+    I64(i64),
+    Int64(i64),
+
+    // Floating point values (64-bit).
+    Float64(f64),
     Float(f64),
+    Double(f64),
+    F64(f64),
+
+    // Boolean values (kept for backwards compatibility).
+    Boolean(bool),
+    Bool(bool),
+
+    // Nested configuration (a table of values).
     SubConfig(ConfigurationRegistry),
+    SubConfiguration(ConfigurationRegistry),
+    SubConfigs(ConfigurationRegistry),
+    Configuration(ConfigurationRegistry),
+    Config(ConfigurationRegistry),
+
+    // Hash maps / tables of values.
+    HashMap(HashMap<String, ConfigurationValue>),
+    Map(HashMap<String, ConfigurationValue>),
+    Dict(HashMap<String, ConfigurationValue>),
+    Table(HashMap<String, ConfigurationValue>),
+    Object(HashMap<String, ConfigurationValue>),
+
+    // Lists / arrays of values.
+    List(Vec<ConfigurationValue>),
+    Array(Vec<ConfigurationValue>),
+    Vec(Vec<ConfigurationValue>),
+    Sequence(Vec<ConfigurationValue>),
 }
 
 impl ConfigurationValue {
-    fn has_same_type(&self, other: &Self) -> bool {
+    pub fn has_same_type(&self, other: &Self) -> bool {
         matches!(
             (self, other),
             (Self::String(_), Self::String(_))
-                | (Self::Boolean(_), Self::Boolean(_))
+                | (Self::Int(_), Self::Int(_))
+                | (Self::Integer(_), Self::Integer(_))
+                | (Self::I64(_), Self::I64(_))
+                | (Self::Int64(_), Self::Int64(_))
+                | (Self::Float64(_), Self::Float64(_))
                 | (Self::Float(_), Self::Float(_))
+                | (Self::Double(_), Self::Double(_))
+                | (Self::F64(_), Self::F64(_))
+                | (Self::Boolean(_), Self::Boolean(_))
+                | (Self::Bool(_), Self::Bool(_))
                 | (Self::SubConfig(_), Self::SubConfig(_))
+                | (Self::SubConfiguration(_), Self::SubConfiguration(_))
+                | (Self::SubConfigs(_), Self::SubConfigs(_))
+                | (Self::Configuration(_), Self::Configuration(_))
+                | (Self::Config(_), Self::Config(_))
+                | (Self::HashMap(_), Self::HashMap(_))
+                | (Self::Map(_), Self::Map(_))
+                | (Self::Dict(_), Self::Dict(_))
+                | (Self::Table(_), Self::Table(_))
+                | (Self::Object(_), Self::Object(_))
+                | (Self::List(_), Self::List(_))
+                | (Self::Array(_), Self::Array(_))
+                | (Self::Vec(_), Self::Vec(_))
+                | (Self::Sequence(_), Self::Sequence(_))
+                // Allow cross-alias comparisons between equivalent kinds.
+                | (Self::Int(_), Self::Integer(_))
+                | (Self::Int(_), Self::I64(_))
+                | (Self::Int(_), Self::Int64(_))
+                | (Self::Integer(_), Self::Int(_))
+                | (Self::Integer(_), Self::I64(_))
+                | (Self::Integer(_), Self::Int64(_))
+                | (Self::I64(_), Self::Int(_))
+                | (Self::I64(_), Self::Integer(_))
+                | (Self::I64(_), Self::Int64(_))
+                | (Self::Int64(_), Self::Int(_))
+                | (Self::Int64(_), Self::Integer(_))
+                | (Self::Int64(_), Self::I64(_))
+                | (Self::Float64(_), Self::Float(_))
+                | (Self::Float64(_), Self::Double(_))
+                | (Self::Float64(_), Self::F64(_))
+                | (Self::Float(_), Self::Float64(_))
+                | (Self::Float(_), Self::Double(_))
+                | (Self::Float(_), Self::F64(_))
+                | (Self::Double(_), Self::Float64(_))
+                | (Self::Double(_), Self::Float(_))
+                | (Self::Double(_), Self::F64(_))
+                | (Self::F64(_), Self::Float64(_))
+                | (Self::F64(_), Self::Float(_))
+                | (Self::F64(_), Self::Double(_))
+                | (Self::Boolean(_), Self::Bool(_))
+                | (Self::Bool(_), Self::Boolean(_))
+                | (Self::SubConfig(_), Self::SubConfiguration(_))
+                | (Self::SubConfig(_), Self::SubConfigs(_))
+                | (Self::SubConfig(_), Self::Configuration(_))
+                | (Self::SubConfig(_), Self::Config(_))
+                | (Self::SubConfiguration(_), Self::SubConfig(_))
+                | (Self::SubConfiguration(_), Self::SubConfigs(_))
+                | (Self::SubConfiguration(_), Self::Configuration(_))
+                | (Self::SubConfiguration(_), Self::Config(_))
+                | (Self::SubConfigs(_), Self::SubConfig(_))
+                | (Self::SubConfigs(_), Self::SubConfiguration(_))
+                | (Self::SubConfigs(_), Self::Configuration(_))
+                | (Self::SubConfigs(_), Self::Config(_))
+                | (Self::Configuration(_), Self::SubConfig(_))
+                | (Self::Configuration(_), Self::SubConfiguration(_))
+                | (Self::Configuration(_), Self::SubConfigs(_))
+                | (Self::Configuration(_), Self::Config(_))
+                | (Self::Config(_), Self::SubConfig(_))
+                | (Self::Config(_), Self::SubConfiguration(_))
+                | (Self::Config(_), Self::SubConfigs(_))
+                | (Self::Config(_), Self::Configuration(_))
+                | (Self::HashMap(_), Self::Map(_))
+                | (Self::HashMap(_), Self::Dict(_))
+                | (Self::HashMap(_), Self::Table(_))
+                | (Self::HashMap(_), Self::Object(_))
+                | (Self::Map(_), Self::HashMap(_))
+                | (Self::Map(_), Self::Dict(_))
+                | (Self::Map(_), Self::Table(_))
+                | (Self::Map(_), Self::Object(_))
+                | (Self::Dict(_), Self::HashMap(_))
+                | (Self::Dict(_), Self::Map(_))
+                | (Self::Dict(_), Self::Table(_))
+                | (Self::Dict(_), Self::Object(_))
+                | (Self::Table(_), Self::HashMap(_))
+                | (Self::Table(_), Self::Map(_))
+                | (Self::Table(_), Self::Dict(_))
+                | (Self::Table(_), Self::Object(_))
+                | (Self::Object(_), Self::HashMap(_))
+                | (Self::Object(_), Self::Map(_))
+                | (Self::Object(_), Self::Dict(_))
+                | (Self::Object(_), Self::Table(_))
+                | (Self::List(_), Self::Array(_))
+                | (Self::List(_), Self::Vec(_))
+                | (Self::List(_), Self::Sequence(_))
+                | (Self::Array(_), Self::List(_))
+                | (Self::Array(_), Self::Vec(_))
+                | (Self::Array(_), Self::Sequence(_))
+                | (Self::Vec(_), Self::List(_))
+                | (Self::Vec(_), Self::Array(_))
+                | (Self::Vec(_), Self::Sequence(_))
+                | (Self::Sequence(_), Self::List(_))
+                | (Self::Sequence(_), Self::Array(_))
+                | (Self::Sequence(_), Self::Vec(_))
         )
+    }
+}
+
+impl PartialEq for ConfigurationValue {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::String(a), Self::String(b)) => a == b,
+            (Self::Int(a), Self::Int(b))
+            | (Self::Int(a), Self::Integer(b))
+            | (Self::Int(a), Self::I64(b))
+            | (Self::Int(a), Self::Int64(b))
+            | (Self::Integer(a), Self::Int(b))
+            | (Self::Integer(a), Self::Integer(b))
+            | (Self::Integer(a), Self::I64(b))
+            | (Self::Integer(a), Self::Int64(b))
+            | (Self::I64(a), Self::Int(b))
+            | (Self::I64(a), Self::Integer(b))
+            | (Self::I64(a), Self::I64(b))
+            | (Self::I64(a), Self::Int64(b))
+            | (Self::Int64(a), Self::Int(b))
+            | (Self::Int64(a), Self::Integer(b))
+            | (Self::Int64(a), Self::I64(b))
+            | (Self::Int64(a), Self::Int64(b)) => a == b,
+            (Self::Float64(a), Self::Float64(b))
+            | (Self::Float64(a), Self::Float(b))
+            | (Self::Float64(a), Self::Double(b))
+            | (Self::Float64(a), Self::F64(b))
+            | (Self::Float(a), Self::Float64(b))
+            | (Self::Float(a), Self::Float(b))
+            | (Self::Float(a), Self::Double(b))
+            | (Self::Float(a), Self::F64(b))
+            | (Self::Double(a), Self::Float64(b))
+            | (Self::Double(a), Self::Float(b))
+            | (Self::Double(a), Self::Double(b))
+            | (Self::Double(a), Self::F64(b))
+            | (Self::F64(a), Self::Float64(b))
+            | (Self::F64(a), Self::Float(b))
+            | (Self::F64(a), Self::Double(b))
+            | (Self::F64(a), Self::F64(b)) => a == b,
+            (Self::Boolean(a), Self::Boolean(b))
+            | (Self::Boolean(a), Self::Bool(b))
+            | (Self::Bool(a), Self::Boolean(b))
+            | (Self::Bool(a), Self::Bool(b)) => a == b,
+            (Self::SubConfig(a), Self::SubConfig(b))
+            | (Self::SubConfig(a), Self::SubConfiguration(b))
+            | (Self::SubConfig(a), Self::SubConfigs(b))
+            | (Self::SubConfig(a), Self::Configuration(b))
+            | (Self::SubConfig(a), Self::Config(b))
+            | (Self::SubConfiguration(a), Self::SubConfig(b))
+            | (Self::SubConfiguration(a), Self::SubConfiguration(b))
+            | (Self::SubConfiguration(a), Self::SubConfigs(b))
+            | (Self::SubConfiguration(a), Self::Configuration(b))
+            | (Self::SubConfiguration(a), Self::Config(b))
+            | (Self::SubConfigs(a), Self::SubConfig(b))
+            | (Self::SubConfigs(a), Self::SubConfiguration(b))
+            | (Self::SubConfigs(a), Self::SubConfigs(b))
+            | (Self::SubConfigs(a), Self::Configuration(b))
+            | (Self::SubConfigs(a), Self::Config(b))
+            | (Self::Configuration(a), Self::SubConfig(b))
+            | (Self::Configuration(a), Self::SubConfiguration(b))
+            | (Self::Configuration(a), Self::SubConfigs(b))
+            | (Self::Configuration(a), Self::Configuration(b))
+            | (Self::Configuration(a), Self::Config(b))
+            | (Self::Config(a), Self::SubConfig(b))
+            | (Self::Config(a), Self::SubConfiguration(b))
+            | (Self::Config(a), Self::SubConfigs(b))
+            | (Self::Config(a), Self::Configuration(b))
+            | (Self::Config(a), Self::Config(b)) => a == b,
+            // Table-like variants are interchangeable.
+            (Self::HashMap(a), Self::HashMap(b))
+            | (Self::HashMap(a), Self::Map(b))
+            | (Self::HashMap(a), Self::Dict(b))
+            | (Self::HashMap(a), Self::Table(b))
+            | (Self::HashMap(a), Self::Object(b))
+            | (Self::Map(a), Self::HashMap(b))
+            | (Self::Map(a), Self::Map(b))
+            | (Self::Map(a), Self::Dict(b))
+            | (Self::Map(a), Self::Table(b))
+            | (Self::Map(a), Self::Object(b))
+            | (Self::Dict(a), Self::HashMap(b))
+            | (Self::Dict(a), Self::Map(b))
+            | (Self::Dict(a), Self::Dict(b))
+            | (Self::Dict(a), Self::Table(b))
+            | (Self::Dict(a), Self::Object(b))
+            | (Self::Table(a), Self::HashMap(b))
+            | (Self::Table(a), Self::Map(b))
+            | (Self::Table(a), Self::Dict(b))
+            | (Self::Table(a), Self::Table(b))
+            | (Self::Table(a), Self::Object(b))
+            | (Self::Object(a), Self::HashMap(b))
+            | (Self::Object(a), Self::Map(b))
+            | (Self::Object(a), Self::Dict(b))
+            | (Self::Object(a), Self::Table(b))
+            | (Self::Object(a), Self::Object(b)) => {
+                // Compare as maps of ConfigurationValue.
+                if a.len() != b.len() { return false; }
+                a.iter().all(|(k,v)| b.get(k).map(|ov| v == ov).unwrap_or(false))
+            }
+            // Cross table/map/subconfig equality.
+            (Self::SubConfig(a), Self::HashMap(b))
+            | (Self::SubConfig(a), Self::Map(b))
+            | (Self::SubConfig(a), Self::Dict(b))
+            | (Self::SubConfig(a), Self::Table(b))
+            | (Self::SubConfig(a), Self::Object(b))
+            | (Self::SubConfiguration(a), Self::HashMap(b))
+            | (Self::SubConfiguration(a), Self::Map(b))
+            | (Self::SubConfiguration(a), Self::Dict(b))
+            | (Self::SubConfiguration(a), Self::Table(b))
+            | (Self::SubConfiguration(a), Self::Object(b))
+            | (Self::SubConfigs(a), Self::HashMap(b))
+            | (Self::SubConfigs(a), Self::Map(b))
+            | (Self::SubConfigs(a), Self::Dict(b))
+            | (Self::SubConfigs(a), Self::Table(b))
+            | (Self::SubConfigs(a), Self::Object(b))
+            | (Self::Configuration(a), Self::HashMap(b))
+            | (Self::Configuration(a), Self::Map(b))
+            | (Self::Configuration(a), Self::Dict(b))
+            | (Self::Configuration(a), Self::Table(b))
+            | (Self::Configuration(a), Self::Object(b))
+            | (Self::Config(a), Self::HashMap(b))
+            | (Self::Config(a), Self::Map(b))
+            | (Self::Config(a), Self::Dict(b))
+            | (Self::Config(a), Self::Table(b))
+            | (Self::Config(a), Self::Object(b)) => {
+                let am = &a.values;
+                if am.len() != b.len() { return false; }
+                b.iter().all(|(k,v)| am.get(k).map(|ov| ov == v).unwrap_or(false))
+            }
+            (Self::HashMap(a), Self::SubConfig(b))
+            | (Self::HashMap(a), Self::SubConfiguration(b))
+            | (Self::HashMap(a), Self::SubConfigs(b))
+            | (Self::HashMap(a), Self::Configuration(b))
+            | (Self::HashMap(a), Self::Config(b))
+            | (Self::Map(a), Self::SubConfig(b))
+            | (Self::Map(a), Self::SubConfiguration(b))
+            | (Self::Map(a), Self::SubConfigs(b))
+            | (Self::Map(a), Self::Configuration(b))
+            | (Self::Map(a), Self::Config(b))
+            | (Self::Dict(a), Self::SubConfig(b))
+            | (Self::Dict(a), Self::SubConfiguration(b))
+            | (Self::Dict(a), Self::SubConfigs(b))
+            | (Self::Dict(a), Self::Configuration(b))
+            | (Self::Dict(a), Self::Config(b))
+            | (Self::Table(a), Self::SubConfig(b))
+            | (Self::Table(a), Self::SubConfiguration(b))
+            | (Self::Table(a), Self::SubConfigs(b))
+            | (Self::Table(a), Self::Configuration(b))
+            | (Self::Table(a), Self::Config(b))
+            | (Self::Object(a), Self::SubConfig(b))
+            | (Self::Object(a), Self::SubConfiguration(b))
+            | (Self::Object(a), Self::SubConfigs(b))
+            | (Self::Object(a), Self::Configuration(b))
+            | (Self::Object(a), Self::Config(b)) => {
+                let bm = &b.values;
+                if a.len() != bm.len() { return false; }
+                a.iter().all(|(k,v)| bm.get(k).map(|ov| v == ov).unwrap_or(false))
+            }
+            (Self::List(a), Self::List(b))
+            | (Self::List(a), Self::Array(b))
+            | (Self::List(a), Self::Vec(b))
+            | (Self::List(a), Self::Sequence(b))
+            | (Self::Array(a), Self::List(b))
+            | (Self::Array(a), Self::Array(b))
+            | (Self::Array(a), Self::Vec(b))
+            | (Self::Array(a), Self::Sequence(b))
+            | (Self::Vec(a), Self::List(b))
+            | (Self::Vec(a), Self::Array(b))
+            | (Self::Vec(a), Self::Vec(b))
+            | (Self::Vec(a), Self::Sequence(b))
+            | (Self::Sequence(a), Self::List(b))
+            | (Self::Sequence(a), Self::Array(b))
+            | (Self::Sequence(a), Self::Vec(b))
+            | (Self::Sequence(a), Self::Sequence(b)) => {
+                if a.len() != b.len() { return false; }
+                a.iter().zip(b.iter()).all(|(x,y)| x == y)
+            }
+            _ => false,
+        }
+    }
+}
+
+impl PartialEq for ConfigurationRegistry {
+    fn eq(&self, other: &Self) -> bool {
+        self.values == other.values
     }
 }
 
@@ -65,8 +383,15 @@ impl ConfigurationRegistry {
         self.frozen = true;
 
         for value in self.values.values_mut() {
-            if let ConfigurationValue::SubConfig(registry) = value {
-                registry.freeze();
+            match value {
+                ConfigurationValue::SubConfig(registry)
+                | ConfigurationValue::SubConfiguration(registry)
+                | ConfigurationValue::SubConfigs(registry)
+                | ConfigurationValue::Configuration(registry)
+                | ConfigurationValue::Config(registry) => {
+                    registry.freeze();
+                }
+                _ => {}
             }
         }
     }
@@ -79,7 +404,7 @@ impl ConfigurationRegistry {
         self.values.is_empty()
     }
 
-    fn insert_path(
+    pub fn insert_path(
         &mut self,
         path: &[String],
         value: ConfigurationValue,
@@ -106,7 +431,11 @@ impl ConfigurationRegistry {
             });
 
         match entry {
-            ConfigurationValue::SubConfig(registry) => {
+            ConfigurationValue::SubConfig(registry)
+            | ConfigurationValue::SubConfiguration(registry)
+            | ConfigurationValue::SubConfigs(registry)
+            | ConfigurationValue::Configuration(registry)
+            | ConfigurationValue::Config(registry) => {
                 registry.insert_path(remaining, value)
             }
 
@@ -117,7 +446,7 @@ impl ConfigurationRegistry {
         }
     }
 
-    fn get_path(
+    pub fn get_path(
         &self,
         path: &[String],
     ) -> Option<&ConfigurationValue> {
@@ -130,7 +459,11 @@ impl ConfigurationRegistry {
         }
 
         match value {
-            ConfigurationValue::SubConfig(registry) => {
+            ConfigurationValue::SubConfig(registry)
+            | ConfigurationValue::SubConfiguration(registry)
+            | ConfigurationValue::SubConfigs(registry)
+            | ConfigurationValue::Configuration(registry)
+            | ConfigurationValue::Config(registry) => {
                 registry.get_path(remaining)
             }
 
@@ -138,7 +471,7 @@ impl ConfigurationRegistry {
         }
     }
 
-    fn remove_path(
+    pub fn remove_path(
         &mut self,
         path: &[String],
     ) -> Result<bool> {
@@ -153,7 +486,11 @@ impl ConfigurationRegistry {
         let mut remove_parent = false;
 
         let removed = match self.values.get_mut(key) {
-            Some(ConfigurationValue::SubConfig(registry)) => {
+            Some(ConfigurationValue::SubConfig(registry))
+            | Some(ConfigurationValue::SubConfiguration(registry))
+            | Some(ConfigurationValue::SubConfigs(registry))
+            | Some(ConfigurationValue::Configuration(registry))
+            | Some(ConfigurationValue::Config(registry)) => {
                 let removed = registry.remove_path(remaining)?;
                 remove_parent = registry.is_empty();
                 removed
@@ -167,6 +504,14 @@ impl ConfigurationRegistry {
         }
 
         Ok(removed)
+    }
+
+    pub fn values(&self) -> &HashMap<String, ConfigurationValue> {
+        &self.values
+    }
+
+    pub fn values_mut(&mut self) -> &mut HashMap<String, ConfigurationValue> {
+        &mut self.values
     }
 }
 
@@ -225,6 +570,15 @@ pub enum ConfigurationScope<'a> {
 }
 
 // ============================================================
+// Callbacks
+// ============================================================
+
+pub type ConfigurationChangeCallback =
+    Arc<dyn Fn(&str, ConfigurationValue) + Send + Sync>;
+
+pub type ConfigurationCallback = ConfigurationChangeCallback;
+
+// ============================================================
 // Configuration Manager
 // ============================================================
 
@@ -242,6 +596,9 @@ pub struct ConfigurationManager {
 
     // Prevents registration after initialization.
     frozen: bool,
+
+    // Change listeners.
+    callbacks: Vec<ConfigurationChangeCallback>,
 }
 
 impl Default for ConfigurationManager {
@@ -257,6 +614,7 @@ impl ConfigurationManager {
             global_overrides: HashMap::new(),
             project_overrides: HashMap::new(),
             frozen: false,
+            callbacks: Vec::new(),
         }
     }
 
@@ -316,6 +674,79 @@ impl ConfigurationManager {
 
     pub fn is_frozen(&self) -> bool {
         self.frozen
+    }
+
+    // --------------------------------------------------------
+    // Change callbacks
+    // --------------------------------------------------------
+
+    pub fn on_change<F>(&mut self, callback: F)
+    where
+        F: Fn(&str, ConfigurationValue) + Send + Sync + 'static,
+    {
+        self.callbacks.push(Arc::new(callback));
+    }
+
+    pub fn set_on_change<F>(&mut self, callback: F)
+    where
+        F: Fn(&str, ConfigurationValue) + Send + Sync + 'static,
+    {
+        self.on_change(callback);
+    }
+
+    pub fn set_change_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(&str, ConfigurationValue) + Send + Sync + 'static,
+    {
+        self.on_change(callback);
+    }
+
+    pub fn register_change_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(&str, ConfigurationValue) + Send + Sync + 'static,
+    {
+        self.on_change(callback);
+    }
+
+    pub fn add_change_listener<F>(&mut self, callback: F)
+    where
+        F: Fn(&str, ConfigurationValue) + Send + Sync + 'static,
+    {
+        self.on_change(callback);
+    }
+
+    pub fn register_listener<F>(&mut self, callback: F)
+    where
+        F: Fn(&str, ConfigurationValue) + Send + Sync + 'static,
+    {
+        self.on_change(callback);
+    }
+
+    pub fn on_update<F>(&mut self, callback: F)
+    where
+        F: Fn(&str, ConfigurationValue) + Send + Sync + 'static,
+    {
+        self.on_change(callback);
+    }
+
+    pub fn set_update_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(&str, ConfigurationValue) + Send + Sync + 'static,
+    {
+        self.on_change(callback);
+    }
+
+    pub fn on_configuration_changed<F>(&mut self, callback: F)
+    where
+        F: Fn(&str, ConfigurationValue) + Send + Sync + 'static,
+    {
+        self.on_change(callback);
+    }
+
+    fn notify_change(&self, identifier: &str, value: ConfigurationValue) {
+        for callback in &self.callbacks {
+            callback(identifier, value.clone());
+        }
     }
 
     // --------------------------------------------------------
@@ -403,7 +834,7 @@ impl ConfigurationManager {
                     .entry(id.owner.clone())
                     .or_default();
 
-                registry.insert_path(&id.path, value)?;
+                registry.insert_path(&id.path, value.clone())?;
             }
 
             ConfigurationScope::Project(project_id) => {
@@ -415,9 +846,11 @@ impl ConfigurationManager {
                     .entry(id.owner.clone())
                     .or_default();
 
-                registry.insert_path(&id.path, value)?;
+                registry.insert_path(&id.path, value.clone())?;
             }
         }
+
+        self.notify_change(identifier, value);
 
         Ok(())
     }
@@ -596,6 +1029,30 @@ impl ConfigurationManager {
                 Self::validate_registry(
                     default_sub,
                     override_sub,
+                    &format!("{}/{}", path, key),
+                )?;
+            }
+            // Also validate alias subconfig variants.
+            let default_sub = match default_value {
+                ConfigurationValue::SubConfig(r)
+                | ConfigurationValue::SubConfiguration(r)
+                | ConfigurationValue::SubConfigs(r)
+                | ConfigurationValue::Configuration(r)
+                | ConfigurationValue::Config(r) => Some(r),
+                _ => None,
+            };
+            let override_sub = match override_value {
+                ConfigurationValue::SubConfig(r)
+                | ConfigurationValue::SubConfiguration(r)
+                | ConfigurationValue::SubConfigs(r)
+                | ConfigurationValue::Configuration(r)
+                | ConfigurationValue::Config(r) => Some(r),
+                _ => None,
+            };
+            if let (Some(ds), Some(os)) = (default_sub, override_sub) {
+                Self::validate_registry(
+                    ds,
+                    os,
                     &format!("{}/{}", path, key),
                 )?;
             }

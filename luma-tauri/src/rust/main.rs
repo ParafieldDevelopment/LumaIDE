@@ -25,6 +25,8 @@ fn run_setup() -> Result<()> {
     let coreapi = luma_core::init().context("Failed to initialize Luma core")?;
     luma_extensions::init(&coreapi).context("Failed to initialize Luma extensions")?;
 
+    
+    
     Ok(())
 }
 

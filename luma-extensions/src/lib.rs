@@ -24,15 +24,17 @@ impl ExtensionsCore {
 }
 
 impl ExtensionsCoreAPI for ExtensionsCore {
-    fn boot(&self,core_api: &Shared<dyn CoreAPI>) {
-        todo!("build plugin bootup here!")
+    fn boot(&self,core_api: &Shared<dyn CoreAPI>) -> anyhow::Result<()> {
+        // TODO: actually build this.
+
+        Ok(())
     }
 }
 pub fn init(core_api: &Shared<dyn CoreAPI>) -> Result< Shared<dyn ExtensionsCoreAPI> > {
     info!("Luma Extensions initialized");
 
     let extensions_api = ExtensionsCore::init().context("Failed to initialize Luma Extensions")?;
-    extensions_api.boot(core_api);
+    extensions_api.boot(core_api).context("Failed to boot Luma Extensions")?;
 
     Ok(extensions_api)
 }

@@ -2,20 +2,15 @@
 pub mod projects;
 pub mod configuration;
 
+pub use luma_api::{CoreAPI, CORE_API, Shared};
+
 use anyhow::{Context, Result};
 use log::info;
 use std::fs::create_dir_all;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
-use luma_api::{CoreAPI, CORE_API, Shared};
-
-use crate::configuration::{
-    ConfigurationManager,
-    ConfigurationValue,
-};
-
-use std::path::Path;
+use crate::configuration::ConfigurationManager;
 
 pub const APP_DATA_DIR_NAME: &str = "Luma";
 pub const CONFIGURATION_FILE_NAME: &str = "configuration.toml";
@@ -56,16 +51,51 @@ impl Core {
     }
 
     fn initialize_configuration(&self) -> Result<()> {
-        let configuration_path =
-            self.luma_dir.join(CONFIGURATION_FILE_NAME);
+        let configuration_path = self.luma_dir.join(CONFIGURATION_FILE_NAME);
 
         let mut manager = self.configuration_manager
             .write()
             .map_err(|e| anyhow::anyhow!(
                 "Failed to acquire configuration lock: {e}"
             ))?;
-        
-        manager.register_owner("luma")?;
+
+        // Register the built-in owner if it is not already present.
+        let _ = manager.register_owner("luma");
+
+        // Load persisted global configuration from LUMA_DIR/configuration.toml.
+        manager.load_global(&configuration_path)
+            .context("Failed to load global configuration")?;
+
+        Ok(())
+    }
+
+    pub fn open_project(&self, project_id: &str) -> Result<()> {
+        let candidate_paths = [
+            self.luma_dir.join("projects").join(project_id).join(CONFIGURATION_FILE_NAME),
+            self.luma_dir.join("projects").join(format!("{}.toml", project_id)),
+            self.luma_dir.join(project_id).join(CONFIGURATION_FILE_NAME),
+            self.luma_dir.join(format!("{}.toml", project_id)),
+        ];
+
+        let path = candidate_paths
+            .iter()
+            .find(|p| p.exists())
+            .cloned()
+            .unwrap_or_else(|| {
+                self.luma_dir
+                    .join("projects")
+                    .join(project_id)
+                    .join(CONFIGURATION_FILE_NAME)
+            });
+
+        let mut manager = self.configuration_manager
+            .write()
+            .map_err(|e| anyhow::anyhow!(
+                "Failed to acquire configuration lock: {e}"
+            ))?;
+
+        manager.load_project(project_id, &path)
+            .context("Failed to load project configuration")?;
 
         Ok(())
     }
@@ -77,11 +107,13 @@ impl CoreAPI for Core {
     }
 
     fn boot(&self) -> Result<()> {
-        self.initialize_configuration()?;
-
-        info!("Configuration initialized!");
+        self.initialize_configuration().context("Failed to initialize configuration")?;
 
         Ok(())
+    }
+
+    fn open_project(&self, project_id: &str) -> Result<()> {
+        Core::open_project(self, project_id)
     }
 }
 
