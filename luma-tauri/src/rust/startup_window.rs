@@ -18,7 +18,7 @@ pub fn startup_window(app: tauri::AppHandle) -> anyhow::Result<WebviewWindow> {
             .visible(false)
             .decorations(!cfg!(target_os = "windows"))
             .min_inner_size(750.0, 500.0)
-            .title("Luma - Project Selection")
+            .title("Luma - Workspace Selection")
             .focused(true)
             .background_color(STARTUP_COLOR);
 

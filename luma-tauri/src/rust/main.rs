@@ -122,7 +122,7 @@ fn build_tauri_app() -> Result<tauri::App> {
                 base_invokes::webview_ready,
                 base_invokes::open_settings_window,
                 base_invokes::open_devtools,
-                base_invokes::open_project,
+                base_invokes::open_workspace,
 
             ]
         )

@@ -564,9 +564,10 @@ impl ConfigurationId {
 // ============================================================
 
 #[derive(Debug, Clone, Copy)]
-pub enum ConfigurationScope<'a> {
+pub enum ConfigurationScope {
     Global,
-    Project(&'a str),
+    Project,
+    Workspace,
 }
 
 // ============================================================
@@ -589,16 +590,18 @@ pub struct ConfigurationManager {
     // User-wide configuration overrides.
     global_overrides: HashMap<String, ConfigurationRegistry>,
 
-    // Project-specific overrides.
-    // The key is the project's stable identifier.
-    project_overrides:
-        HashMap<String, HashMap<String, ConfigurationRegistry>>,
+    // Unified project/workspace overrides for the currently opened project.
+    workspace_overrides: HashMap<String, ConfigurationRegistry>,
 
     // Prevents registration after initialization.
     frozen: bool,
 
     // Change listeners.
     callbacks: Vec<ConfigurationChangeCallback>,
+
+    // WorkspaceUi-loaded listeners.
+    project_loaded_callbacks: Vec<Arc<dyn Fn() + Send + Sync>>,
+    project_loaded_path_callbacks: Vec<Arc<dyn Fn(&Path) + Send + Sync>>,
 }
 
 impl Default for ConfigurationManager {
@@ -612,9 +615,11 @@ impl ConfigurationManager {
         Self {
             defaults: HashMap::new(),
             global_overrides: HashMap::new(),
-            project_overrides: HashMap::new(),
             frozen: false,
             callbacks: Vec::new(),
+            project_loaded_callbacks: Vec::new(),
+            project_loaded_path_callbacks: Vec::new(),
+            workspace_overrides: HashMap::new(),
         }
     }
 
@@ -743,6 +748,52 @@ impl ConfigurationManager {
         self.on_change(callback);
     }
 
+    // --------------------------------------------------------
+    // WorkspaceUi-loaded callbacks
+    // --------------------------------------------------------
+
+    pub fn on_project_loaded<F>(&mut self, callback: F)
+    where
+        F: Fn() + Send + Sync + 'static,
+    {
+        self.project_loaded_callbacks.push(Arc::new(callback));
+    }
+
+    pub fn on_workspace_loaded<F>(&mut self, callback: F)
+    where
+        F: Fn() + Send + Sync + 'static,
+    {
+        self.on_project_loaded(callback);
+    }
+
+    pub fn register_project_loaded_callback<F>(&mut self, callback: F)
+    where
+        F: Fn() + Send + Sync + 'static,
+    {
+        self.on_project_loaded(callback);
+    }
+
+    pub fn register_workspace_loaded_callback<F>(&mut self, callback: F)
+    where
+        F: Fn() + Send + Sync + 'static,
+    {
+        self.on_workspace_loaded(callback);
+    }
+
+    pub fn on_project_loaded_with_path<F>(&mut self, callback: F)
+    where
+        F: Fn(&Path) + Send + Sync + 'static,
+    {
+        self.project_loaded_path_callbacks.push(Arc::new(callback));
+    }
+
+    pub fn on_workspace_loaded_with_path<F>(&mut self, callback: F)
+    where
+        F: Fn(&Path) + Send + Sync + 'static,
+    {
+        self.on_project_loaded_with_path(callback);
+    }
+
     fn notify_change(&self, identifier: &str, value: ConfigurationValue) {
         for callback in &self.callbacks {
             callback(identifier, value.clone());
@@ -756,20 +807,13 @@ impl ConfigurationManager {
     pub fn get(
         &self,
         identifier: &str,
-        project_id: Option<&str>,
     ) -> Result<ConfigurationValue> {
         let id = ConfigurationId::parse(identifier)?;
 
-        // 1. Project override
-        if let Some(project_id) = project_id {
-            if let Some(project) =
-                self.project_overrides.get(project_id)
-            {
-                if let Some(registry) = project.get(&id.owner) {
-                    if let Some(value) = registry.get_path(&id.path) {
-                        return Ok(value.clone());
-                    }
-                }
+        // 1. WorkspaceUi/project override (current project)
+        if let Some(registry) = self.workspace_overrides.get(&id.owner) {
+            if let Some(value) = registry.get_path(&id.path) {
+                return Ok(value.clone());
             }
         }
 
@@ -804,7 +848,7 @@ impl ConfigurationManager {
         &mut self,
         identifier: &str,
         value: ConfigurationValue,
-        scope: ConfigurationScope<'_>,
+        scope: ConfigurationScope,
     ) -> Result<()> {
         let id = ConfigurationId::parse(identifier)?;
 
@@ -837,12 +881,16 @@ impl ConfigurationManager {
                 registry.insert_path(&id.path, value.clone())?;
             }
 
-            ConfigurationScope::Project(project_id) => {
-                let project = self.project_overrides
-                    .entry(project_id.to_string())
+            ConfigurationScope::Project => {
+                let registry = self.workspace_overrides
+                    .entry(id.owner.clone())
                     .or_default();
 
-                let registry = project
+                registry.insert_path(&id.path, value.clone())?;
+            }
+
+            ConfigurationScope::Workspace => {
+                let registry = self.workspace_overrides
                     .entry(id.owner.clone())
                     .or_default();
 
@@ -858,7 +906,7 @@ impl ConfigurationManager {
     pub fn reset(
         &mut self,
         identifier: &str,
-        scope: ConfigurationScope<'_>,
+        scope: ConfigurationScope,
     ) -> Result<()> {
         let id = ConfigurationId::parse(identifier)?;
 
@@ -867,10 +915,12 @@ impl ConfigurationManager {
                 self.global_overrides.get_mut(&id.owner)
             }
 
-            ConfigurationScope::Project(project_id) => {
-                self.project_overrides
-                    .get_mut(project_id)
-                    .and_then(|project| project.get_mut(&id.owner))
+            ConfigurationScope::Project => {
+                self.workspace_overrides.get_mut(&id.owner)
+            }
+
+            ConfigurationScope::Workspace => {
+                self.workspace_overrides.get_mut(&id.owner)
             }
         };
 
@@ -910,16 +960,15 @@ impl ConfigurationManager {
     }
 
     // --------------------------------------------------------
-    // Project Persistence
+    // WorkspaceUi Persistence
     // --------------------------------------------------------
 
     pub fn load_project(
         &mut self,
-        project_id: &str,
         path: &Path,
     ) -> Result<()> {
         if !path.exists() {
-            self.project_overrides.remove(project_id);
+            self.workspace_overrides.clear();
             return Ok(());
         }
 
@@ -932,24 +981,59 @@ impl ConfigurationManager {
 
         Self::validate_overrides(&self.defaults, &overrides)?;
 
-        self.project_overrides
-            .insert(project_id.to_string(), overrides);
+        self.workspace_overrides = overrides;
+
+        // Notify project-loaded listeners. WorkspaceUi loading does not
+        // trigger per-configuration change callbacks.
+        for callback in &self.project_loaded_callbacks {
+            callback();
+        }
+        for callback in &self.project_loaded_path_callbacks {
+            callback(path);
+        }
 
         Ok(())
     }
 
     pub fn save_project(
         &self,
-        project_id: &str,
         path: &Path,
     ) -> Result<()> {
-        let empty = HashMap::new();
+        Self::save_to_file(&self.workspace_overrides, path)
+    }
 
-        let overrides = self.project_overrides
-            .get(project_id)
-            .unwrap_or(&empty);
+    // --------------------------------------------------------
+    // WorkspaceUi Persistence
+    // --------------------------------------------------------
 
-        Self::save_to_file(overrides, path)
+    pub fn load_workspace(
+        &mut self,
+        path: &Path,
+    ) -> Result<()> {
+        if !path.exists() {
+            self.workspace_overrides.clear();
+            return Ok(());
+        }
+
+        let contents = fs::read_to_string(path)
+            .context("Failed to read workspace configuration")?;
+
+        let overrides: HashMap<String, ConfigurationRegistry> =
+            toml::from_str(&contents)
+                .context("Failed to parse workspace configuration")?;
+
+        Self::validate_overrides(&self.defaults, &overrides)?;
+
+        self.workspace_overrides = overrides;
+
+        Ok(())
+    }
+
+    pub fn save_workspace(
+        &self,
+        path: &Path,
+    ) -> Result<()> {
+        Self::save_to_file(&self.workspace_overrides, path)
     }
 
     // --------------------------------------------------------

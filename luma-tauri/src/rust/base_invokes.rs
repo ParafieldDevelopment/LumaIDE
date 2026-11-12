@@ -40,13 +40,17 @@ pub async fn open_devtools(window: tauri::WebviewWindow) -> Result<(), tauri::ip
 
 
 #[tauri::command]
-pub async fn open_project(uuid: String) -> Result<(), tauri::ipc::InvokeError> {
-    log::info!("opening project {}", uuid);
+pub async fn open_workspace(path: String) -> Result<(), tauri::ipc::InvokeError> {
+    log::info!("opening project {}", path);
+
+    let workspace_path = std::path::PathBuf::from(path);
 
     if let Some(core) = luma_core::CORE_API.get() {
-        core.open_project(&uuid)
+        core.open_workspace(&workspace_path)
             .map_err(tauri::ipc::InvokeError::from_anyhow)?;
     }
+
+    // TODO: load configurations window (frontend will handle UI).
 
     Ok(())
 }

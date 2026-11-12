@@ -1,10 +1,10 @@
 <script setup lang="ts">
-  import type {ProjectObject} from "~/luma/ProjectObject.ts";
-  import {getProjectInitials} from "~/luma/ProjectObject.ts";
+  import type {Workspace} from "~/luma/Workspace.ts";
+  import {getProjectInitials} from "~/luma/Workspace.ts";
   import MoreVerticalIcon from "~/vue/icons/MoreVerticalIcon.vue";
 
   const props = defineProps<{
-    project: ProjectObject
+    project: Workspace
   }>()
 
   function click() {

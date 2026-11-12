@@ -1,4 +1,4 @@
-export class ProjectObject {
+export class Workspace {
     public project_uuid: string;
     public title: string;
     public path: string;

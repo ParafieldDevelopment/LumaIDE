@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import TitleBar from "./window/TitleBar.vue";
 import { useWindow } from "~/vue/composables/useWindow.ts";
-import Projects from "~/vue/startup/Projects.vue";
+import Workspaces from "~/vue/startup/Workspaces.vue";
 import {LumButton, LumModals, LumToasts} from "~/vue/components";
 import {getAppVersion, loadTheme, openSettings, webviewReady} from "~/luma/LumaWindow.ts";
 import { onMounted, ref, computed } from "vue";
@@ -74,7 +74,7 @@ window.addEventListener("keydown", async (event) => {
             :class="{ selected: selectedButton === 1 }"
             @click="selectMenu(1)"
         >
-          Projects
+          Workspaces
         </button>
 
         <button
@@ -95,7 +95,7 @@ window.addEventListener("keydown", async (event) => {
     <div class="content">
       <Transition :name="transitionName" mode="out-in">
         <div :key="selectedButton" class="page">
-          <Projects v-if="selectedButton === 1" />
+          <Workspaces v-if="selectedButton === 1" />
 
           <div v-else-if="selectedButton === 2">
             <h1>Coming Soon!</h1>

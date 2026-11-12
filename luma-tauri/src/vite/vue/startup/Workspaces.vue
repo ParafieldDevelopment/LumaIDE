@@ -1,31 +1,31 @@
 <script setup lang="ts">
 import {LumButton, LumInput} from "~/vue/components";
 import SearchIcon from "~/vue/icons/SearchIcon.vue";
-import Project from "~/vue/startup/Project.vue";
-import {ProjectObject} from "~/luma/ProjectObject.ts";
+import WorkspaceUI from "~/vue/startup/WorkspaceUI.vue";
+import {Workspace} from "~/luma/Workspace.ts";
 
-const projects: ProjectObject[] = []
+const workspaces: Workspace[] = []
 </script>
 
 <template>
   <div class="container">
     <div class="header">
-      <LumInput placeholder="Search Projects">
+      <LumInput placeholder="Search Workspaces">
         <template #icon>
           <SearchIcon />
         </template>
       </LumInput>
       <div class="buttons">
-        <LumButton>New Project</LumButton>
+        <LumButton>New Workspace</LumButton>
         <LumButton>Open</LumButton>
         <LumButton>Clone Repository</LumButton>
       </div>
     </div>
-    <div class="projects" v-for="project in projects" v-if="projects.length > 0">
-      <Project :project="project" />
+    <div class="projects" v-for="workspace in workspaces" v-if="workspaces.length > 0">
+      <WorkspaceUI :project="workspace" />
     </div>
     <div class="projects">
-      <p>No projects :(</p>
+      <p>No Workspaces :(</p>
     </div>
   </div>
 </template>

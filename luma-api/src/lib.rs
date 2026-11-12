@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
 pub type Shared<T> = Arc<T>;
@@ -8,7 +8,9 @@ pub trait CoreAPI: Send + Sync {
 
     fn boot(&self) -> anyhow::Result<()>;
 
-    fn open_project(&self, project_id: &str) -> anyhow::Result<()>;
+    fn on_workspace_loaded(&self, callback: Box<dyn Fn() + Send + Sync>);
+
+    fn open_workspace(&self, workspace_path: &Path) -> anyhow::Result<()>;
 }
 
 pub trait ExtensionsCoreAPI: Send + Sync {
