@@ -1,3 +1,5 @@
+use std::io::Seek;
+use std::sync::OnceLock;
 use tauri::{
     Manager,
     WebviewUrl,
@@ -6,12 +8,13 @@ use tauri::{
     WindowEvent,
 };
 
-use anyhow::Context;
-use log::{error, info};
-
 use crate::STARTUP_COLOR;
 use crate::tauri_utils::with_parent;
-
+use anyhow::Context;
+use log::{error, info};
+use luma_api::CORE_API;
+use luma_api::configuration::ConfigurationManager;
+use std::sync::RwLockWriteGuard;
 pub fn settings_window(
     app: tauri::AppHandle,
     parent: Option<&tauri::WebviewWindow>,
@@ -69,6 +72,8 @@ pub fn settings_window(
         if let Some(parent) = parent.cloned() {
             window.on_window_event(move |event| {
                 if !matches!(event, WindowEvent::Destroyed) {
+
+
                     return;
                 }
 

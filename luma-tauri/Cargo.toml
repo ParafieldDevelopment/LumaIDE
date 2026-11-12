@@ -26,6 +26,7 @@ tauri-plugin-os = "2"
 tauri-plugin-prevent-default = "0.2" # damn it tauri
 
 luma-core = { path = "../luma-core" }
+luma-api = { path = "../luma-api" }
 luma-extensions = { path = "../luma-extensions" }
 luma-diagnostics = { path = "../luma-diagnostics" }
 

@@ -23,10 +23,14 @@ const STARTUP_COLOR: Color = Color {
 
 fn run_setup() -> Result<()> {
     let coreapi = luma_core::init().context("Failed to initialize Luma core")?;
+    let mut manager = coreapi.get_ide_configuration().write().unwrap();
+
     luma_extensions::init(&coreapi).context("Failed to initialize Luma extensions")?;
 
-    
-    
+    manager.freeze();
+    manager.load_global(&coreapi.get_configuration_file_name())
+        .context("Failed to load global configuration")?;
+
     Ok(())
 }
 

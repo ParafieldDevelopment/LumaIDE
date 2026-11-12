@@ -2,6 +2,7 @@ use tauri::{Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use anyhow::{Context};
 use crate::STARTUP_COLOR;
 
+
 pub fn startup_window(app: tauri::AppHandle) -> anyhow::Result<WebviewWindow> {
     let window = if let Some(window) = app.get_webview_window("startup") {
         window

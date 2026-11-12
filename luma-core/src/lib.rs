@@ -1,16 +1,15 @@
 
 pub mod projects;
-pub mod configuration;
 
 pub use luma_api::{CoreAPI, CORE_API, Shared};
 
 use anyhow::{Context, Result};
+use dirs::home_dir;
 use log::info;
+use luma_api::configuration::ConfigurationManager;
 use std::fs::create_dir_all;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
-use dirs::home_dir;
-use crate::configuration::ConfigurationManager;
 
 pub const APP_DATA_DIR_NAME: &str = "Luma";
 pub const CONFIGURATION_FILE_NAME: &str = "configuration.toml";
@@ -32,6 +31,7 @@ pub fn workspaces_dir() -> Result<PathBuf> {
 struct Core {
     luma_dir: PathBuf,
     workspaces_dir: PathBuf,
+    luma_configuration_path: PathBuf,
     // IDE-wide (global) configuration manager.
     ide_configuration_manager: Shared<RwLock<ConfigurationManager>>,
     // WorkspaceUi-specific configuration manager.
@@ -48,9 +48,12 @@ impl Core {
             RwLock::new(ConfigurationManager::new())
         );
 
+        let luma_configuration_path = luma_dir.join(CONFIGURATION_FILE_NAME);
+
         Self {
             luma_dir,
             workspaces_dir,
+            luma_configuration_path,
             ide_configuration_manager,
             workspace_configuration_manager,
             workspace_loaded_callbacks: RwLock::new(Vec::new()),
@@ -85,10 +88,6 @@ impl Core {
 
         // TODO: add Extensions configuration
 
-        // Load persisted global configuration from LUMA_DIR/configuration.toml.
-        manager.load_global(&configuration_path)
-            .context("Failed to load global configuration")?;
-
         Ok(())
     }
 
@@ -117,6 +116,10 @@ impl CoreAPI for Core {
         &self.luma_dir
     }
 
+    fn get_configuration_file_name(&self) -> &PathBuf {
+        &self.luma_configuration_path
+    }
+
     fn boot(&self) -> Result<()> {
         self.initialize_configuration().context("Failed to initialize configuration")?;
 
@@ -131,6 +134,10 @@ impl CoreAPI for Core {
 
     fn open_workspace(&self, workspace_path: &Path) -> Result<()> {
         Core::open_workspace(self, workspace_path)
+    }
+
+    fn get_ide_configuration(&self) -> &Shared<RwLock<ConfigurationManager>> {
+        &self.ide_configuration_manager
     }
 }
 
