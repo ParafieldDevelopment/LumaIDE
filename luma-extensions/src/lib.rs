@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc};
 use log::info;
 use anyhow::{Context, Result};
 use luma_api::{ExtensionsCoreAPI, EXTENSIONS_API, Shared, CoreAPI};
@@ -8,7 +8,9 @@ pub struct ExtensionsCore {
 }
 impl ExtensionsCore {
     fn new() -> Self {
-        ExtensionsCore {}
+        ExtensionsCore {
+
+        }
     }
 
     pub fn init() -> Result< Shared<dyn ExtensionsCoreAPI> >  {
