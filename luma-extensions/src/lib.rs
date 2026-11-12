@@ -1,7 +1,7 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use log::info;
 use anyhow::{Context, Result};
-use luma_api::{ExtensionsCoreAPI, EXTENSIONS_API};
+use luma_api::{ExtensionsCoreAPI, EXTENSIONS_API, Shared, CoreAPI};
 
 pub struct ExtensionsCore {
 
@@ -11,13 +11,9 @@ impl ExtensionsCore {
         ExtensionsCore {}
     }
 
-    pub fn init() -> Result< Arc<Mutex<Box<dyn ExtensionsCoreAPI>>> > {
-        let api: Arc<Mutex<Box<dyn ExtensionsCoreAPI>>> = Arc::new(
-            Mutex::new(
-                Box::new(
-                    Self::new()
-                )
-            )
+    pub fn init() -> Result< Shared<dyn ExtensionsCoreAPI> >  {
+        let api: Shared< dyn ExtensionsCoreAPI > = Arc::new(
+            Self::new()
         );
 
         EXTENSIONS_API.set(Arc::clone(&api))
@@ -28,14 +24,15 @@ impl ExtensionsCore {
 }
 
 impl ExtensionsCoreAPI for ExtensionsCore {
-    fn boot(&self) {
+    fn boot(&self,core_api: &Shared<dyn CoreAPI>) {
         todo!("build plugin bootup here!")
     }
 }
-pub fn init() -> Result<()> {
+pub fn init(core_api: &Shared<dyn CoreAPI>) -> Result< Shared<dyn ExtensionsCoreAPI> > {
     info!("Luma Extensions initialized");
 
-    ExtensionsCore::init()?;
+    let extensions_api = ExtensionsCore::init().context("Failed to initialize Luma Extensions")?;
+    extensions_api.boot(core_api);
 
-    Ok(())
+    Ok(extensions_api)
 }

@@ -1,19 +1,20 @@
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use anyhow::{Context};
 use crate::STARTUP_COLOR;
 
-pub fn startup_window(app: tauri::AppHandle) -> anyhow::Result<()> {
-    if let Some(window) = app.get_webview_window("startup") {
+pub fn startup_window(app: tauri::AppHandle) -> anyhow::Result<WebviewWindow> {
+    let window = if let Some(window) = app.get_webview_window("startup") {
         window
             .set_focus()
             .context("Failed to focus the startup window")?;
+
+        window
     } else {
         let mut builder = WebviewWindowBuilder::new(
             &app,
             "startup",
             WebviewUrl::App("windows/startup.html".into()),
         )
-
             .visible(false)
             .decorations(!cfg!(target_os = "windows"))
             .min_inner_size(750.0, 500.0)
@@ -27,14 +28,14 @@ pub fn startup_window(app: tauri::AppHandle) -> anyhow::Result<()> {
                 .title_bar_style(tauri::TitleBarStyle::Overlay)
                 .hidden_title(true)
                 .traffic_light_position(
-                    tauri::LogicalPosition::new(15.0, 18.0)
+                    tauri::LogicalPosition::new(15.0, 18.0),
                 );
         }
 
-        let window = builder
+        builder
             .build()
-            .context("Failed to build window")?;
-    }
+            .context("Failed to build window")?
+    };
 
-    Ok(())
+    Ok(window)
 }

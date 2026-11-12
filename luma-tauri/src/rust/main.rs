@@ -22,8 +22,8 @@ const STARTUP_COLOR: Color = Color {
 };
 
 fn run_setup() -> Result<()> {
-    luma_core::init().context("Failed to initialize Luma core")?;
-    luma_extensions::init().context("Failed to initialize Luma extensions")?;
+    let coreapi = luma_core::init().context("Failed to initialize Luma core")?;
+    luma_extensions::init(&coreapi).context("Failed to initialize Luma extensions")?;
 
     Ok(())
 }
