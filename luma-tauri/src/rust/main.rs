@@ -27,8 +27,13 @@ fn run_setup() -> Result<()> {
 
     luma_extensions::init(&coreapi).context("Failed to initialize Luma extensions")?;
 
-    manager.freeze();
-    manager.load_global(&coreapi.get_configuration_file_name())
+    manager.freeze(); // This is used to freeze configuration registries after extensions and core is initalized.
+
+    if let Ok(mut ws) = coreapi.get_workspace_configuration().write() {
+        ws.freeze();
+    }
+
+    manager.load_global(&coreapi.get_configuration_dir())
         .context("Failed to load global configuration")?;
 
     Ok(())

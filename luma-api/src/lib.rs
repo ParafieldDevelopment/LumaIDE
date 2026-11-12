@@ -9,15 +9,19 @@ pub type Shared<T> = Arc<T>;
 pub trait CoreAPI: Send + Sync {
     fn get_data_dir(&self) -> &PathBuf;
 
-    fn get_configuration_file_name(&self) -> &PathBuf;
+    fn get_configuration_dir(&self) -> &PathBuf;
+
+    fn get_workspaces_dir(&self) -> &PathBuf;
 
     fn boot(&self) -> anyhow::Result<()>;
 
-    fn on_workspace_loaded(&self, callback: Box<dyn Fn() + Send + Sync>);
+    fn on_workspace_load(&self, callback: Box<dyn Fn() + Send + Sync>);
 
     fn open_workspace(&self, workspace_path: &Path) -> anyhow::Result<()>;
     
     fn get_ide_configuration(&self) -> &Shared<RwLock<ConfigurationManager>>;
+
+    fn get_workspace_configuration(&self) -> &Shared<RwLock<ConfigurationManager>>;
 }
 
 pub trait ExtensionsCoreAPI: Send + Sync {

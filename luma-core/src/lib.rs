@@ -6,7 +6,7 @@ pub use luma_api::{CoreAPI, CORE_API, Shared};
 use anyhow::{Context, Result};
 use dirs::home_dir;
 use log::info;
-use luma_api::configuration::ConfigurationManager;
+use luma_api::configuration::{ConfigurationManager, Identifier};
 use std::fs::create_dir_all;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
@@ -73,20 +73,28 @@ impl Core {
     }
 
     fn initialize_configuration(&self) -> Result<()> {
-        let configuration_path = self.luma_dir.join(CONFIGURATION_FILE_NAME);
+        let mut ide_manager = self.ide_configuration_manager
+            .write()
+            .map_err(|e| anyhow::anyhow!(
+                "Failed to acquire configuration lock: {e}"
+            ))?;
 
-        let mut manager = self.ide_configuration_manager
+        let mut workspace_manager = self.workspace_configuration_manager
             .write()
             .map_err(|e| anyhow::anyhow!(
                 "Failed to acquire configuration lock: {e}"
             ))?;
 
         // Register the built-in owner if it is not already present.
-        let _ = manager.register_owner("luma");
+        let registries_ide = ide_manager.registries_mut();
+        registries_ide.register_owner("luma")?;
+
+        let registries_wp = workspace_manager.registries_mut();
+        registries_wp.register_owner("luma")?;
+
+
 
         // TODO: add IDE configuration
-
-        // TODO: add Extensions configuration
 
         Ok(())
     }
@@ -116,8 +124,12 @@ impl CoreAPI for Core {
         &self.luma_dir
     }
 
-    fn get_configuration_file_name(&self) -> &PathBuf {
+    fn get_configuration_dir(&self) -> &PathBuf {
         &self.luma_configuration_path
+    }
+
+    fn get_workspaces_dir(&self) -> &PathBuf {
+        &self.workspaces_dir
     }
 
     fn boot(&self) -> Result<()> {
@@ -126,7 +138,7 @@ impl CoreAPI for Core {
         Ok(())
     }
 
-    fn on_workspace_loaded(&self, callback: Box<dyn Fn() + Send + Sync>) {
+    fn on_workspace_load(&self, callback: Box<dyn Fn() + Send + Sync>) {
         if let Ok(mut callbacks) = self.workspace_loaded_callbacks.write() {
             callbacks.push(callback);
         }
@@ -138,6 +150,10 @@ impl CoreAPI for Core {
 
     fn get_ide_configuration(&self) -> &Shared<RwLock<ConfigurationManager>> {
         &self.ide_configuration_manager
+    }
+
+    fn get_workspace_configuration(&self) -> &Shared<RwLock<ConfigurationManager>> {
+        &self.workspace_configuration_manager
     }
 }
 

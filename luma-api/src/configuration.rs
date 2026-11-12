@@ -520,23 +520,30 @@ impl ConfigurationRegistry {
 // ============================================================
 
 #[derive(Debug, Clone)]
-pub struct ConfigurationId {
-    pub owner: String,
+pub struct Identifier {
+    pub namespace: String,
     pub path: Vec<String>,
 }
 
-impl ConfigurationId {
-    pub fn parse(identifier: &str) -> Result<Self> {
-        let (owner, path) = identifier
-            .split_once(':')
-            .ok_or_else(|| anyhow!("Missing configuration owner"))?;
+impl Identifier {
+    pub fn new(namespace: impl Into<String>, path: Vec<String>) -> Self {
+        Self {
+            namespace: namespace.into(),
+            path,
+        }
+    }
 
-        if owner.is_empty() || path.is_empty() {
+    pub fn parse(identifier: &str) -> Result<Self> {
+        let (namespace, path) = identifier
+            .split_once(':')
+            .ok_or_else(|| anyhow!("Missing configuration namespace"))?;
+
+        if namespace.is_empty() || path.is_empty() {
             bail!("Invalid configuration identifier");
         }
 
-        if owner.contains('/') || owner.contains(':') {
-            bail!("Invalid configuration owner");
+        if namespace.contains('/') || namespace.contains(':') {
+            bail!("Invalid configuration namespace");
         }
 
         let path: Vec<String> = path
@@ -553,11 +560,29 @@ impl ConfigurationId {
         }
 
         Ok(Self {
-            owner: owner.to_string(),
+            namespace: namespace.to_string(),
             path,
         })
     }
 }
+
+impl From<&str> for Identifier {
+    fn from(value: &str) -> Self {
+        Self::parse(value).unwrap_or_else(|_| Self {
+            namespace: String::new(),
+            path: Vec::new(),
+        })
+    }
+}
+
+impl From<String> for Identifier {
+    fn from(value: String) -> Self {
+        Self::from(value.as_str())
+    }
+}
+
+pub type ConfigurationId = Identifier;
+pub type ConfigurationIdentifier = Identifier;
 
 // ============================================================
 // Configuration Scope
@@ -580,21 +605,113 @@ pub type ConfigurationChangeCallback =
 pub type ConfigurationCallback = ConfigurationChangeCallback;
 
 // ============================================================
+// Configuration Registries
+// ============================================================
+
+#[derive(Default)]
+pub struct ConfigurationRegistries {
+    defaults: HashMap<String, ConfigurationRegistry>,
+    frozen: bool,
+}
+
+impl ConfigurationRegistries {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn register_owner(&mut self, owner: &str) -> Result<()> {
+        if self.frozen {
+            bail!("Configuration registries are frozen");
+        }
+
+        if owner.is_empty()
+            || owner.contains(':')
+            || owner.contains('/')
+        {
+            bail!("Invalid configuration owner");
+        }
+
+        self.defaults
+            .entry(owner.to_string())
+            .or_default();
+
+        Ok(())
+    }
+
+    pub fn register_default<I>(
+        &mut self,
+        id: I,
+        value: ConfigurationValue,
+    ) -> Result<()>
+    where
+        I: Into<Identifier>,
+    {
+        if self.frozen {
+            bail!("Configuration registries are frozen");
+        }
+
+        let id = id.into();
+
+        let registry = self.defaults
+            .get_mut(&id.namespace)
+            .ok_or_else(|| {
+                anyhow!("Unknown configuration owner: {}", id.namespace)
+            })?;
+
+        let identifier = format!("{}:{}", id.namespace, id.path.join("/"));
+        registry.insert_path(&id.path, value)
+            .with_context(|| {
+                format!("Failed to register '{}'", identifier)
+            })
+    }
+
+    pub fn freeze(&mut self) {
+        for registry in self.defaults.values_mut() {
+            registry.freeze();
+        }
+
+        self.frozen = true;
+    }
+
+    pub fn is_frozen(&self) -> bool {
+        self.frozen
+    }
+
+    pub fn defaults(&self) -> &HashMap<String, ConfigurationRegistry> {
+        &self.defaults
+    }
+
+    pub fn defaults_mut(&mut self) -> &mut HashMap<String, ConfigurationRegistry> {
+        &mut self.defaults
+    }
+
+    pub fn get_default<I>(&self, id: I) -> Result<ConfigurationValue>
+    where
+        I: Into<Identifier>,
+    {
+        let id = id.into();
+        let registry = self.defaults
+            .get(&id.namespace)
+            .ok_or_else(|| anyhow!("Unknown configuration owner: {}", id.namespace))?;
+        registry.get_path(&id.path)
+            .cloned()
+            .ok_or_else(|| anyhow!("Unknown configuration: {}:{}", id.namespace, id.path.join("/")))
+    }
+}
+
+// ============================================================
 // Configuration Manager
 // ============================================================
 
 pub struct ConfigurationManager {
-    // Registered defaults, organized by owner.
-    defaults: HashMap<String, ConfigurationRegistry>,
+    // Registered defaults, separated into their own registries.
+    registries: ConfigurationRegistries,
 
     // User-wide configuration overrides.
     global_overrides: HashMap<String, ConfigurationRegistry>,
 
     // Unified project/workspace overrides for the currently opened project.
     workspace_overrides: HashMap<String, ConfigurationRegistry>,
-
-    // Prevents registration after initialization.
-    frozen: bool,
 
     // Change listeners.
     callbacks: Vec<ConfigurationChangeCallback>,
@@ -613,9 +730,8 @@ impl Default for ConfigurationManager {
 impl ConfigurationManager {
     pub fn new() -> Self {
         Self {
-            defaults: HashMap::new(),
+            registries: ConfigurationRegistries::new(),
             global_overrides: HashMap::new(),
-            frozen: false,
             callbacks: Vec::new(),
             project_loaded_callbacks: Vec::new(),
             project_loaded_path_callbacks: Vec::new(),
@@ -624,61 +740,42 @@ impl ConfigurationManager {
     }
 
     // --------------------------------------------------------
-    // Registration
+    // Registration (delegates to registries)
     // --------------------------------------------------------
 
     pub fn register_owner(&mut self, owner: &str) -> Result<()> {
-        if self.frozen {
-            bail!("Configuration manager is frozen");
-        }
-
-        if owner.is_empty()
-            || owner.contains(':')
-            || owner.contains('/')
-        {
-            bail!("Invalid configuration owner");
-        }
-
-        self.defaults
-            .entry(owner.to_string())
-            .or_default();
-
-        Ok(())
+        self.registries.register_owner(owner)
     }
 
-    pub fn register_default(
+    pub fn register_default<I>(
         &mut self,
-        identifier: &str,
+        id: I,
         value: ConfigurationValue,
-    ) -> Result<()> {
-        if self.frozen {
-            bail!("Configuration manager is frozen");
-        }
-
-        let id = ConfigurationId::parse(identifier)?;
-
-        let registry = self.defaults
-            .get_mut(&id.owner)
-            .ok_or_else(|| {
-                anyhow!("Unknown configuration owner: {}", id.owner)
-            })?;
-
-        registry.insert_path(&id.path, value)
-            .with_context(|| {
-                format!("Failed to register '{}'", identifier)
-            })
+    ) -> Result<()>
+    where
+        I: Into<Identifier>,
+    {
+        self.registries.register_default(id, value)
     }
 
     pub fn freeze(&mut self) {
-        for registry in self.defaults.values_mut() {
-            registry.freeze();
-        }
+        self.registries.freeze();
+    }
 
-        self.frozen = true;
+    pub fn freeze_registries(&mut self) {
+        self.registries.freeze();
     }
 
     pub fn is_frozen(&self) -> bool {
-        self.frozen
+        self.registries.is_frozen()
+    }
+
+    pub fn registries(&self) -> &ConfigurationRegistries {
+        &self.registries
+    }
+
+    pub fn registries_mut(&mut self) -> &mut ConfigurationRegistries {
+        &mut self.registries
     }
 
     // --------------------------------------------------------
@@ -804,14 +901,17 @@ impl ConfigurationManager {
     // Retrieval
     // --------------------------------------------------------
 
-    pub fn get(
+    pub fn get<I>(
         &self,
-        identifier: &str,
-    ) -> Result<ConfigurationValue> {
-        let id = ConfigurationId::parse(identifier)?;
+        id: I,
+    ) -> Result<ConfigurationValue>
+    where
+        I: Into<Identifier>,
+    {
+        let id = id.into();
 
         // 1. WorkspaceUi/project override (current project)
-        if let Some(registry) = self.workspace_overrides.get(&id.owner) {
+        if let Some(registry) = self.workspace_overrides.get(&id.namespace) {
             if let Some(value) = registry.get_path(&id.path) {
                 return Ok(value.clone());
             }
@@ -819,7 +919,7 @@ impl ConfigurationManager {
 
         // 2. Global override
         if let Some(registry) =
-            self.global_overrides.get(&id.owner)
+            self.global_overrides.get(&id.namespace)
         {
             if let Some(value) = registry.get_path(&id.path) {
                 return Ok(value.clone());
@@ -827,16 +927,16 @@ impl ConfigurationManager {
         }
 
         // 3. Registered default
-        let registry = self.defaults
-            .get(&id.owner)
+        let registry = self.registries.defaults
+            .get(&id.namespace)
             .ok_or_else(|| {
-                anyhow!("Unknown configuration owner: {}", id.owner)
+                anyhow!("Unknown configuration owner: {}", id.namespace)
             })?;
 
         registry.get_path(&id.path)
             .cloned()
             .ok_or_else(|| {
-                anyhow!("Unknown configuration: {}", identifier)
+                anyhow!("Unknown configuration: {}:{}", id.namespace, id.path.join("/"))
             })
     }
 
@@ -844,38 +944,42 @@ impl ConfigurationManager {
     // Modification
     // --------------------------------------------------------
 
-    pub fn set(
+    pub fn set<I>(
         &mut self,
-        identifier: &str,
+        id: I,
         value: ConfigurationValue,
         scope: ConfigurationScope,
-    ) -> Result<()> {
-        let id = ConfigurationId::parse(identifier)?;
+    ) -> Result<()>
+    where
+        I: Into<Identifier>,
+    {
+        let id = id.into();
 
         // Ensure the configuration exists and has the correct type.
-        let default_registry = self.defaults
-            .get(&id.owner)
+        let default_registry = self.registries.defaults
+            .get(&id.namespace)
             .ok_or_else(|| {
-                anyhow!("Unknown configuration owner: {}", id.owner)
+                anyhow!("Unknown configuration owner: {}", id.namespace)
             })?;
 
         let default_value = default_registry
             .get_path(&id.path)
             .ok_or_else(|| {
-                anyhow!("Unknown configuration: {}", identifier)
+                anyhow!("Unknown configuration: {}:{}", id.namespace, id.path.join("/"))
             })?;
 
         if !default_value.has_same_type(&value) {
             bail!(
-                "Incorrect value type for configuration '{}'",
-                identifier
+                "Incorrect value type for configuration '{}:{}'",
+                id.namespace,
+                id.path.join("/")
             );
         }
 
         match scope {
             ConfigurationScope::Global => {
                 let registry = self.global_overrides
-                    .entry(id.owner.clone())
+                    .entry(id.namespace.clone())
                     .or_default();
 
                 registry.insert_path(&id.path, value.clone())?;
@@ -883,7 +987,7 @@ impl ConfigurationManager {
 
             ConfigurationScope::Project => {
                 let registry = self.workspace_overrides
-                    .entry(id.owner.clone())
+                    .entry(id.namespace.clone())
                     .or_default();
 
                 registry.insert_path(&id.path, value.clone())?;
@@ -891,36 +995,39 @@ impl ConfigurationManager {
 
             ConfigurationScope::Workspace => {
                 let registry = self.workspace_overrides
-                    .entry(id.owner.clone())
+                    .entry(id.namespace.clone())
                     .or_default();
 
                 registry.insert_path(&id.path, value.clone())?;
             }
         }
 
-        self.notify_change(identifier, value);
+        self.notify_change(&format!("{}:{}", id.namespace, id.path.join("/")), value);
 
         Ok(())
     }
 
-    pub fn reset(
+    pub fn reset<I>(
         &mut self,
-        identifier: &str,
+        id: I,
         scope: ConfigurationScope,
-    ) -> Result<()> {
-        let id = ConfigurationId::parse(identifier)?;
+    ) -> Result<()>
+    where
+        I: Into<Identifier>,
+    {
+        let id = id.into();
 
         let registry = match scope {
             ConfigurationScope::Global => {
-                self.global_overrides.get_mut(&id.owner)
+                self.global_overrides.get_mut(&id.namespace)
             }
 
             ConfigurationScope::Project => {
-                self.workspace_overrides.get_mut(&id.owner)
+                self.workspace_overrides.get_mut(&id.namespace)
             }
 
             ConfigurationScope::Workspace => {
-                self.workspace_overrides.get_mut(&id.owner)
+                self.workspace_overrides.get_mut(&id.namespace)
             }
         };
 
@@ -948,7 +1055,7 @@ impl ConfigurationManager {
             toml::from_str(&contents)
                 .context("Failed to parse global configuration")?;
 
-        Self::validate_overrides(&self.defaults, &overrides)?;
+        Self::validate_overrides(&self.registries.defaults, &overrides)?;
 
         self.global_overrides = overrides;
 
@@ -979,7 +1086,7 @@ impl ConfigurationManager {
             toml::from_str(&contents)
                 .context("Failed to parse project configuration")?;
 
-        Self::validate_overrides(&self.defaults, &overrides)?;
+        Self::validate_overrides(&self.registries.defaults, &overrides)?;
 
         self.workspace_overrides = overrides;
 
@@ -1022,7 +1129,7 @@ impl ConfigurationManager {
             toml::from_str(&contents)
                 .context("Failed to parse workspace configuration")?;
 
-        Self::validate_overrides(&self.defaults, &overrides)?;
+        Self::validate_overrides(&self.registries.defaults, &overrides)?;
 
         self.workspace_overrides = overrides;
 
