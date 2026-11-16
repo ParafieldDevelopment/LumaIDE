@@ -23,11 +23,17 @@ export interface ContextMenuRequest {
 const builders = new WeakMap<Element, ContextMenuBuilder>();
 let requestListener: ((request: ContextMenuRequest) => void) | undefined;
 let installed = false;
+let latestRequest = 0;
 
-/** Register a builder imperatively when a component uses a template ref. */
+/**
+ * Register a context-menu builder for an element.
+ * The closest registered element in the event path handles each right-click.
+ */
 export function registerContextMenu(element: Element, builder: ContextMenuBuilder) {
   builders.set(element, builder);
-  return () => builders.delete(element);
+  return (): void => {
+    if (builders.get(element) === builder) builders.delete(element);
+  };
 }
 
 function findBuilder(event: MouseEvent): [HTMLElement, ContextMenuBuilder] | undefined {
@@ -40,23 +46,28 @@ function findBuilder(event: MouseEvent): [HTMLElement, ContextMenuBuilder] | und
 }
 
 async function handleContextMenu(event: MouseEvent) {
+  const match = findBuilder(event);
+  const listener = requestListener;
+  if (!match || !listener) return;
+
   event.preventDefault();
   event.stopPropagation();
 
-  const match = findBuilder(event);
-  if (!match || !requestListener) return;
-
+  const requestId = ++latestRequest;
   const [target, builder] = match;
   const items = await builder(event, target);
-  if (items?.length) requestListener({ event, target, items });
+  if (items?.length && requestId === latestRequest && requestListener === listener) {
+    listener({ event, target, items });
+  }
 }
 
+/** Use as `v-context-menu="(event, element) => items"` on the target element. */
 export const contextMenuDirective: Directive<HTMLElement, ContextMenuBuilder> = {
   mounted(element, binding) {
-    if (typeof binding.value === "function") builders.set(element, binding.value);
+    if (typeof binding.value === "function") registerContextMenu(element, binding.value);
   },
   updated(element, binding) {
-    if (typeof binding.value === "function") builders.set(element, binding.value);
+    if (typeof binding.value === "function") registerContextMenu(element, binding.value);
     else builders.delete(element);
   },
   unmounted(element) {
@@ -64,6 +75,7 @@ export const contextMenuDirective: Directive<HTMLElement, ContextMenuBuilder> = 
   },
 };
 
+/** Install once per Vue app to enable `v-context-menu` and delegated event handling. */
 export function installContextMenu(app: App) {
   app.directive("context-menu", contextMenuDirective);
   if (!installed && typeof document !== "undefined") {

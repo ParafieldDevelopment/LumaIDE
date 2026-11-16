@@ -48,6 +48,7 @@ import {
 } from ".";
 import { computed, reactive, ref } from "vue";
 import LumToolbar from "~/vue/components/LumToolbar.vue";
+import LumShowcaseModalContent from "~/vue/components/LumShowcaseModalContent.vue";
 
 /* ---------------- theme override demo (what a theme/extension does) ---------------- */
 
@@ -106,7 +107,7 @@ const paletteOpen = ref(false);
 const menuOpen = ref(false);
 
 function openExampleModal() {
-  modal("Example modal", "Dialog with overlay backdrop, header, scrollable body and footer actions.", {
+  modal("Example modal", LumShowcaseModalContent, {
     actions: [
       { label: "Cancel" },
       {

@@ -3,6 +3,8 @@ use std::sync::{Arc, OnceLock, RwLock};
 use crate::configuration::ConfigurationManager;
 
 pub mod configuration;
+pub mod projects;
+pub mod utils;
 
 pub type Shared<T> = Arc<T>;
 

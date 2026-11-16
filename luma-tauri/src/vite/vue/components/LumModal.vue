@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * LumModal — dialog (.lum-overlay + .lum-modal). v-model:open controls it.
- * Closes on Esc / backdrop click (unless `persistent`). Teleported to body.
+ * Closes on Esc and optionally on backdrop click. Rendered in place below the titlebar.
  */
 import { onBeforeUnmount, watch } from "vue";
 
@@ -11,8 +11,10 @@ const props = withDefaults(
   defineProps<{
     size?: "sm" | "md" | "lg" | "xl";
     persistent?: boolean;
+    closeOnBackdrop?: boolean;
+    showCloseButton?: boolean;
   }>(),
-  { size: "md" },
+  { size: "md", closeOnBackdrop: false, showCloseButton: true },
 );
 
 const open = defineModel<boolean>("open", { default: false });
@@ -34,7 +36,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", onKey));
     <div
         v-if="open"
         class="lum-overlay"
-        @click.self="!props.persistent && (open = false)"
+        @click.self="!props.persistent && props.closeOnBackdrop && (open = false)"
     >
       <div
           class="lum-modal"
@@ -43,12 +45,13 @@ onBeforeUnmount(() => document.removeEventListener("keydown", onKey));
           aria-modal="true"
           v-bind="$attrs"
       >
-        <div class="lum-modal-header">
-          <span class="lum-modal-title">
+        <div v-if="$slots.title || props.showCloseButton" class="lum-modal-header">
+          <span v-if="$slots.title" class="lum-modal-title">
             <slot name="title" />
           </span>
 
           <button
+              v-if="props.showCloseButton"
               class="lum-icon-btn"
               aria-label="Close"
               @click="open = false"

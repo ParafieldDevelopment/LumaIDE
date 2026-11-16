@@ -15,7 +15,7 @@
 
 .lum-overlay {
   position: fixed;
-  inset: 0;
+  inset: 40px 0 0;
   z-index: var(--lum-z-modal);
   display: flex;
   align-items: center;

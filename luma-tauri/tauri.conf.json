@@ -18,7 +18,15 @@
   "app": {
     "withGlobalTauri": true,
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "$HOME/AppData/Roaming/Luma/**",
+          "$HOME/Library/Application Support/Luma/**",
+          "$HOME/.local/share/Luma/**"
+        ]
+      }
     }
   },
   "bundle": {

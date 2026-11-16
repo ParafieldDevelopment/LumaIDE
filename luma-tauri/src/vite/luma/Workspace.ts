@@ -2,14 +2,14 @@ export class Workspace {
     public project_uuid: string;
     public title: string;
     public path: string;
-    public icon?: string;
+    public icon_path?: string;
     public color: string;
     public git_branch?: string;
-    constructor(project_uuid: string, title: string, path: string, icon?: string, git_branch?: string) {
+    constructor(project_uuid: string, title: string, path: string, icon_path?: string, git_branch?: string) {
         this.project_uuid = project_uuid;
         this.title = title;
         this.path = path;
-        this.icon = icon;
+        this.icon_path = icon_path;
         this.color = getProjectColor(title);
         this.git_branch = git_branch;
     }

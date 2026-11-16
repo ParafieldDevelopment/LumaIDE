@@ -1,6 +1,3 @@
-
-pub mod projects;
-
 pub use luma_api::{CoreAPI, CORE_API, Shared};
 
 use anyhow::{Context, Result};

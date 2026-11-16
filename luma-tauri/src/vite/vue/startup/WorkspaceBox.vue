@@ -1,19 +1,24 @@
 <script setup lang="ts">
-  import type {Workspace} from "~/luma/Workspace.ts";
-  import {getProjectInitials} from "~/luma/Workspace.ts";
-  import MoreVerticalIcon from "~/vue/icons/MoreVerticalIcon.vue";
+import type {Workspace} from "~/luma/Workspace.ts";
+import {getProjectInitials} from "~/luma/Workspace.ts";
+import MoreVerticalIcon from "~/vue/icons/MoreVerticalIcon.vue";
+import { convertFileSrc } from "@tauri-apps/api/core";
 
-  const props = defineProps<{
-    project: Workspace
-  }>()
+const props = defineProps<{
+  project: Workspace
+}>()
 
-  function click() {
+function click() {
 
-  }
+}
 
-  function moreClick() {
-    
-  }
+import { computed } from "vue";
+
+const iconSrc = computed(() => {
+  if (!props.project.icon_path) return null;
+
+  return convertFileSrc(props.project.icon_path);
+});
 </script>
 
 <template>
@@ -21,12 +26,13 @@
     <div
         class="project_icon"
         :style="{
-        backgroundColor: project.icon ? 'transparent' : project.color
+        backgroundColor: project.icon_path ? 'transparent' : project.color
       }"
     >
-      <component
-          v-if="props.project.icon"
-          :is="props.project.icon"
+      <img
+          v-if="iconSrc"
+          :src="iconSrc"
+          alt="Project icon"
       />
 
       <p v-else>
@@ -37,10 +43,10 @@
     <div class="project_content">
       <h3>{{ props.project.title }}</h3>
       <p>{{ props.project.path }}</p>
-      <p>{{ props.project.project_uuid }}</p>
+      <p>{{ props.project.git_branch }}</p>
     </div>
 
-    <div class="more" @click.stop="moreClick">
+    <div class="more" @click.stop="">
       <MoreVerticalIcon />
     </div>
   </div>
@@ -77,6 +83,13 @@
       justify-content: center;
 
       font-size: var(--lum-text-lg);
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: inherit;
+      }
     }
 
     & .project_content {

@@ -27,7 +27,7 @@ fn run_setup() -> Result<()> {
 
     luma_extensions::init(&coreapi).context("Failed to initialize Luma extensions")?;
 
-    manager.freeze(); // This is used to freeze configuration registries after extensions and core is initalized.
+    manager.freeze(); // This is used to freeze configuration registries after extensions and core is initialized.
 
     if let Ok(mut ws) = coreapi.get_workspace_configuration().write() {
         ws.freeze();
@@ -132,6 +132,7 @@ fn build_tauri_app() -> Result<tauri::App> {
                 base_invokes::open_settings_window,
                 base_invokes::open_devtools,
                 base_invokes::open_workspace,
+                base_invokes::get_recent_workspaces,
 
             ]
         )
@@ -142,6 +143,7 @@ fn build_tauri_app() -> Result<tauri::App> {
                 )])
                 .level(log::LevelFilter::Info)
                 .build(),
+            
         )
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {

@@ -26,10 +26,15 @@ function runAction(item: ModalItem, action: ModalAction) {
       :open="true"
       :size="activeModal.size"
       :persistent="activeModal.persistent"
+      :close-on-backdrop="activeModal.closeOnBackdrop"
+      :show-close-button="activeModal.showCloseButton"
       @update:open="onOpenChange(activeModal.id, $event)"
   >
-    <template #title>{{ activeModal.title }}</template>
-    {{ activeModal.body }}
+    <template v-if="activeModal.title" #title>{{ activeModal.title }}</template>
+    <component
+        :is="activeModal.component"
+        v-bind="activeModal.componentProps"
+    />
 
     <template v-if="activeModal.actions?.length" #footer>
       <LumButton
