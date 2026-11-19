@@ -4,6 +4,7 @@ use crate::STARTUP_COLOR;
 
 
 pub fn startup_window(app: tauri::AppHandle) -> anyhow::Result<WebviewWindow> {
+
     let window = if let Some(window) = app.get_webview_window("startup") {
         window
             .set_focus()
@@ -37,6 +38,7 @@ pub fn startup_window(app: tauri::AppHandle) -> anyhow::Result<WebviewWindow> {
             .build()
             .context("Failed to build window")?
     };
+
 
     Ok(window)
 }
