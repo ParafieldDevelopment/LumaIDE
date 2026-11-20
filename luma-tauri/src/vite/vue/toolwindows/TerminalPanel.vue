@@ -3,6 +3,7 @@ import { ref, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { Unicode11Addon } from "@xterm/addon-unicode11";
 import "@xterm/xterm/css/xterm.css";
 import LumToolWindow from "../components/LumToolWindow.vue";
 
@@ -16,6 +17,7 @@ const terminalReady = ref(false);
 
 let terminal: Terminal | undefined;
 let fitAddon: FitAddon | undefined;
+let unicode11Addon: Unicode11Addon | undefined;
 let resizeObserver: ResizeObserver | undefined;
 let poller: ReturnType<typeof setInterval> | undefined;
 let offset = 0;
@@ -90,7 +92,9 @@ function createTerminal() {
     cursorBlink: true,
     convertEol: false,
     allowProposedApi: true,
-    fontFamily: "Cascadia Code, Consolas, 'Courier New', monospace",
+    // Browser font fallback supplies missing glyphs from installed platform fonts.
+    // Include common CJK and emoji families after the preferred coding fonts.
+    fontFamily: "'Cascadia Mono', 'Cascadia Code', 'Consolas', 'Noto Sans Mono CJK SC', 'Noto Sans Mono CJK JP', 'Noto Sans Mono CJK KR', 'Noto Sans Symbols 2', 'Segoe UI Symbol', 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Microsoft YaHei UI', 'Yu Gothic UI', 'Malgun Gothic', 'Courier New', monospace",
     fontSize: 13,
     lineHeight: 1.25,
     scrollback: 5000,
@@ -104,6 +108,12 @@ function createTerminal() {
 
   fitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);
+
+  // Width tables keep modern emoji and wide characters aligned in terminal cells.
+  // Rendering still depends on the glyphs available through the system font fallback.
+  unicode11Addon = new Unicode11Addon();
+  terminal.loadAddon(unicode11Addon);
+  terminal.unicode.activeVersion = "11";
 
   terminal.onData((data) => send(data));
   terminal.open(host.value!);
@@ -132,6 +142,8 @@ function disposeTerminal() {
   resizeObserver?.disconnect();
   resizeObserver = undefined;
   stopPolling();
+  unicode11Addon?.dispose();
+  unicode11Addon = undefined;
   terminal?.dispose();
   terminal = undefined;
   fitAddon = undefined;
