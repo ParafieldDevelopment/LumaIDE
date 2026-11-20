@@ -69,8 +69,6 @@ function toIdentifier(name: string): string {
 
 const LUA_ICON = "/project_type_icons/lua.svg";
 const LUAU_ICON = "/project_type_icons/luau.svg";
-const LUMA_ICON = "/project_type_icons/luma.svg";
-const ROJO_ICON = "/project_type_icons/rojo.png";
 const CC_ICON = "/project_type_icons/cc.png";
 
 const LUA_VERSION_RUNTIMES: ProjectRuntime[] = [
