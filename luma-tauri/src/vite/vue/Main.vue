@@ -31,10 +31,10 @@ const { toast } = useToasts();
 
 const tools = useToolWindows();
 registerToolWindow({ id: "project-explorer", title: "Project", anchor: "left", icon: FolderIcon, component: ProjectExplorerPanel, order: 10, hotkey: "Alt+1", defaultOpen: true });
-registerToolWindow({ id: "git-commit", title: "Git Commit", anchor: "right", icon: CommitIcon, component: GitCommitPanel, order: 10, hotkey: "Alt+9" });
+registerToolWindow({ id: "git-commit", title: "Git Commit", anchor: "left", icon: CommitIcon, component: GitCommitPanel, order: 20, hotkey: "Alt+9" });
 registerToolWindow({ id: "terminal", title: "Terminal", anchor: "bottom", icon: TerminalIcon, component: TerminalPanel, order: 10, hotkey: "Alt+F12", defaultOpen: true });
 registerToolWindow({ id: "analyzer", title: "Analyzer", anchor: "bottom", icon: AnalyzerIcon, component: AnalyzerPanel, order: 20, hotkey: "Ctrl+Shift+A" });
-const { leftTools, rightTools, bottomTools, leftTool, rightTool, bottomTool, activeIds, sizes, toggle, close, setSize, handleHotkey } = tools;
+const { leftTools, bottomTools, leftTool, rightTool, bottomTool, activeIds, sizes, toggle, close, setSize, handleHotkey } = tools;
 
 const resizeAnchor = ref<"left" | "right" | "bottom" | null>(null);
 let resizeStart = 0;
@@ -175,10 +175,10 @@ onBeforeUnmount(() => {
       <aside v-if="rightTool" class="ide-dock ide-dock-right" :style="{ width: sizes.right + 'px' }">
         <keep-alive><component :is="rightTool.component" :workspace-path="activeWorkspace.path" @hide="close('right')" /></keep-alive>
       </aside>
-      <LumToolStripe side="right" :top="rightTools" :bottom="bottomTools" :active-ids="activeIds" @toggle="toggleTool" />
+
     </div>
 
-    <div v-if="bottomTool" class="lum-resizer ide-bottom-resizer" @mousedown="startDockResize('bottom', $event)" :class="{ 'is-dragging': resizeAnchor === 'bottom' }"></div>
+    <div class="ide-bottom-toolstripe"><LumToolStripe side="right" :top="[]" :bottom="bottomTools" :active-ids="activeIds" @toggle="toggleTool" /></div>\n    <div v-if="bottomTool" class="lum-resizer ide-bottom-resizer" @mousedown="startDockResize('bottom', $event)" :class="{ 'is-dragging': resizeAnchor === 'bottom' }"></div>
     <section v-if="bottomTool" class="ide-bottom-dock" :style="{ height: sizes.bottom + 'px' }">
       <keep-alive><component :is="bottomTool.component" :workspace-path="activeWorkspace.path" @hide="close('bottom')" /></keep-alive>
     </section>
@@ -198,7 +198,7 @@ onBeforeUnmount(() => {
 .ide-dock-right { border-left:1px solid var(--lum-border); }
 .ide-dock-resizer { flex-shrink:0; width:4px; cursor:col-resize; z-index:var(--lum-z-sticky); touch-action:none; }
 .ide-dock-resizer:hover,.ide-dock-resizer.is-dragging,.ide-bottom-resizer:hover,.ide-bottom-resizer.is-dragging { background:var(--lum-accent); }
-.ide-bottom-resizer { height:4px; flex:0 0 auto; cursor:row-resize; }
+.ide-bottom-toolstripe { flex:0 0 auto; display:flex; justify-content:flex-end; height:36px; background:var(--lum-bg-surface); border-top:1px solid var(--lum-border); }\n.ide-bottom-toolstripe :deep(.lum-stripe) { width:auto; height:36px; flex-direction:row; padding:2px 6px; border:0; }\n.ide-bottom-toolstripe :deep(.lum-stripe-group) { flex-direction:row; }\n.ide-bottom-toolstripe :deep(.lum-stripe-spacer) { display:none; }\n.ide-bottom-toolstripe :deep(.lum-stripe-btn) { width:32px; height:32px; }\n.ide-bottom-resizer { height:4px; flex:0 0 auto; cursor:row-resize; }
 .ide-bottom-dock { flex:0 0 auto; min-height:0; overflow:hidden; border-top:1px solid var(--lum-border); }
 .ide-editor-area { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; min-height:0; }
 .ide-tabs { flex-shrink:0; }
