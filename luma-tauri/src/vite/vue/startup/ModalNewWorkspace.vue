@@ -4,7 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { LumButton, LumField, LumInput, LumList, LumListItem, LumSelect } from "~/vue/components";
 import { getProjectColor } from "~/luma/Workspace.ts";
-import { getProjectType, groupedProjectTypes } from "~/luma/ProjectTypes.ts";
+import { getProjectType, groupedProjectTypes, type ProjectType } from "~/luma/ProjectTypes.ts";
 
 interface WorkspaceCreated {
   project_uuid: string;
@@ -20,8 +20,8 @@ const props = defineProps<{
   onClose?: () => void;
 }>();
 
-const groups = groupedProjectTypes();
-const selectedTypeId = ref(groups[0].types[0].id);
+const groups = computed(() => groupedProjectTypes());
+const selectedTypeId = ref(groups.value[0].types[0].id);
 const selectedType = computed(() => getProjectType(selectedTypeId.value));
 
 const runtimeId = ref("");
@@ -64,12 +64,12 @@ const targetPath = computed(() => {
   return parent + separator + name;
 });
 
-function typeColor(label: string) {
-  return getProjectColor(label);
+function typeColor(type: ProjectType) {
+  return type.color ?? getProjectColor(type.label);
 }
 
-function typeInitials(label: string) {
-  return label.slice(0, 2).toUpperCase();
+function typeBadge(type: ProjectType) {
+  return type.badge ?? type.label.slice(0, 2).toUpperCase();
 }
 
 async function chooseLocation() {
@@ -137,8 +137,8 @@ async function createWorkspace() {
                 :disabled="busy"
                 @select="selectedTypeId = type.id"
             >
-              <span class="badge" :style="{ backgroundColor: typeColor(type.label) }">
-                {{ typeInitials(type.label) }}
+              <span class="badge" :style="{ backgroundColor: typeColor(type) }">
+                {{ typeBadge(type) }}
               </span>
               {{ type.label }}
             </LumListItem>
@@ -211,10 +211,11 @@ async function createWorkspace() {
   min-width: 0;
 }
 
+/* Fixed height so both panes scroll independently instead of the modal body. */
 .body {
   display: flex;
-  min-height: 420px;
-  max-height: 60vh;
+  height: min(520px, 62vh);
+  min-height: 0;
   border: 1px solid var(--lum-border);
   border-radius: 8px;
   overflow: hidden;
@@ -223,6 +224,7 @@ async function createWorkspace() {
 .types {
   width: 220px;
   flex-shrink: 0;
+  min-height: 0;
   padding: 0.75rem;
   overflow-y: auto;
   border-right: 1px solid var(--lum-border);
@@ -245,8 +247,10 @@ async function createWorkspace() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
+  min-width: 30px;
   height: 22px;
+  padding: 0 4px;
+  box-sizing: border-box;
   margin-right: 0.5rem;
   border-radius: 6px;
   font-size: 0.65rem;
@@ -259,6 +263,7 @@ async function createWorkspace() {
   display: flex;
   flex: 1;
   min-width: 0;
+  min-height: 0;
   flex-direction: column;
   gap: 1rem;
   padding: 1rem;

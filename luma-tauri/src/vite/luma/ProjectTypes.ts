@@ -9,6 +9,8 @@
  * `create_workspace` currently only receives a title and parent path.
  */
 
+import { ref } from "vue";
+
 export interface ProjectRuntime {
     id: string;
     label: string;
@@ -20,12 +22,17 @@ export interface ProjectTemplate {
     description: string;
 }
 
-export type ProjectTypeGroup = "Lua runtimes" | "Platforms" | "Other";
+/** Built-in groups are listed below; extensions may introduce any group name. */
+export type ProjectTypeGroup = string;
 
 export interface ProjectType {
     id: string;
     label: string;
     group: ProjectTypeGroup;
+    /** Short text for the list badge (about 3 characters). Defaults to the label's initials. */
+    badge?: string;
+    /** Badge background (any CSS color). Defaults to a color derived from the label. */
+    color?: string;
     /** One or two sentences shown at the top of the right-hand pane. */
     description: string;
     runtimes: ProjectRuntime[];
@@ -38,11 +45,13 @@ const GENERIC_TEMPLATES: ProjectTemplate[] = [
     { id: "library", label: "Library", description: "A reusable module with an entry point and a usage example." },
 ];
 
-export const PROJECT_TYPES: ProjectType[] = [
+const BUILTIN_PROJECT_TYPES: ProjectType[] = [
     {
         id: "lua",
         label: "Lua",
         group: "Lua runtimes",
+        badge: "Lua",
+        color: "#3f5fd0",
         description: "Standard Lua scripts and libraries, run with a Lua interpreter.",
         runtimes: [
             { id: "lua-5.4", label: "Lua 5.4" },
@@ -56,6 +65,8 @@ export const PROJECT_TYPES: ProjectType[] = [
         id: "luajit",
         label: "LuaJIT",
         group: "Lua runtimes",
+        badge: "JIT",
+        color: "#1d9e86",
         description: "Lua projects targeting LuaJIT, including FFI-based code.",
         runtimes: [
             { id: "luajit-2.1", label: "LuaJIT 2.1" },
@@ -67,6 +78,8 @@ export const PROJECT_TYPES: ProjectType[] = [
         id: "luau",
         label: "Luau",
         group: "Lua runtimes",
+        badge: "Luau",
+        color: "#7a5ad0",
         description: "Standalone Luau projects with type annotations, outside Roblox.",
         runtimes: [{ id: "luau-latest", label: "Luau (latest)" }],
         templates: GENERIC_TEMPLATES,
@@ -100,25 +113,50 @@ export const PROJECT_TYPES: ProjectType[] = [
         id: "empty",
         label: "Empty Workspace",
         group: "Other",
+        badge: "Em",
+        color: "#6b7280",
         description: "A plain workspace folder. Choose a runtime later.",
         runtimes: [],
         templates: [{ id: "empty", label: "Empty", description: "Workspace with no source files." }],
     },
 ];
 
+/** Reactive, so the wizard updates if an extension registers a type while it is open. */
+const registry = ref<ProjectType[]>([...BUILTIN_PROJECT_TYPES]);
+
+/**
+ * Register a project type (intended for extensions).
+ * Re-registering an existing id replaces it. Returns an unregister function.
+ */
+export function registerProjectType(type: ProjectType): () => void {
+    registry.value = [...registry.value.filter(existing => existing.id !== type.id), type];
+    return () => {
+        registry.value = registry.value.filter(existing => existing !== type);
+    };
+}
+
+export function listProjectTypes(): ProjectType[] {
+    return registry.value;
+}
+
 export interface ProjectTypeGroupEntry {
     label: ProjectTypeGroup;
     types: ProjectType[];
 }
 
-const GROUP_ORDER: ProjectTypeGroup[] = ["Lua runtimes", "Platforms", "Other"];
+const FIRST_GROUPS: ProjectTypeGroup[] = ["Lua runtimes", "Platforms"];
+const LAST_GROUPS: ProjectTypeGroup[] = ["Other"];
 
+/** Built-in groups first, then extension groups in registration order, then "Other". */
 export function groupedProjectTypes(): ProjectTypeGroupEntry[] {
-    return GROUP_ORDER
-        .map(label => ({ label, types: PROJECT_TYPES.filter(type => type.group === label) }))
+    const all = registry.value;
+    const extensionGroups = [...new Set(all.map(type => type.group))]
+        .filter(group => !FIRST_GROUPS.includes(group) && !LAST_GROUPS.includes(group));
+    return [...FIRST_GROUPS, ...extensionGroups, ...LAST_GROUPS]
+        .map(label => ({ label, types: all.filter(type => type.group === label) }))
         .filter(group => group.types.length > 0);
 }
 
 export function getProjectType(id: string): ProjectType {
-    return PROJECT_TYPES.find(type => type.id === id) ?? PROJECT_TYPES[0];
+    return registry.value.find(type => type.id === id) ?? registry.value[0];
 }
