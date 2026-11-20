@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 static ACTIVE_WORKSPACE: OnceLock<RwLock<Option<Project>>> = OnceLock::new();
 
-fn active_workspace() -> &'static RwLock<Option<Project>> {
+pub fn active_workspace() -> &'static RwLock<Option<Project>> {
     ACTIVE_WORKSPACE.get_or_init(|| RwLock::new(None))
 }
 

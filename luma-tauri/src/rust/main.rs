@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 pub mod base_invokes;
 mod error_report;
+pub mod file_system;
 pub mod settings_window;
 pub mod startup_window;
 pub mod tauri_utils;
@@ -130,6 +131,10 @@ fn build_tauri_app() -> Result<tauri::App> {
             base_invokes::create_workspace,
             base_invokes::get_active_workspace,
             base_invokes::get_recent_workspaces,
+            // file_system
+            file_system::read_file,
+            file_system::write_file,
+            file_system::read_directory,
         ])
         .plugin(
             tauri_plugin_log::Builder::new()
