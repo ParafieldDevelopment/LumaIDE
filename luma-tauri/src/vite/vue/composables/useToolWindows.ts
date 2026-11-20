@@ -1,213 +1,321 @@
 /**
- * Tool windows (JetBrains-style panels).
- *
- * A tool window is a panel docked to the left, right or bottom of the editor.
- * Each anchor shows at most one tool at a time. Tools are toggled from the
- * stripe buttons (LumToolStripe) or with a hotkey.
- *
- * To add a panel, see vue/toolwindows/README.md.
+ * Project-scoped JetBrains-style tool windows.
+ * Buttons live in four corner groups while panels open on the selected side.
  */
 import { computed, reactive, shallowRef, watch, type Component } from "vue";
+import { invoke } from "@tauri-apps/api/core";
 
-export type ToolAnchor = "left" | "right" | "bottom";
+export type ToolSide = "left" | "right";
+export type ToolPosition = "left-top" | "left-bottom" | "right-top" | "right-bottom";
 
 export interface ToolWindowDef {
-  /** Unique id, e.g. "terminal". Also used for persistence. */
   id: string;
-  /** Shown in the tooltip and in the panel header. */
   title: string;
-  /** Which edge the panel docks to. */
-  anchor: ToolAnchor;
-  /** Icon component for the stripe button. */
+  position: ToolPosition;
   icon: Component;
-  /**
-   * The panel component. It receives `workspacePath: string` and should emit
-   * `hide`. Wrap its content in <LumToolWindow> for the standard header.
-   */
   component: Component;
-  /** Stripe ordering within its group (lower first). Default 100. */
   order?: number;
-  /** e.g. "Alt+1", "Alt+F12", "Ctrl+Shift+K". */
   hotkey?: string;
-  /** Open on first launch (only if the user never toggled this anchor). */
   defaultOpen?: boolean;
 }
 
 interface PersistedState {
-  /** Active tool id per anchor. `null` = user closed it. Missing = never set. */
-  active: Partial<Record<ToolAnchor, string | null>>;
-  /** Panel size in px: width for left/right, height for bottom. */
-  sizes: Record<ToolAnchor, number>;
+  version: 3;
+  positions: Record<string, ToolPosition>;
+  order: Record<ToolPosition, string[]>;
+  active: Record<ToolSide, string | null>;
+  sizes: Record<ToolSide, number>;
 }
 
-const STORAGE_KEY = "luma.toolWindows.v1";
-
-const DEFAULT_SIZES: Record<ToolAnchor, number> = {
-  left: 260,
-  right: 280,
-  bottom: 240,
-};
-
-const SIZE_LIMITS: Record<ToolAnchor, { min: number; max: number }> = {
+const positions: ToolPosition[] = ["left-top", "left-bottom", "right-top", "right-bottom"];
+const sides: ToolSide[] = ["left", "right"];
+const DEFAULT_SIZES: Record<ToolSide, number> = { left: 280, right: 280 };
+const LIMITS: Record<ToolSide, { min: number; max: number }> = {
   left: { min: 180, max: 700 },
   right: { min: 180, max: 700 },
-  bottom: { min: 120, max: 700 },
 };
 
-function load(): PersistedState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return {
-        active:
-          parsed && typeof parsed.active === "object" && parsed.active
-            ? parsed.active
-            : {},
-        sizes: { ...DEFAULT_SIZES, ...(parsed?.sizes ?? {}) },
-      };
+function emptyState(): PersistedState {
+  return {
+    version: 3,
+    positions: {},
+    order: { "left-top": [], "left-bottom": [], "right-top": [], "right-bottom": [] },
+    active: { left: null, right: null },
+    sizes: { ...DEFAULT_SIZES },
+  };
+}
+
+function sideOf(position: ToolPosition): ToolSide {
+  return position.startsWith("left-") ? "left" : "right";
+}
+
+function legacyPosition(id: string, anchor: unknown): ToolPosition {
+  if (anchor === "left") return id === "git-commit" ? "left-bottom" : "left-top";
+  if (anchor === "right") return "right-top";
+  if (anchor === "top") return "left-top";
+  if (anchor === "bottom") {
+    if (id === "terminal") return "right-bottom";
+    if (id === "analyzer") return "left-bottom";
+    return "right-bottom";
+  }
+  if (id === "terminal") return "right-bottom";
+  if (id === "analyzer" || id === "git-commit") return "left-bottom";
+  if (id === "notifications") return "right-top";
+  return "left-top";
+}
+
+function sanitize(raw: unknown): PersistedState {
+  const next = emptyState();
+  if (!raw || typeof raw !== "object") return next;
+  const data = raw as Partial<PersistedState> & {
+    anchors?: Record<string, unknown>;
+    order?: Record<string, unknown>;
+    active?: Record<string, unknown>;
+    sizes?: Record<string, unknown>;
+  };
+
+  if (data.version === 3 && data.positions && typeof data.positions === "object") {
+    for (const [id, position] of Object.entries(data.positions)) {
+      if (positions.includes(position as ToolPosition)) next.positions[id] = position as ToolPosition;
     }
-  } catch {
-    // Storage can be unavailable or corrupt; fall back to defaults.
+    if (data.order && typeof data.order === "object") {
+      for (const position of positions) {
+        const list = data.order[position];
+        if (Array.isArray(list)) next.order[position] = [...new Set(list.filter((id): id is string => typeof id === "string"))];
+      }
+    }
+    if (data.active && typeof data.active === "object") {
+      for (const side of sides) {
+        const id = data.active[side];
+        next.active[side] = typeof id === "string" ? id : null;
+      }
+    }
+    if (data.sizes && typeof data.sizes === "object") {
+      for (const side of sides) {
+        const value = data.sizes[side];
+        if (typeof value === "number" && Number.isFinite(value)) next.sizes[side] = value;
+      }
+    }
+    return next;
   }
-  return { active: {}, sizes: { ...DEFAULT_SIZES } };
+
+  // Migrate the previous four-edge layout. "bottom" now means a bottom
+  // button group on a vertical stripe, not a separate horizontal dock.
+  if (data.anchors && typeof data.anchors === "object") {
+    for (const [id, anchor] of Object.entries(data.anchors)) {
+      next.positions[id] = legacyPosition(id, anchor);
+    }
+  }
+  if (data.order && typeof data.order === "object") {
+    for (const oldAnchor of ["left", "right", "top", "bottom"] as const) {
+      const list: unknown = (data.order as Record<string, unknown>)[oldAnchor];
+      if (!Array.isArray(list)) continue;
+      for (const rawId of list as unknown[]) {
+        if (typeof rawId !== "string") continue;
+        const id = rawId;
+        const position = next.positions[id] ?? legacyPosition(id, oldAnchor);
+        if (!next.order[position].includes(id)) next.order[position].push(id);
+      }
+    }
+  }
+  if (data.active && typeof data.active === "object") {
+    const oldActive = data.active as Record<string, unknown>;
+    for (const oldSide of ["left", "right", "top", "bottom"] as const) {
+      const id = oldActive[oldSide];
+      if (typeof id !== "string") continue;
+      const position = next.positions[id] ?? legacyPosition(id, oldSide);
+      const side = sideOf(position);
+      if (next.active[side] === null) next.active[side] = id;
+    }
+  }
+  if (data.sizes && typeof data.sizes === "object") {
+    for (const side of sides) {
+      const value = data.sizes[side];
+      if (typeof value === "number" && Number.isFinite(value)) next.sizes[side] = value;
+    }
+  }
+  return next;
 }
 
-function save() {
-  try {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ active: state.active, sizes: state.sizes })
-    );
-  } catch {
-    // Ignore: persistence is best-effort.
-  }
-}
-
-const state = reactive<PersistedState>(load());
+const state = reactive<PersistedState>(emptyState());
 const registry = shallowRef<ToolWindowDef[]>([]);
+let projectPath = "";
+let loadGeneration = 0;
+let saveTimer: ReturnType<typeof setTimeout> | undefined;
+let ready = false;
+let dirty = false;
 
-let saveTimer: number | undefined;
-watch(
-  state,
-  () => {
-    window.clearTimeout(saveTimer);
-    saveTimer = window.setTimeout(save, 200);
-  },
-  { deep: true }
-);
-
-/** Register (or replace) a tool window. Safe to call more than once. */
-export function registerToolWindow(def: ToolWindowDef) {
-  const next = registry.value.filter((tool) => tool.id !== def.id);
-  next.push(def);
-  next.sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
-  registry.value = next;
-
-  if (def.defaultOpen && state.active[def.anchor] === undefined) {
-    state.active[def.anchor] = def.id;
+function replaceState(next: PersistedState) {
+  state.version = 3;
+  state.positions = next.positions;
+  for (const position of positions) state.order[position] = next.order[position];
+  for (const side of sides) {
+    state.active[side] = next.active[side];
+    state.sizes[side] = next.sizes[side];
   }
 }
 
-function matchesHotkey(event: KeyboardEvent, hotkey: string): boolean {
+async function save() {
+  if (!ready || !projectPath || !dirty) return;
+  dirty = false;
+  try {
+    await invoke("save_tool_window_layout", { workspacePath: projectPath, layout: JSON.stringify(state) });
+  } catch (error) {
+    dirty = true;
+    console.warn("Unable to save project tool-window layout", error);
+  }
+}
+
+function scheduleSave() {
+  if (!ready) return;
+  dirty = true;
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    saveTimer = undefined;
+    void save();
+  }, 250);
+}
+watch(state, scheduleSave, { deep: true });
+
+export async function setToolWindowWorkspace(path: string) {
+  const generation = ++loadGeneration;
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = undefined;
+  }
+  await save();
+  ready = false;
+  projectPath = path;
+  let next = emptyState();
+
+  if (path) {
+    try {
+      const raw = await invoke<string | null>("load_tool_window_layout", { workspacePath: path });
+      if (raw) next = sanitize(JSON.parse(raw));
+    } catch (error) {
+      console.warn("Unable to load project tool-window layout", error);
+    }
+  }
+  if (generation !== loadGeneration) return;
+
+  replaceState(next);
+  for (const tool of registry.value) {
+    if (!state.positions[tool.id]) state.positions[tool.id] = tool.position;
+    const position = state.positions[tool.id];
+    if (!state.order[position].includes(tool.id)) state.order[position].push(tool.id);
+
+    const side = sideOf(position);
+    if (tool.defaultOpen && state.active[side] === null) state.active[side] = tool.id;
+  }
+  ready = true;
+  dirty = false;
+}
+
+export function registerToolWindow(def: ToolWindowDef) {
+  registry.value = [...registry.value.filter((tool) => tool.id !== def.id), def];
+  if (!state.positions[def.id]) state.positions[def.id] = def.position;
+  const position = state.positions[def.id];
+  if (!state.order[position].includes(def.id)) state.order[position].push(def.id);
+  const side = sideOf(position);
+  if (def.defaultOpen && state.active[side] === null) state.active[side] = def.id;
+}
+
+function ordered(position: ToolPosition) {
+  return state.order[position]
+    .map((id) => registry.value.find((tool) => tool.id === id))
+    .filter((tool): tool is ToolWindowDef => !!tool);
+}
+
+function activeTool(side: ToolSide): ToolWindowDef | null {
+  const id = state.active[side];
+  if (!id) return null;
+  const tool = registry.value.find((item) => item.id === id);
+  return tool && sideOf(state.positions[id] ?? tool.position) === side ? tool : null;
+}
+
+function toggle(id: string) {
+  const position = state.positions[id];
+  if (!position) return;
+  const side = sideOf(position);
+  state.active[side] = state.active[side] === id ? null : id;
+}
+
+function open(id: string) {
+  const position = state.positions[id];
+  if (position) state.active[sideOf(position)] = id;
+}
+
+function close(side: ToolSide) {
+  state.active[side] = null;
+}
+
+function move(id: string, target: ToolPosition, index?: number) {
+  const source = state.positions[id];
+  if (!source || !positions.includes(target)) return;
+  const sourceSide = sideOf(source);
+  const targetSide = sideOf(target);
+
+  state.order[source] = state.order[source].filter((item) => item !== id);
+  if (sourceSide !== targetSide && state.active[sourceSide] === id) {
+    state.active[sourceSide] = null;
+  }
+  state.positions[id] = target;
+
+  const list = state.order[target].filter((item) => item !== id);
+  const position = Math.max(0, Math.min(index ?? list.length, list.length));
+  list.splice(position, 0, id);
+  state.order[target] = list;
+  state.active[targetSide] = id;
+}
+
+function hideAll() {
+  for (const side of sides) state.active[side] = null;
+}
+
+function setSize(side: ToolSide, value: number) {
+  const limit = LIMITS[side];
+  state.sizes[side] = Math.round(Math.min(Math.max(value, limit.min), Math.min(limit.max, window.innerWidth * 0.7)));
+}
+
+function matchesHotkey(event: KeyboardEvent, hotkey: string) {
   const parts = hotkey.toLowerCase().split("+");
   const key = parts.pop();
   if (!key) return false;
+  return event.altKey === parts.includes("alt")
+    && event.ctrlKey === parts.includes("ctrl")
+    && event.shiftKey === parts.includes("shift")
+    && event.key.toLowerCase() === key;
+}
 
-  const wantAlt = parts.includes("alt");
-  const wantCtrl = parts.includes("ctrl");
-  const wantShift = parts.includes("shift");
-
-  return (
-    event.altKey === wantAlt &&
-    event.ctrlKey === wantCtrl &&
-    event.shiftKey === wantShift &&
-    event.key.toLowerCase() === key
-  );
+function handleHotkey(event: KeyboardEvent): boolean {
+  if (event.ctrlKey && event.shiftKey && !event.altKey && event.key === "F12") {
+    hideAll();
+    return true;
+  }
+  for (const tool of registry.value) {
+    if (tool.hotkey && matchesHotkey(event, tool.hotkey)) {
+      toggle(tool.id);
+      return true;
+    }
+  }
+  return false;
 }
 
 export function useToolWindows() {
-  const byAnchor = (anchor: ToolAnchor) =>
-    registry.value.filter((tool) => tool.anchor === anchor);
-
-  const activeTool = (anchor: ToolAnchor): ToolWindowDef | null => {
-    const id = state.active[anchor];
-    if (!id) return null;
-    return registry.value.find((t) => t.id === id && t.anchor === anchor) ?? null;
-  };
-
-  const leftTools = computed(() => byAnchor("left"));
-  const rightTools = computed(() => byAnchor("right"));
-  const bottomTools = computed(() => byAnchor("bottom"));
-
-  const leftTool = computed(() => activeTool("left"));
-  const rightTool = computed(() => activeTool("right"));
-  const bottomTool = computed(() => activeTool("bottom"));
-
-  /** Ids of every tool that is currently shown. */
-  const activeIds = computed(() =>
-    [leftTool.value, rightTool.value, bottomTool.value]
-      .filter((tool): tool is ToolWindowDef => tool !== null)
-      .map((tool) => tool.id)
-  );
-
-  function toggle(id: string) {
-    const tool = registry.value.find((t) => t.id === id);
-    if (!tool) return;
-    state.active[tool.anchor] = state.active[tool.anchor] === id ? null : id;
-  }
-
-  function open(id: string) {
-    const tool = registry.value.find((t) => t.id === id);
-    if (tool) state.active[tool.anchor] = id;
-  }
-
-  function close(anchor: ToolAnchor) {
-    state.active[anchor] = null;
-  }
-
-  /** Hide every panel (JetBrains: Ctrl+Shift+F12). */
-  function hideAll() {
-    state.active.left = null;
-    state.active.right = null;
-    state.active.bottom = null;
-  }
-
-  function setSize(anchor: ToolAnchor, value: number) {
-    const { min, max } = SIZE_LIMITS[anchor];
-    // Never let a panel take more than 70% of the window.
-    const viewport = anchor === "bottom" ? window.innerHeight : window.innerWidth;
-    const upper = Math.min(max, Math.round(viewport * 0.7));
-    state.sizes[anchor] = Math.round(Math.min(Math.max(value, min), upper));
-  }
-
-  /** Returns true if the event was a tool window hotkey (and was handled). */
-  function handleHotkey(event: KeyboardEvent): boolean {
-    if (event.ctrlKey && event.shiftKey && !event.altKey && event.key === "F12") {
-      hideAll();
-      return true;
-    }
-    for (const tool of registry.value) {
-      if (tool.hotkey && matchesHotkey(event, tool.hotkey)) {
-        toggle(tool.id);
-        return true;
-      }
-    }
-    return false;
-  }
-
   return {
-    leftTools,
-    rightTools,
-    bottomTools,
-    leftTool,
-    rightTool,
-    bottomTool,
-    activeIds,
+    leftTopTools: computed(() => ordered("left-top")),
+    leftBottomTools: computed(() => ordered("left-bottom")),
+    rightTopTools: computed(() => ordered("right-top")),
+    rightBottomTools: computed(() => ordered("right-bottom")),
+    leftTool: computed(() => activeTool("left")),
+    rightTool: computed(() => activeTool("right")),
+    activeIds: computed(() => sides.map((side) => activeTool(side)?.id).filter((id): id is string => !!id)),
+    anchors: state.positions,
     sizes: state.sizes,
     toggle,
     open,
     close,
+    move,
     hideAll,
     setSize,
     handleHotkey,

@@ -84,7 +84,11 @@ fn main() -> ExitCode {
 
     let run_outcome = panic::catch_unwind(AssertUnwindSafe(move || {
         let app = app;
-        app.run_return(move |_, _| {})
+        app.run_return(move |_, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                shell::terminal_close_all_sessions();
+            }
+        })
     }));
 
     match run_outcome {
@@ -142,6 +146,8 @@ fn build_tauri_app() -> Result<tauri::App> {
             base_invokes::create_workspace,
             base_invokes::get_active_workspace,
             base_invokes::get_recent_workspaces,
+            base_invokes::load_tool_window_layout,
+            base_invokes::save_tool_window_layout,
             base_invokes::remove_recent_workspace,
             base_invokes::reveal_workspace,
             // file_system
@@ -155,6 +161,7 @@ fn build_tauri_app() -> Result<tauri::App> {
             // shell (tool windows)
             shell::git_command,
             shell::terminal_open_session,
+            shell::terminal_list_sessions,
             shell::terminal_write,
             shell::terminal_resize,
             shell::terminal_read,
@@ -189,3 +196,8 @@ fn build_tauri_app() -> Result<tauri::App> {
 
     Ok(app)
 }
+
+
+
+
+
