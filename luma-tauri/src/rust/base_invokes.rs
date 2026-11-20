@@ -25,7 +25,7 @@ fn unix_timestamp() -> u64 {
 
 /// Strip the Windows verbatim prefix (`\\?\C:\...`) that `canonicalize` adds so
 /// stored and displayed paths look normal. `\\?\UNC\...` paths are left alone.
-fn clean_path(path: PathBuf) -> PathBuf {
+pub(crate) fn clean_path(path: PathBuf) -> PathBuf {
     #[cfg(windows)]
     {
         let text = path.to_string_lossy();
