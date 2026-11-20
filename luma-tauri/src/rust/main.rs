@@ -3,6 +3,7 @@ pub mod base_invokes;
 mod error_report;
 pub mod file_system;
 pub mod settings_window;
+pub mod shell;
 pub mod splash_window;
 pub mod startup_window;
 pub mod tauri_utils;
@@ -151,6 +152,10 @@ fn build_tauri_app() -> Result<tauri::App> {
             file_system::create_file,
             file_system::create_directory,
             file_system::delete_entry,
+            // shell (tool windows)
+            shell::git_command,
+            shell::run_terminal_command,
+            shell::terminal_change_dir,
         ])
         .plugin(
             tauri_plugin_log::Builder::new()
