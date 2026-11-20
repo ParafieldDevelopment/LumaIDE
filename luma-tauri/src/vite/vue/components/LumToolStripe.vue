@@ -1,37 +1,63 @@
 <script setup lang="ts">
-/**
- * LumToolStripe — the JetBrains-style button strip along a window edge.
- * `top` buttons sit at the top, `bottom` buttons are pinned to the bottom
- * (new-UI style: bottom-docked tools like Terminal live here).
- * Set `labels` for classic rotated text buttons instead of icon-only.
- */
-import type { ToolWindowDef } from "~/vue/composables/useToolWindows";
+/** JetBrains-style vertical tool-window stripe with four corner drop zones. */
+import type { ToolPosition, ToolWindowDef } from "~/vue/composables/useToolWindows";
 
-withDefaults(
-    defineProps<{
-      side: "left" | "right";
-      top: ToolWindowDef[];
-      bottom?: ToolWindowDef[];
-      activeIds: string[];
-      labels?: boolean;
-    }>(),
-    {
-      bottom: () => [],
-      labels: false,
-    }
+const props = withDefaults(
+  defineProps<{
+    side: "left" | "right";
+    top: ToolWindowDef[];
+    bottom?: ToolWindowDef[];
+    activeIds: string[];
+    dropTarget?: ToolPosition | null;
+    labels?: boolean;
+    draggable?: boolean;
+  }>(),
+  {
+    bottom: () => [],
+    dropTarget: null,
+    labels: false,
+    draggable: true,
+  },
 );
 
-const emit = defineEmits<{ (e: "toggle", id: string): void }>();
+const emit = defineEmits<{
+  (event: "toggle", id: string): void;
+  (event: "dragstart", id: string, dragEvent: DragEvent): void;
+  (event: "dragend"): void;
+  (event: "dragover", position: ToolPosition, dragEvent: DragEvent): void;
+  (event: "dragleave", position: ToolPosition): void;
+  (event: "drop", position: ToolPosition, dragEvent: DragEvent): void;
+}>();
+
+const topPosition = `${props.side}-top` as ToolPosition;
+const bottomPosition = `${props.side}-bottom` as ToolPosition;
 
 function tip(tool: ToolWindowDef) {
   return tool.hotkey ? `${tool.title} (${tool.hotkey})` : tool.title;
+}
+
+function dragOver(position: ToolPosition, event: DragEvent) {
+  emit("dragover", position, event);
+}
+
+function dragLeave(position: ToolPosition, event: DragEvent) {
+  const next = event.relatedTarget;
+  if (next instanceof Node && (event.currentTarget as HTMLElement).contains(next)) return;
+  emit("dragleave", position);
 }
 </script>
 
 <template>
   <nav class="lum-stripe" :class="[`is-${side}`, { 'has-labels': labels }]" aria-label="Tool windows">
-    <div class="lum-stripe-group">
-      <button
+    <div
+      class="lum-stripe-section lum-stripe-section-top"
+      :class="{ 'is-drop-target': dropTarget === topPosition }"
+      @dragover="dragOver(topPosition, $event)"
+      @dragleave="dragLeave(topPosition, $event)"
+      @drop="emit('drop', topPosition, $event)"
+    >
+      <div class="lum-stripe-group">
+        <button
           v-for="tool in top"
           :key="tool.id"
           type="button"
@@ -40,17 +66,26 @@ function tip(tool: ToolWindowDef) {
           :title="tip(tool)"
           :aria-label="tool.title"
           :aria-pressed="activeIds.includes(tool.id)"
+          :draggable="draggable"
+          @dragstart="emit('dragstart', tool.id, $event)"
+          @dragend="emit('dragend')"
           @click="emit('toggle', tool.id)"
-      >
-        <component :is="tool.icon" />
-        <span v-if="labels" class="lum-stripe-label">{{ tool.title }}</span>
-      </button>
+        >
+          <component :is="tool.icon" />
+          <span v-if="labels" class="lum-stripe-label">{{ tool.title }}</span>
+        </button>
+      </div>
     </div>
 
-    <div class="lum-stripe-spacer" />
-
-    <div class="lum-stripe-group">
-      <button
+    <div
+      class="lum-stripe-section lum-stripe-section-bottom"
+      :class="{ 'is-drop-target': dropTarget === bottomPosition }"
+      @dragover="dragOver(bottomPosition, $event)"
+      @dragleave="dragLeave(bottomPosition, $event)"
+      @drop="emit('drop', bottomPosition, $event)"
+    >
+      <div class="lum-stripe-group">
+        <button
           v-for="tool in bottom"
           :key="tool.id"
           type="button"
@@ -59,59 +94,75 @@ function tip(tool: ToolWindowDef) {
           :title="tip(tool)"
           :aria-label="tool.title"
           :aria-pressed="activeIds.includes(tool.id)"
+          :draggable="draggable"
+          @dragstart="emit('dragstart', tool.id, $event)"
+          @dragend="emit('dragend')"
           @click="emit('toggle', tool.id)"
-      >
-        <component :is="tool.icon" />
-        <span v-if="labels" class="lum-stripe-label">{{ tool.title }}</span>
-      </button>
+        >
+          <component :is="tool.icon" />
+          <span v-if="labels" class="lum-stripe-label">{{ tool.title }}</span>
+        </button>
+      </div>
     </div>
   </nav>
 </template>
 
 <style scoped>
 .lum-stripe {
-  flex: 0 0 auto;
   display: flex;
+  flex: 0 0 40px;
   flex-direction: column;
   width: 40px;
-  padding: 6px 4px;
-  gap: 4px;
+  min-height: 0;
+  padding: var(--lum-space-2) var(--lum-space-1);
+  gap: 0;
   background: var(--lum-bg-surface);
   user-select: none;
 }
 
-.lum-stripe.is-left {
-  border-right: 1px solid var(--lum-border);
+.lum-stripe-section {
+  display: flex;
+  flex: 1 1 50%;
+  min-height: 40px;
+  padding: var(--lum-space-1) 0;
+  border-radius: var(--lum-radius-sm);
+  transition: background var(--lum-transition-fast), outline-color var(--lum-transition-fast);
 }
 
-.lum-stripe.is-right {
-  border-left: 1px solid var(--lum-border);
+.lum-stripe-section-top {
+  align-items: flex-start;
+}
+
+.lum-stripe-section-bottom {
+  align-items: flex-end;
+}
+
+.lum-stripe-section.is-drop-target {
+  background: var(--lum-accent-muted);
+  outline: 1px dashed var(--lum-accent);
+  outline-offset: -2px;
 }
 
 .lum-stripe-group {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-}
-
-.lum-stripe-spacer {
-  flex: 1 1 auto;
+  gap: var(--lum-space-1);
+  width: 100%;
 }
 
 .lum-stripe-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
   width: 32px;
   height: 32px;
   padding: 0;
-  border: none;
+  border: 0;
   border-radius: var(--lum-radius-sm);
   background: transparent;
   color: var(--lum-fg-muted);
-  cursor: pointer;
+  cursor: grab;
   transition: background var(--lum-transition-fast), color var(--lum-transition-fast);
 }
 
@@ -130,10 +181,9 @@ function tip(tool: ToolWindowDef) {
   outline-offset: 1px;
 }
 
-/* Classic labelled (rotated) buttons */
 .has-labels .lum-stripe-btn {
   height: auto;
-  padding: 8px 0;
+  padding: var(--lum-space-2) 0;
   writing-mode: vertical-rl;
 }
 

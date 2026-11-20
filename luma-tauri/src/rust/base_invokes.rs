@@ -273,7 +273,7 @@ fn record_recent_workspace(mut project: Project) -> Result<Project, tauri::ipc::
 }
 
 fn open_main_window(app: &tauri::AppHandle, project: &Project) -> anyhow::Result<()> {
-    let title = format!("Luma — {}", project.title);
+    let title = format!("Luma â€” {}", project.title);
 
     let window = if let Some(window) = app.get_webview_window("main") {
         window.set_title(&title)?;
@@ -358,6 +358,29 @@ pub async fn get_recent_workspaces() -> Result<Vec<Project>, tauri::ipc::InvokeE
     Ok(workspaces)
 }
 
+#[tauri::command]
+pub async fn load_tool_window_layout(workspace_path: String) -> Result<Option<String>, tauri::ipc::InvokeError> {
+    let workspace = PathBuf::from(&workspace_path).canonicalize().context("Workspace folder does not exist").map_err(tauri::ipc::InvokeError::from_anyhow)?;
+    if !workspace.is_dir() { return Err(tauri::ipc::InvokeError::from_anyhow(anyhow::anyhow!("Workspace path is not a directory"))); }
+    let path = workspace.join(".luma").join("tool-windows.json");
+    match std::fs::read_to_string(path) {
+        Ok(contents) => { serde_json::from_str::<serde_json::Value>(&contents).context("Invalid tool-window layout JSON").map_err(tauri::ipc::InvokeError::from_anyhow)?; Ok(Some(contents)) },
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(tauri::ipc::InvokeError::from_anyhow(anyhow::Error::from(error).context("Failed to read tool-window layout"))),
+    }
+}
+
+#[tauri::command]
+pub async fn save_tool_window_layout(workspace_path: String, layout: String) -> Result<(), tauri::ipc::InvokeError> {
+    let workspace = PathBuf::from(&workspace_path).canonicalize().context("Workspace folder does not exist").map_err(tauri::ipc::InvokeError::from_anyhow)?;
+    if !workspace.is_dir() { return Err(tauri::ipc::InvokeError::from_anyhow(anyhow::anyhow!("Workspace path is not a directory"))); }
+    let value: serde_json::Value = serde_json::from_str(&layout).context("Invalid tool-window layout JSON").map_err(tauri::ipc::InvokeError::from_anyhow)?;
+    if value.get("version").and_then(|v| v.as_u64()) != Some(2) { return Err(tauri::ipc::InvokeError::from_anyhow(anyhow::anyhow!("Unsupported tool-window layout version"))); }
+    let path = workspace.join(".luma").join("tool-windows.json");
+    let serialized = serde_json::to_string_pretty(&value)
+        .map_err(|error| tauri::ipc::InvokeError::from_anyhow(anyhow::Error::from(error)))?;
+    write_json_file(&path, &serialized)
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TemplateFile {
     pub path: String,
@@ -686,3 +709,7 @@ pub async fn open_workspace(
 
     Ok(())
 }
+
+
+
+

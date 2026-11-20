@@ -42,6 +42,37 @@ fn drain<R: Read + Send + 'static>(mut reader: R) -> (Arc<Mutex<Vec<u8>>>, threa
     });
     (buffer, handle)
 }
+#[derive(Default)]
+struct TerminalOutputBuffer {
+    bytes: Vec<u8>,
+    base_offset: usize,
+    next_offset: usize,
+}
+
+fn drain_terminal<R: Read + Send + 'static>(
+    mut reader: R,
+    buffer: Arc<Mutex<TerminalOutputBuffer>>,
+) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
+        let mut chunk = [0u8; 4096];
+        loop {
+            match reader.read(&mut chunk) {
+                Ok(0) | Err(_) => break,
+                Ok(n) => {
+                    let Ok(mut output) = buffer.lock() else { break; };
+                    output.next_offset = output.next_offset.saturating_add(n);
+                    output.bytes.extend_from_slice(&chunk[..n]);
+                    if output.bytes.len() > MAX_OUTPUT_BYTES {
+                        let trim = output.bytes.len() - MAX_OUTPUT_BYTES;
+                        output.bytes.drain(..trim);
+                        output.base_offset = output.base_offset.saturating_add(trim);
+                    }
+                }
+            }
+        }
+    })
+}
+
 fn snapshot(buffer: &Arc<Mutex<Vec<u8>>>) -> String {
     let bytes = buffer.lock().map(|b| b.clone()).unwrap_or_default();
     String::from_utf8_lossy(&bytes).into_owned()
@@ -82,14 +113,18 @@ pub async fn git_command(cwd: String, args: Vec<String>) -> Result<CommandOutput
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TerminalSessionInfo { pub id: String, pub shell: String }
+pub struct TerminalSessionInfo { pub id: String, pub shell: String, pub cwd: String, pub exited: bool }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TerminalReadResult { pub output: String, pub next_offset: usize, pub exited: bool }
 
 struct TerminalSession {
+    exited: bool,
+    shell: String,
+    cwd: String,
+    created_at: std::time::Instant,
     writer: Box<dyn Write + Send>,
-    output: Arc<Mutex<Vec<u8>>>,
+    output: Arc<Mutex<TerminalOutputBuffer>>,
     child: Mutex<Box<dyn Child + Send>>,
     master: Box<dyn MasterPty + Send>,
 }
@@ -108,6 +143,7 @@ pub async fn terminal_open_session(cwd: String) -> Result<TerminalSessionInfo, I
     let (shell, args) = ("powershell.exe", vec!["-NoLogo".to_string()]);
     #[cfg(not(windows))]
     let (shell, args) = (std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string()), vec!["-i".to_string()]);
+    let cwd_string = dir.to_string_lossy().into_owned();
     let mut cmd = CommandBuilder::new(shell);
     cmd.args(args);
     cmd.cwd(dir);
@@ -115,22 +151,86 @@ pub async fn terminal_open_session(cwd: String) -> Result<TerminalSessionInfo, I
     let child = pair.slave.spawn_command(cmd).map_err(|e| invoke_error(format!("Could not start shell: {e}")))?;
     drop(pair.slave);
     let reader = pair.master.try_clone_reader().map_err(|e| invoke_error(format!("Could not read terminal: {e}")))?;
-    let (output, _reader_thread) = drain(reader);
+    let output = Arc::new(Mutex::new(TerminalOutputBuffer::default()));
+    let _reader_thread = drain_terminal(reader, Arc::clone(&output));
     let writer = pair.master.take_writer().map_err(|e| invoke_error(format!("Could not write to terminal: {e}")))?;
     let id = Uuid::new_v4().to_string();
     let shell_name = Path::new(shell).file_name().and_then(|n| n.to_str()).unwrap_or(shell).to_string();
     sessions().lock().map_err(|e| invoke_error(e))?.insert(id.clone(), TerminalSession {
-        writer, output, child: Mutex::new(child), master: pair.master,
+        exited: false,
+        shell: shell_name.clone(),
+        cwd: cwd_string.clone(),
+        created_at: std::time::Instant::now(),
+        writer,
+        output,
+        child: Mutex::new(child),
+        master: pair.master,
     });
-    Ok(TerminalSessionInfo { id, shell: shell_name })
+    Ok(TerminalSessionInfo { id, shell: shell_name, cwd: cwd_string, exited: false })
 }
 
 #[tauri::command]
 pub async fn terminal_write(session_id: String, input: String) -> Result<(), InvokeError> {
     let mut map = sessions().lock().map_err(|e| invoke_error(e))?;
     let session = map.get_mut(&session_id).ok_or_else(|| invoke_error("Terminal session not found"))?;
-    session.writer.write_all(input.as_bytes()).map_err(|e| invoke_error(format!("Terminal input failed: {e}")))?;
-    session.writer.flush().map_err(|e| invoke_error(format!("Terminal flush failed: {e}")))
+    if session.exited { return Err(invoke_error("Terminal session has exited")); }
+
+    if session.child.lock().map_err(|e| invoke_error(e))?.try_wait()
+        .map_err(|e| invoke_error(format!("Failed checking shell state: {e}")))?.is_some()
+    {
+        session.exited = true;
+        return Err(invoke_error("Terminal session has exited"));
+    }
+
+    if let Err(first_error) = session.writer.write_all(input.as_bytes()).and_then(|_| session.writer.flush()) {
+        // ConPTY may invalidate its current writer when an interactive child exits.
+        // Reacquire the writer once before treating the session as unavailable.
+        if session.child.lock().map_err(|e| invoke_error(e))?.try_wait()
+            .map_err(|e| invoke_error(format!("Failed checking shell state: {e}")))?.is_some()
+        {
+            session.exited = true;
+            return Err(invoke_error("Terminal session has exited"));
+        }
+
+        session.writer = session.master.take_writer()
+            .map_err(|error| invoke_error(format!("Could not reconnect terminal input: {error}")))?;
+        if let Err(retry_error) = session.writer.write_all(input.as_bytes()).and_then(|_| session.writer.flush()) {
+            if session.child.lock().map_err(|e| invoke_error(e))?.try_wait()
+                .map_err(|e| invoke_error(format!("Failed checking shell state: {e}")))?.is_some()
+            {
+                session.exited = true;
+                return Err(invoke_error("Terminal session has exited"));
+            }
+            return Err(invoke_error(format!("Terminal input temporarily unavailable: {first_error}; retry failed: {retry_error}")));
+        }
+    }
+    Ok(())
+}
+#[tauri::command]
+pub async fn terminal_list_sessions() -> Result<Vec<TerminalSessionInfo>, InvokeError> {
+    let mut map = sessions().lock().map_err(|e| invoke_error(e))?;
+    let mut ordered = Vec::with_capacity(map.len());
+
+    for (id, session) in map.iter_mut() {
+        if !session.exited {
+            let exited = session.child.lock().map_err(|e| invoke_error(e))?.try_wait()
+                .map_err(|error| invoke_error(format!("Failed checking shell state: {error}")))?
+                .is_some();
+            if exited { session.exited = true; }
+        }
+        ordered.push((
+            session.created_at,
+            TerminalSessionInfo {
+                id: id.clone(),
+                shell: session.shell.clone(),
+                cwd: session.cwd.clone(),
+                exited: session.exited,
+            },
+        ));
+    }
+
+    ordered.sort_by_key(|(created_at, _)| *created_at);
+    Ok(ordered.into_iter().map(|(_, session)| session).collect())
 }
 
 #[tauri::command]
@@ -143,22 +243,43 @@ pub async fn terminal_resize(session_id: String, cols: u16, rows: u16) -> Result
 
 #[tauri::command]
 pub async fn terminal_read(session_id: String, offset: usize) -> Result<TerminalReadResult, InvokeError> {
-    let map = sessions().lock().map_err(|e| invoke_error(e))?;
-    let session = map.get(&session_id).ok_or_else(|| invoke_error("Terminal session not found"))?;
-    let bytes = session.output.lock().map_err(|e| invoke_error(e))?;
-    let start = offset.min(bytes.len());
-    let output = String::from_utf8_lossy(&bytes[start..]).into_owned();
-    let exited = session.child.lock().map_err(|e| invoke_error(e))?.try_wait().map_err(|e| invoke_error(format!("Failed checking shell state: {e}")))?.is_some();
-    Ok(TerminalReadResult { output, next_offset: bytes.len(), exited })
+    let mut map = sessions().lock().map_err(|e| invoke_error(e))?;
+    let session = map.get_mut(&session_id).ok_or_else(|| invoke_error("Terminal session not found"))?;
+    let (output, next_offset) = {
+        let buffer = session.output.lock().map_err(|e| invoke_error(e))?;
+        let start = offset.saturating_sub(buffer.base_offset).min(buffer.bytes.len());
+        (
+            String::from_utf8_lossy(&buffer.bytes[start..]).into_owned(),
+            buffer.next_offset,
+        )
+    };
+    let exited = session.exited || session.child.lock().map_err(|e| invoke_error(e))?.try_wait().map_err(|e| invoke_error(format!("Failed checking shell state: {e}")))?.is_some();
+    if exited { session.exited = true; }
+    Ok(TerminalReadResult { output, next_offset, exited })
 }
-
 #[tauri::command]
 pub async fn terminal_close_session(session_id: String) -> Result<(), InvokeError> {
     let mut map = sessions().lock().map_err(|e| invoke_error(e))?;
     if let Some(session) = map.remove(&session_id) {
-        if let Ok(mut child) = session.child.lock() { let _ = child.kill(); let _ = child.wait(); }
+        if let Ok(mut child) = session.child.lock() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
     }
     Ok(())
+}
+
+/// Terminate every interactive shell when the IDE process exits.
+pub fn terminal_close_all_sessions() {
+    let Ok(mut map) = sessions().lock() else { return; };
+    let active = std::mem::take(&mut *map);
+    drop(map);
+    for (_, session) in active {
+        if let Ok(mut child) = session.child.lock() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
 }
 
 /// Resolve a cd target relative to cwd. Retained for the older terminal UI helper.
@@ -174,3 +295,18 @@ pub async fn terminal_change_dir(cwd: String, target: String) -> Result<String, 
     if !resolved.is_dir() { return Err(invoke_error(format!("'{target}' is not a directory"))); }
     Ok(crate::base_invokes::clean_path(resolved).to_string_lossy().into_owned())
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

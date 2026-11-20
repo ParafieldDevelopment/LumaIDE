@@ -10,200 +10,489 @@ import LumToolWindow from "../components/LumToolWindow.vue";
 const props = defineProps<{ workspacePath: string }>();
 const emit = defineEmits<{ (event: "hide"): void }>();
 
-const host = ref<HTMLDivElement | null>(null);
-const sessionId = ref("");
-const shellName = ref("");
-const terminalReady = ref(false);
+interface TerminalSessionInfo {
+  id: string;
+  shell: string;
+  cwd: string;
+  exited: boolean;
+}
+interface TerminalTab {
+  id: string;
+  shell: string;
+  cwd: string;
+  label: string;
+  exited: boolean;
+}
+interface TerminalView {
+  terminal: Terminal;
+  fitAddon: FitAddon;
+  unicodeAddon: Unicode11Addon;
+  inputSubscription: { dispose: () => void };
+  resizeObserver: ResizeObserver;
+  poller: ReturnType<typeof setInterval> | undefined;
+  offset: number;
+  writeQueue: Promise<void>;
+  disposed: boolean;
+  exited: boolean;
+  exitMessageShown: boolean;
+  readErrorShown: boolean;
+  writeErrorShown: boolean;
+}
 
-let terminal: Terminal | undefined;
-let fitAddon: FitAddon | undefined;
-let unicode11Addon: Unicode11Addon | undefined;
-let resizeObserver: ResizeObserver | undefined;
-let poller: ReturnType<typeof setInterval> | undefined;
-let offset = 0;
+const tabs = ref<TerminalTab[]>([]);
+const activeTabId = ref("");
+const hosts = new Map<string, HTMLDivElement>();
+const views = new Map<string, TerminalView>();
+const creating = ref(false);
+const loading = ref(true);
 let disposed = false;
-let writeQueue = Promise.resolve();
 
-async function openSession() {
-  try {
-    const session = await invoke<{ id: string; shell: string }>(
-      "terminal_open_session",
-      { cwd: props.workspacePath },
-    );
-    if (disposed) {
-      await invoke("terminal_close_session", { sessionId: session.id }).catch(() => undefined);
-      return;
-    }
-    sessionId.value = session.id;
-    shellName.value = session.shell;
-    offset = 0;
-
-    await poll();
-    poller = setInterval(() => void poll(), 80);
-    await nextTick();
-    fitAddon?.fit();
-    terminal?.focus();
-  } catch (error) {
-    terminal?.writeln("");
-    terminal?.writeln("\x1b[31mFailed to open terminal: " + String(error) + "\x1b[0m");
-  }
+function normalizedPath(path: string) {
+  return path.replace(/\\/g, "/").replace(/\/+$/, "").toLocaleLowerCase();
 }
 
-async function poll() {
-  if (!sessionId.value || disposed) return;
-  try {
-    const result = await invoke<{ output: string; nextOffset: number; exited: boolean }>(
-      "terminal_read",
-      { sessionId: sessionId.value, offset },
-    );
-    if (result.output) {
-      offset = result.nextOffset;
-      terminal?.write(result.output);
-    }
-    if (result.exited) {
-      terminal?.writeln("\r\n[Shell exited]");
-      stopPolling();
-    }
-  } catch (error) {
-    if (!disposed) terminal?.writeln("\r\n\x1b[31mTerminal read error: " + String(error) + "\x1b[0m");
-    stopPolling();
-  }
+function setHost(id: string, element: Element | null) {
+  if (element instanceof HTMLDivElement) hosts.set(id, element);
+  else hosts.delete(id);
 }
 
-function stopPolling() {
-  if (poller) clearInterval(poller);
-  poller = undefined;
-}
-
-function send(data: string) {
-  const currentSession = sessionId.value;
-  if (!currentSession) return;
-  writeQueue = writeQueue.then(async () => {
-    if (sessionId.value === currentSession) {
-      await invoke("terminal_write", { sessionId: currentSession, input: data });
-    }
-  }).catch((error) => {
-    terminal?.writeln("\r\n\x1b[31mTerminal input error: " + String(error) + "\x1b[0m");
-  });
-}
-
-function createTerminal() {
-  terminal = new Terminal({
-    cursorBlink: true,
-    convertEol: false,
-    allowProposedApi: true,
-    // Browser font fallback supplies missing glyphs from installed platform fonts.
-    // Include common CJK and emoji families after the preferred coding fonts.
-    fontFamily: "'Cascadia Mono', 'Cascadia Code', 'Consolas', 'Noto Sans Mono CJK SC', 'Noto Sans Mono CJK JP', 'Noto Sans Mono CJK KR', 'Noto Sans Symbols 2', 'Segoe UI Symbol', 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Microsoft YaHei UI', 'Yu Gothic UI', 'Malgun Gothic', 'Courier New', monospace",
-    fontSize: 13,
-    lineHeight: 1.25,
-    scrollback: 5000,
-    theme: {
-      background: getCssVariable("--lum-bg-app", "#111318"),
-      foreground: getCssVariable("--lum-fg", "#d6d9e0"),
-      cursor: getCssVariable("--lum-accent", "#8ab4f8"),
-      selectionBackground: "rgba(120, 150, 210, 0.32)",
-    },
-  });
-
-  fitAddon = new FitAddon();
-  terminal.loadAddon(fitAddon);
-
-  // Width tables keep modern emoji and wide characters aligned in terminal cells.
-  // Rendering still depends on the glyphs available through the system font fallback.
-  unicode11Addon = new Unicode11Addon();
-  terminal.loadAddon(unicode11Addon);
-  terminal.unicode.activeVersion = "11";
-
-  terminal.onData((data) => send(data));
-  terminal.open(host.value!);
-  terminalReady.value = true;
-
-  resizeObserver = new ResizeObserver(() => {
-    requestAnimationFrame(() => {
-      if (!host.value || !terminal || !fitAddon) return;
-      fitAddon.fit();
-      const { cols, rows } = terminal;
-      if (sessionId.value) {
-        void invoke("terminal_resize", { sessionId: sessionId.value, cols, rows }).catch(() => undefined);
-      }
-    });
-  });
-  resizeObserver.observe(host.value!);
-}
-
-function getCssVariable(name: string, fallback: string) {
+function cssVariable(name: string, fallback: string) {
   if (typeof window === "undefined") return fallback;
   const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return value || fallback;
 }
 
-function disposeTerminal() {
-  resizeObserver?.disconnect();
-  resizeObserver = undefined;
-  stopPolling();
-  unicode11Addon?.dispose();
-  unicode11Addon = undefined;
-  terminal?.dispose();
-  terminal = undefined;
-  fitAddon = undefined;
-  terminalReady.value = false;
+function nextLabel(shell: string) {
+  const number = tabs.value.filter((tab) => tab.shell === shell).length + 1;
+  return number === 1 ? shell : `${shell} ${number}`;
 }
 
-async function closeSession() {
-  stopPolling();
-  const currentSession = sessionId.value;
-  sessionId.value = "";
-  if (currentSession) {
-    try {
-      await invoke("terminal_close_session", { sessionId: currentSession });
-    } catch {
-      // The shell may already have exited.
+function disposeView(id: string) {
+  const view = views.get(id);
+  if (!view) return;
+  view.disposed = true;
+  if (view.poller) clearInterval(view.poller);
+  view.poller = undefined;
+  view.inputSubscription.dispose();
+  view.resizeObserver.disconnect();
+  view.unicodeAddon.dispose();
+  view.terminal.dispose();
+  views.delete(id);
+}
+
+function disposeAllViews() {
+  for (const id of [...views.keys()]) disposeView(id);
+  hosts.clear();
+}
+
+function markExited(sessionId: string, view: TerminalView) {
+  if (view.exited) return;
+  view.exited = true;
+  if (view.poller) clearInterval(view.poller);
+  view.poller = undefined;
+  if (!view.exitMessageShown && !view.disposed) {
+    view.terminal.writeln("\r\n[Shell exited]");
+    view.exitMessageShown = true;
+  }
+  const tab = tabs.value.find((item) => item.id === sessionId);
+  if (tab) tab.exited = true;
+}
+
+async function poll(sessionId: string, view: TerminalView) {
+  if (view.disposed || disposed) return;
+  if (views.get(sessionId) !== view) return;
+  try {
+    const result = await invoke<{ output: string; nextOffset: number; exited: boolean }>(
+      "terminal_read",
+      { sessionId, offset: view.offset },
+    );
+    if (view.disposed || disposed) return;
+    if (result.output) {
+      view.offset = result.nextOffset;
+      view.terminal.write(result.output);
     }
+    if (result.exited) markExited(sessionId, view);
+    view.readErrorShown = false;
+  } catch (error) {
+    if (!view.disposed && !view.readErrorShown) {
+      view.terminal.writeln("\r\n\x1b[33mTerminal read temporarily unavailable: " + String(error) + "\x1b[0m");
+      view.readErrorShown = true;
+    }
+    // A transient read failure must not poison the tab. Keep polling so a
+    // recovered PTY can resume without closing and reopening the tool window.
   }
 }
 
+function send(sessionId: string, view: TerminalView, data: string) {
+  if (view.disposed || disposed || view.exited) return;
+  view.writeQueue = view.writeQueue.then(async () => {
+    if (view.disposed || disposed || view.exited || views.get(sessionId) !== view) return;
+    try {
+      await invoke("terminal_write", { sessionId, input: data });
+      view.writeErrorShown = false;
+    } catch (error) {
+      if (!view.disposed && !view.writeErrorShown) {
+        view.terminal.writeln("\r\n\x1b[33mInput temporarily unavailable: " + String(error) + "\x1b[0m");
+        view.writeErrorShown = true;
+      }
+      // Do not mark the shell dead on a single failed write. The backend
+      // checks the child and refreshes its PTY writer before returning errors.
+    }
+  }).catch(() => undefined);
+}
+
+async function mountView(tab: TerminalTab) {
+  if (views.has(tab.id) || disposed) return;
+  await nextTick();
+  const host = hosts.get(tab.id);
+  if (!host) return;
+
+  const terminal = new Terminal({
+    cursorBlink: true,
+    convertEol: false,
+    allowProposedApi: true,
+    fontFamily: "'Cascadia Mono', 'Cascadia Code', 'Consolas', 'Noto Sans Mono CJK SC', 'Noto Sans Mono CJK JP', 'Noto Sans Mono CJK KR', 'Noto Sans Symbols 2', 'Segoe UI Symbol', 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Microsoft YaHei UI', 'Yu Gothic UI', 'Malgun Gothic', 'Courier New', monospace",
+    fontSize: 13,
+    lineHeight: 1.25,
+    scrollback: 5000,
+    theme: {
+      background: cssVariable("--lum-bg-app", "#111318"),
+      foreground: cssVariable("--lum-fg", "#d6d9e0"),
+      cursor: cssVariable("--lum-accent", "#8ab4f8"),
+      selectionBackground: "rgba(120, 150, 210, 0.32)",
+    },
+  });
+
+  const fitAddon = new FitAddon();
+  terminal.loadAddon(fitAddon);
+  const unicodeAddon = new Unicode11Addon();
+  terminal.loadAddon(unicodeAddon);
+  terminal.unicode.activeVersion = "11";
+  terminal.open(host);
+
+  const view: TerminalView = {
+    terminal,
+    fitAddon,
+    unicodeAddon,
+    inputSubscription: { dispose: () => undefined },
+    resizeObserver: new ResizeObserver(() => {
+      requestAnimationFrame(() => {
+        if (view.disposed || !host.isConnected || host.clientWidth <= 0 || host.clientHeight <= 0) return;
+        try {
+          fitAddon.fit();
+          if (!view.exited) {
+            void invoke("terminal_resize", { sessionId: tab.id, cols: terminal.cols, rows: terminal.rows }).catch(() => undefined);
+          }
+        } catch {
+          // The panel can be temporarily hidden while its side is changing.
+        }
+      });
+    }),
+    poller: undefined,
+    offset: 0,
+    writeQueue: Promise.resolve(),
+    disposed: false,
+    exited: false,
+    exitMessageShown: false,
+    readErrorShown: false,
+    writeErrorShown: false,
+  };
+
+  view.inputSubscription = terminal.onData((data) => send(tab.id, view, data));
+  views.set(tab.id, view);
+  view.resizeObserver.observe(host);
+
+  await nextTick();
+  try {
+    if (host.clientWidth > 0 && host.clientHeight > 0) fitAddon.fit();
+  } catch {
+    // A later ResizeObserver notification will fit the terminal when visible.
+  }
+
+  await poll(tab.id, view);
+  if (!view.exited && !view.disposed) {
+    view.poller = setInterval(() => void poll(tab.id, view), 100);
+  }
+  terminal.focus();
+}
+
+async function selectTab(id: string) {
+  activeTabId.value = id;
+  await nextTick();
+  const tab = tabs.value.find((item) => item.id === id);
+  if (!tab) return;
+  const view = views.get(id);
+  if (!view) {
+    await mountView(tab);
+    return;
+  }
+  try {
+    view.fitAddon.fit();
+    if (!view.exited) {
+      await invoke("terminal_resize", { sessionId: id, cols: view.terminal.cols, rows: view.terminal.rows });
+    }
+  } catch {
+    // Resize is best-effort while a tab is becoming visible.
+  }
+  view.terminal.focus();
+}
+
+async function loadSessions() {
+  loading.value = true;
+  try {
+    const sessions = await invoke<TerminalSessionInfo[]>("terminal_list_sessions");
+    if (disposed) return;
+    const currentPath = normalizedPath(props.workspacePath);
+    const matching = sessions.filter((session) => normalizedPath(session.cwd) === currentPath);
+    tabs.value = matching.map((session) => ({
+      id: session.id,
+      shell: session.shell,
+      cwd: session.cwd,
+      label: session.shell,
+      exited: session.exited,
+    }));
+    tabs.value.forEach((tab, index) => {
+      const count = matching.slice(0, index + 1).filter((session) => session.shell === tab.shell).length;
+      tab.label = count === 1 ? tab.shell : `${tab.shell} ${count}`;
+    });
+
+    if (tabs.value.length === 0) {
+      await createTab();
+    } else {
+      await selectTab(tabs.value[0].id);
+    }
+  } catch (error) {
+    console.error("Unable to restore terminal sessions", error);
+    tabs.value = [];
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function createTab() {
+  if (creating.value || disposed) return;
+  creating.value = true;
+  try {
+    const session = await invoke<TerminalSessionInfo>("terminal_open_session", { cwd: props.workspacePath });
+    if (disposed) {
+      await invoke("terminal_close_session", { sessionId: session.id }).catch(() => undefined);
+      return;
+    }
+    const tab: TerminalTab = {
+      id: session.id,
+      shell: session.shell,
+      cwd: session.cwd,
+      label: nextLabel(session.shell),
+      exited: session.exited,
+    };
+    tabs.value = [...tabs.value, tab];
+    await selectTab(tab.id);
+  } catch (error) {
+    console.error("Failed to create terminal session", error);
+  } finally {
+    creating.value = false;
+  }
+}
+
+async function closeTab(id: string) {
+  disposeView(id);
+  tabs.value = tabs.value.filter((tab) => tab.id !== id);
+  if (activeTabId.value === id) activeTabId.value = tabs.value[0]?.id ?? "";
+  await invoke("terminal_close_session", { sessionId: id }).catch(() => undefined);
+  if (activeTabId.value) await selectTab(activeTabId.value);
+}
+
 onMounted(async () => {
-  createTerminal();
-  await openSession();
+  disposed = false;
+  await loadSessions();
 });
 
 onBeforeUnmount(() => {
   disposed = true;
-  disposeTerminal();
-  void closeSession();
+  // Hiding or closing the dock only detaches its views. The backend owns PTYs
+  // for the lifetime of the IDE and restores their scrollback when reopened.
+  disposeAllViews();
 });
 
-watch(() => props.workspacePath, async (path, oldPath) => {
-  if (path === oldPath) return;
-  await closeSession();
-  terminal?.clear();
-  terminal?.writeln("Opening shell in " + path);
-  await openSession();
+watch(() => props.workspacePath, async (path, previousPath) => {
+  if (path === previousPath) return;
+  disposeAllViews();
+  tabs.value = [];
+  activeTabId.value = "";
+  await loadSessions();
 });
 </script>
 
 <template>
   <LumToolWindow title="Terminal" @hide="emit('hide')">
-    <div class="lum-terminal-host" ref="host" :data-ready="terminalReady" />
+    <template #actions>
+      <button
+        type="button"
+        class="lum-tool-window-btn lum-terminal-new"
+        title="New terminal"
+        aria-label="New terminal"
+        :disabled="creating"
+        @click="createTab"
+      >+</button>
+    </template>
+
+    <div class="lum-terminal-panel">
+      <div v-if="tabs.length" class="lum-tabs lum-terminal-tabs" role="tablist" aria-label="Terminal sessions">
+        <div v-for="tab in tabs" :key="tab.id" class="lum-terminal-tab-item">
+          <button
+            type="button"
+            class="lum-tab lum-terminal-tab"
+            role="tab"
+            :aria-selected="activeTabId === tab.id"
+            :class="{ active: activeTabId === tab.id, 'is-exited': tab.exited }"
+            @click="selectTab(tab.id)"
+          >
+            <span>{{ tab.label }}</span>
+            <span v-if="tab.exited" class="lum-terminal-exited">Exited</span>
+          </button>
+          <button
+            type="button"
+            class="lum-tool-window-btn lum-terminal-tab-close"
+            :title="`Close ${tab.label}`"
+            :aria-label="`Close ${tab.label}`"
+            @click="closeTab(tab.id)"
+          >×</button>
+        </div>
+      </div>
+
+      <div v-if="!tabs.length && !loading" class="lum-terminal-empty">
+        <span>No terminal sessions are open.</span>
+        <button type="button" class="lum-terminal-empty-action" @click="createTab">Open terminal</button>
+      </div>
+
+      <div class="lum-terminal-views">
+        <div
+          v-for="tab in tabs"
+          :key="tab.id"
+          :ref="(element) => setHost(tab.id, element as HTMLDivElement | null)"
+          v-show="activeTabId === tab.id"
+          class="lum-terminal-host"
+        />
+      </div>
+    </div>
   </LumToolWindow>
 </template>
 
 <style scoped>
-.lum-terminal-host {
-  flex: 1;
+.lum-terminal-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
-  width: 100%;
-  height: 100%;
   overflow: hidden;
-  padding: 8px 10px;
   background: var(--lum-bg-app);
 }
+
+.lum-terminal-tabs {
+  flex: 0 0 var(--lum-tabs-height);
+  min-height: var(--lum-tabs-height);
+  padding: 0 var(--lum-space-2);
+  gap: var(--lum-tab-gap);
+  background: var(--lum-bg-surface);
+}
+
+.lum-terminal-tab-item {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  max-width: 220px;
+  min-width: 0;
+  border-radius: var(--lum-tab-radius);
+}
+
+.lum-terminal-tab {
+  min-width: 0;
+  max-width: 190px;
+  gap: var(--lum-space-2);
+}
+
+.lum-terminal-tab span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lum-terminal-tab[aria-selected="true"] {
+  color: var(--lum-tab-fg-active);
+}
+
+.lum-terminal-tab-close {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  margin-right: var(--lum-space-1);
+}
+
+.lum-terminal-exited {
+  color: var(--lum-fg-subtle);
+  font-size: var(--lum-text-xs);
+}
+
+.lum-terminal-views {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.lum-terminal-host {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--lum-space-2) var(--lum-space-3);
+  overflow: hidden;
+  background: var(--lum-bg-app);
+}
+
 .lum-terminal-host :deep(.xterm) {
   height: 100%;
 }
+
 .lum-terminal-host :deep(.xterm-viewport) {
   overflow-y: auto;
+}
+
+.lum-terminal-empty {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lum-space-3);
+  color: var(--lum-fg-muted);
+}
+
+.lum-terminal-empty-action,
+.lum-terminal-new {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 var(--lum-space-2);
+  border: 1px solid var(--lum-border);
+  border-radius: var(--lum-radius-sm);
+  background: var(--lum-bg-surface);
+  color: var(--lum-fg);
+  cursor: pointer;
+}
+
+.lum-terminal-empty-action:hover,
+.lum-terminal-new:hover:not(:disabled) {
+  border-color: var(--lum-border-focus);
+  background: var(--lum-bg-hover);
+  color: var(--lum-fg-strong);
+}
+
+.lum-terminal-new:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 </style>
