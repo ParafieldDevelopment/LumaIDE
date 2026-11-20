@@ -3,14 +3,55 @@ import type { Workspace } from "~/luma/Workspace.ts";
 import { getProjectInitials } from "~/luma/Workspace.ts";
 import MoreVerticalIcon from "~/vue/icons/MoreVerticalIcon.vue";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { computed } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { registerContextMenu, type ContextMenuItem } from "~/vue/composables/contextMenu";
 
 const props = defineProps<{ project: Workspace }>();
-const emit = defineEmits<{ open: [project: Workspace] }>();
+const emit = defineEmits<{
+  open: [project: Workspace];
+  reveal: [project: Workspace];
+  "copy-path": [project: Workspace];
+  remove: [project: Workspace];
+}>();
+
+const projectDiv = ref<HTMLElement>();
+let unregisterContextMenu: (() => void) | undefined;
 
 function click() {
   emit("open", props.project);
 }
+
+function menuItems(): ContextMenuItem[] {
+  return [
+    { label: "Open", action: () => emit("open", props.project) },
+    { separator: true },
+    { label: "Reveal in File Manager", action: () => emit("reveal", props.project) },
+    { label: "Copy Path", action: () => emit("copy-path", props.project) },
+    { separator: true },
+    { label: "Remove from Recent", action: () => emit("remove", props.project) },
+  ];
+}
+
+// The "..." button opens the same menu, anchored under the button.
+function openMenuFromButton(event: Event) {
+  const target = event.currentTarget as HTMLElement;
+  const rect = target.getBoundingClientRect();
+  target.dispatchEvent(
+    new MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      clientX: rect.left,
+      clientY: rect.bottom,
+    }),
+  );
+}
+
+onMounted(() => {
+  if (projectDiv.value) unregisterContextMenu = registerContextMenu(projectDiv.value, menuItems);
+});
+
+onBeforeUnmount(() => unregisterContextMenu?.());
 
 const iconSrc = computed(() => {
   if (!props.project.icon_path) return null;
@@ -43,7 +84,16 @@ const iconSrc = computed(() => {
       <p v-if="project.git_branch">{{ project.git_branch }}</p>
     </div>
 
-    <div class="more" title="Workspace options (coming later)" @click.stop="">
+    <div
+        class="more"
+        role="button"
+        tabindex="0"
+        title="Workspace options"
+        aria-label="Workspace options"
+        @click.stop="openMenuFromButton"
+        @keydown.enter.stop.prevent="openMenuFromButton"
+        @keydown.space.stop.prevent="openMenuFromButton"
+    >
       <MoreVerticalIcon />
     </div>
   </div>
@@ -108,7 +158,8 @@ div.project {
     }
   }
 
-  &:hover .more {
+  &:hover .more,
+  &:focus-within .more {
     display: flex;
   }
 

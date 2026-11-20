@@ -68,4 +68,21 @@ document.addEventListener("keydown", onKeydown);
 
 <style scoped>
 .lum-context-menu { position: fixed; z-index: var(--lum-z-popover); }
+
+/* Flat, full-width rows (JetBrains-style) instead of rounded button-like items. */
+.lum-context-menu :deep(.lum-menu) {
+  min-width: 200px;
+  padding: 4px 0;
+  border-radius: 6px;
+}
+
+.lum-context-menu :deep(.lum-menu-item) {
+  width: 100%;
+  padding: 0 14px;
+  border-radius: 0;
+}
+
+.lum-context-menu :deep(.lum-menu-separator) {
+  margin: 4px 0;
+}
 </style>

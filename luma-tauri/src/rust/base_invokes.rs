@@ -23,6 +23,32 @@ fn unix_timestamp() -> u64 {
         .as_secs()
 }
 
+/// Strip the Windows verbatim prefix (`\\?\C:\...`) that `canonicalize` adds so
+/// stored and displayed paths look normal. `\\?\UNC\...` paths are left alone.
+fn clean_path(path: PathBuf) -> PathBuf {
+    #[cfg(windows)]
+    {
+        let text = path.to_string_lossy();
+        if let Some(rest) = text.strip_prefix(r"\\?\") {
+            let bytes = rest.as_bytes();
+            if bytes.len() >= 3
+                && bytes[0].is_ascii_alphabetic()
+                && bytes[1] == b':'
+                && bytes[2] == b'\\'
+            {
+                return PathBuf::from(rest);
+            }
+        }
+    }
+    path
+}
+
+fn clean_path_string(path: &str) -> String {
+    clean_path(PathBuf::from(path))
+        .to_string_lossy()
+        .into_owned()
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 struct WorkspaceMetadata {
     project_uuid: String,
@@ -247,6 +273,8 @@ pub async fn get_recent_workspaces() -> Result<Vec<Project>, tauri::ipc::InvokeE
             }
 
             let mut project = project.clone();
+            // Older entries were saved with a `\\?\` prefix; clean them on read.
+            project.path = clean_path_string(&project.path);
             if project.project_uuid.trim().is_empty() {
                 project.project_uuid = project_uuid.clone();
             }
@@ -307,6 +335,7 @@ pub async fn create_workspace(
         .canonicalize()
         .context("Selected parent folder does not exist")
         .map_err(tauri::ipc::InvokeError::from_anyhow)?;
+    let parent = clean_path(parent);
     if !parent.is_dir() {
         return Err(tauri::ipc::InvokeError::from_anyhow(anyhow::anyhow!(
             "Selected location is not a directory"
@@ -353,18 +382,52 @@ pub async fn create_workspace(
     let project = Project {
         project_uuid: metadata.project_uuid,
         title: title.to_string(),
-        path: workspace_path
-            .canonicalize()
-            .context("Failed to resolve created workspace path")
-            .map_err(tauri::ipc::InvokeError::from_anyhow)?
-            .to_string_lossy()
-            .into_owned(),
+        path: clean_path(
+            workspace_path
+                .canonicalize()
+                .context("Failed to resolve created workspace path")
+                .map_err(tauri::ipc::InvokeError::from_anyhow)?,
+        )
+        .to_string_lossy()
+        .into_owned(),
         git_branch: None,
         icon_path: None,
         last_opened_at: Some(unix_timestamp()),
     };
 
     record_recent_workspace(project)
+}
+
+/// Remove a workspace from the recent list. Does not touch files on disk.
+#[tauri::command]
+pub async fn remove_recent_workspace(project_uuid: String) -> Result<(), tauri::ipc::InvokeError> {
+    let recent_path = recent_workspaces_path()?;
+    let mut recent = load_recent_workspaces(&recent_path)?;
+    if recent.map.remove(&project_uuid).is_some() {
+        save_recent_workspaces(&recent_path, &recent)?;
+    }
+    Ok(())
+}
+
+/// Show a workspace folder in the system file manager.
+#[tauri::command]
+pub async fn reveal_workspace(
+    path: String,
+    app_handle: tauri::AppHandle,
+) -> Result<(), tauri::ipc::InvokeError> {
+    use tauri_plugin_opener::OpenerExt;
+
+    let path = clean_path(PathBuf::from(path));
+    if !path.is_dir() {
+        return Err(tauri::ipc::InvokeError::from_anyhow(anyhow::anyhow!(
+            "Workspace folder does not exist"
+        )));
+    }
+    app_handle
+        .opener()
+        .reveal_item_in_dir(&path)
+        .context("Failed to show the workspace in the file manager")
+        .map_err(tauri::ipc::InvokeError::from_anyhow)
 }
 
 #[tauri::command]
@@ -427,10 +490,12 @@ pub async fn open_workspace(
 ) -> Result<(), tauri::ipc::InvokeError> {
     log::info!("opening workspace {}", path);
 
-    let workspace_path = PathBuf::from(path)
-        .canonicalize()
-        .context("Workspace folder does not exist")
-        .map_err(tauri::ipc::InvokeError::from_anyhow)?;
+    let workspace_path = clean_path(
+        PathBuf::from(path)
+            .canonicalize()
+            .context("Workspace folder does not exist")
+            .map_err(tauri::ipc::InvokeError::from_anyhow)?,
+    );
     if !workspace_path.is_dir() {
         return Err(tauri::ipc::InvokeError::from_anyhow(anyhow::anyhow!(
             "Selected workspace is not a directory"

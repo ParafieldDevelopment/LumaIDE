@@ -74,6 +74,34 @@ async function openWorkspace() {
   }
 }
 
+async function revealWorkspace(workspace: Workspace) {
+  actionError.value = "";
+  try {
+    await invoke("reveal_workspace", { path: workspace.path });
+  } catch (error) {
+    actionError.value = `Unable to show workspace in the file manager: ${String(error)}`;
+  }
+}
+
+async function copyWorkspacePath(workspace: Workspace) {
+  actionError.value = "";
+  try {
+    await navigator.clipboard.writeText(workspace.path);
+  } catch (error) {
+    actionError.value = `Unable to copy path: ${String(error)}`;
+  }
+}
+
+async function removeRecentWorkspace(workspace: Workspace) {
+  actionError.value = "";
+  try {
+    await invoke("remove_recent_workspace", { projectUuid: workspace.project_uuid });
+    await refreshWorkspaces();
+  } catch (error) {
+    actionError.value = `Unable to remove workspace from recent: ${String(error)}`;
+  }
+}
+
 async function openRecentWorkspace(workspace: Workspace) {
   if (opening.value) return;
   actionError.value = "";
@@ -97,7 +125,7 @@ async function openRecentWorkspace(workspace: Workspace) {
         </template>
       </LumInput>
       <div class="buttons">
-        <LumButton @click="newWorkspace">New Workspace</LumButton>
+        <LumButton variant="primary" @click="newWorkspace">New Workspace</LumButton>
         <LumButton @click="openWorkspace" :disabled="opening" :loading="opening">Open</LumButton>
         <LumButton disabled title="Repository cloning will be added in a later pass">Clone Repository</LumButton>
       </div>
@@ -109,6 +137,9 @@ async function openRecentWorkspace(workspace: Workspace) {
           :key="workspace.project_uuid"
           :project="workspace"
           @open="openRecentWorkspace"
+          @reveal="revealWorkspace"
+          @copy-path="copyWorkspacePath"
+          @remove="removeRecentWorkspace"
       />
     </div>
     <div class="projects" v-else-if="loadError">

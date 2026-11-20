@@ -131,6 +131,8 @@ fn build_tauri_app() -> Result<tauri::App> {
             base_invokes::create_workspace,
             base_invokes::get_active_workspace,
             base_invokes::get_recent_workspaces,
+            base_invokes::remove_recent_workspace,
+            base_invokes::reveal_workspace,
             // file_system
             file_system::read_file,
             file_system::write_file,
