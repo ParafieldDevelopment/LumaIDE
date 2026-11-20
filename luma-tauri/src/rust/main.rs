@@ -1,16 +1,15 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-pub mod startup_window;
-mod error_report;
 pub mod base_invokes;
+mod error_report;
+pub mod file_system;
 pub mod settings_window;
+pub mod startup_window;
 pub mod tauri_utils;
 
-use std::panic::{self, AssertUnwindSafe};
-use std::process::ExitCode;
 use anyhow::{Context, Result};
 use luma_diagnostics::ErrorReport;
-use tauri::Manager;
-use tauri::ipc::{CapabilityBuilder};
+use std::panic::{self, AssertUnwindSafe};
+use std::process::ExitCode;
 use tauri::webview::Color;
 use tauri_plugin_prevent_default::Flags;
 
@@ -23,6 +22,7 @@ const STARTUP_COLOR: Color = Color {
 
 fn run_setup() -> Result<()> {
     let coreapi = luma_core::init().context("Failed to initialize Luma core")?;
+
     let mut manager = coreapi.get_ide_configuration().write().unwrap();
 
     luma_extensions::init(&coreapi).context("Failed to initialize Luma extensions")?;
@@ -33,7 +33,8 @@ fn run_setup() -> Result<()> {
         ws.freeze();
     }
 
-    manager.load_global(&coreapi.get_configuration_dir())
+    manager
+        .load_global(&coreapi.get_configuration_dir())
         .context("Failed to load global configuration")?;
 
     Ok(())
@@ -103,10 +104,8 @@ fn build_tauri_app() -> Result<tauri::App> {
         .plugin(tauri_plugin_os::init())
         .plugin(
             tauri_plugin_prevent_default::Builder::new()
-                .with_flags(
-                    Flags::all() & !Flags::CONTEXT_MENU & !Flags::DEV_TOOLS
-                )
-                .build()
+                .with_flags(Flags::all() & !Flags::CONTEXT_MENU & !Flags::DEV_TOOLS)
+                .build(),
         )
         .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}))
         .plugin(
@@ -114,7 +113,7 @@ fn build_tauri_app() -> Result<tauri::App> {
                 // DECORATIONS would re-apply a saved `decorations: true` on top of
                 // windows built with `.decorations(false)` (e.g. the startup window).
                 .with_state_flags(
-                    StateFlags::all() & !StateFlags::DECORATIONS & !StateFlags::VISIBLE
+                    StateFlags::all() & !StateFlags::DECORATIONS & !StateFlags::VISIBLE,
                 )
                 // The plugin joins this onto `app_config_dir()`, but `Path::join`
                 // replaces the base when given an absolute path, so passing the
@@ -123,19 +122,26 @@ fn build_tauri_app() -> Result<tauri::App> {
                 .with_filename(window_state_path.to_string_lossy().into_owned())
                 .build(),
         )
-        .invoke_handler(
-            tauri::generate_handler![
-
-                // base_invokes
-
-                base_invokes::webview_ready,
-                base_invokes::open_settings_window,
-                base_invokes::open_devtools,
-                base_invokes::open_workspace,
-                base_invokes::get_recent_workspaces,
-
-            ]
-        )
+        .invoke_handler(tauri::generate_handler![
+            // base_invokes
+            base_invokes::webview_ready,
+            base_invokes::open_settings_window,
+            base_invokes::open_devtools,
+            base_invokes::open_workspace,
+            base_invokes::create_workspace,
+            base_invokes::get_active_workspace,
+            base_invokes::get_recent_workspaces,
+            base_invokes::remove_recent_workspace,
+            base_invokes::reveal_workspace,
+            // file_system
+            file_system::read_file,
+            file_system::write_file,
+            file_system::read_directory,
+            file_system::read_directory_tree,
+            file_system::create_file,
+            file_system::create_directory,
+            file_system::delete_entry,
+        ])
         .plugin(
             tauri_plugin_log::Builder::new()
                 .targets([tauri_plugin_log::Target::new(
@@ -143,29 +149,16 @@ fn build_tauri_app() -> Result<tauri::App> {
                 )])
                 .level(log::LevelFilter::Info)
                 .build(),
-            
         )
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             log::info!("Tauri ready");
 
-            let capability = CapabilityBuilder::new("startup")
-                .window("*")
-                .permission("core:default")
-                .permission("core:window:default")
-                .permission("core:window:allow-close")
-                .permission("core:window:allow-minimize")
-                .permission("core:window:allow-toggle-maximize")
-                .permission("core:window:allow-start-dragging")
-                .permission("core:window:allow-set-focus")
-                .permission("notification:allow-is-permission-granted")
-                .permission("notification:allow-request-permission")
-                .permission("notification:allow-notify")
-                .permission("core:window:allow-set-focus");
 
-            app.add_capability(capability)?;
 
-            startup_window::startup_window(app.handle().clone()).context("Failed to initialize startup window")?;
+            startup_window::startup_window(app.handle().clone())
+                .context("Failed to initialize startup window")?;
 
             Ok(())
         })

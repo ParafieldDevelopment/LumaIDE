@@ -4,14 +4,8 @@
   "version": "0.1.0-alpha",
   "identifier": "com.moonlight.luma",
   "build": {
-    "beforeDevCommand": {
-      "script": "npm install && npm run dev",
-      "cwd": "src/vite"
-    },
-    "beforeBuildCommand": {
-      "script": "npm install && npm run build",
-      "cwd": "src/vite"
-    },
+    "beforeDevCommand": "npm --prefix luma-tauri/src/vite install && npm --prefix luma-tauri/src/vite run dev",
+    "beforeBuildCommand": "npm --prefix luma-tauri/src/vite install && npm --prefix luma-tauri/src/vite run build",
     "devUrl": "http://localhost:1420",
     "frontendDist": "../dist"
   },
