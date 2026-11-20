@@ -49,6 +49,20 @@ fn clean_path_string(path: &str) -> String {
         .into_owned()
 }
 
+fn detect_git_branch(workspace_path: &Path) -> Option<String> {
+    let head_path = workspace_path.join(".git").join("HEAD");
+    if let Ok(content) = std::fs::read_to_string(head_path) {
+        let content = content.trim();
+        if let Some(branch) = content.strip_prefix("ref: refs/heads/") {
+            return Some(branch.to_string());
+        }
+        if content.len() >= 7 {
+            return Some(content[..7].to_string());
+        }
+    }
+    None
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 struct WorkspaceMetadata {
     project_uuid: String,
@@ -310,6 +324,7 @@ pub async fn get_recent_workspaces() -> Result<Vec<Project>, tauri::ipc::InvokeE
             let mut project = project.clone();
             // Older entries were saved with a `\\?\` prefix; clean them on read.
             project.path = clean_path_string(&project.path);
+            project.git_branch = detect_git_branch(Path::new(&project.path));
             if project.project_uuid.trim().is_empty() {
                 project.project_uuid = project_uuid.clone();
             }
@@ -488,7 +503,7 @@ pub async fn create_workspace(
         )
         .to_string_lossy()
         .into_owned(),
-        git_branch: None,
+        git_branch: detect_git_branch(&workspace_path),
         icon_path: None,
         last_opened_at: Some(unix_timestamp()),
         project_type,
@@ -630,7 +645,7 @@ pub async fn open_workspace(
         project_uuid: metadata.project_uuid,
         title: metadata.title,
         path: workspace_path.to_string_lossy().into_owned(),
-        git_branch: None,
+        git_branch: detect_git_branch(&workspace_path),
         icon_path: None,
         last_opened_at: Some(unix_timestamp()),
         project_type: metadata.project_type,

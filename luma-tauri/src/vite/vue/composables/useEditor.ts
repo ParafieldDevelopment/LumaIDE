@@ -49,6 +49,7 @@ export function useEditor() {
       case "md":
         return "markdown";
       case "lua":
+      case "luau":
         return "lua";
       case "rs":
         return "rust";

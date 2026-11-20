@@ -138,6 +138,9 @@ fn build_tauri_app() -> Result<tauri::App> {
             file_system::write_file,
             file_system::read_directory,
             file_system::read_directory_tree,
+            file_system::create_file,
+            file_system::create_directory,
+            file_system::delete_entry,
         ])
         .plugin(
             tauri_plugin_log::Builder::new()

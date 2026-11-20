@@ -4,6 +4,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { LumContextMenu, LumModals, LumFileTabs, LumEditor, LumProjectExplorer } from "./components";
 import TitleBar from "~/vue/window/TitleBar.vue";
+import IdeTitlebarNav from "~/vue/window/IdeTitlebarNav.vue";
 import { useEditor } from "~/vue/composables/useEditor.ts";
 import { useToasts } from "~/vue/components/toasts";
 
@@ -35,6 +36,17 @@ const sidebarWidth = ref(260);
 const isResizing = ref(false);
 let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
 
+function triggerAutosave() {
+  if (autosaveTimer) {
+    clearTimeout(autosaveTimer);
+    autosaveTimer = null;
+  }
+  if (openFiles.value.some((file) => file.dirty)) {
+    void saveAll();
+  }
+}
+
+// JetBrains autosave: idle timer (1.5s after editing)
 watch(openFiles, () => {
   if (autosaveTimer) clearTimeout(autosaveTimer);
   if (!openFiles.value.some((file) => file.dirty)) return;
@@ -43,6 +55,11 @@ watch(openFiles, () => {
     void saveAll();
   }, 1500);
 }, { deep: true });
+
+// JetBrains autosave: save when switching editor tabs
+watch(activeFileId, () => {
+  triggerAutosave();
+});
 
 const tabFiles = computed(() =>
   openFiles.value.map((file) => ({
@@ -123,13 +140,22 @@ onMounted(async () => {
   });
   await loadActiveWorkspace();
   window.addEventListener("keydown", handleKeydown);
+  // JetBrains autosave: save when switching to other applications or losing focus
+  window.addEventListener("blur", triggerAutosave);
+  document.addEventListener("visibilitychange", onVisibilityChange);
 });
+
+function onVisibilityChange() {
+  if (document.hidden) triggerAutosave();
+}
 
 onBeforeUnmount(() => {
   if (autosaveTimer) clearTimeout(autosaveTimer);
   autosaveTimer = null;
   unlistenWorkspace.value?.();
   window.removeEventListener("keydown", handleKeydown);
+  window.removeEventListener("blur", triggerAutosave);
+  document.removeEventListener("visibilitychange", onVisibilityChange);
 });
 
 function startResize(event: MouseEvent) {
@@ -154,9 +180,7 @@ function stopResize() {
 <template>
   <TitleBar>
     <template #default>
-      <div class="ide-title" v-if="activeWorkspace" :title="activeWorkspace.path">
-        {{ activeWorkspace.title }}
-      </div>
+      <IdeTitlebarNav :active-workspace="activeWorkspace" @workspace-changed="(ws) => { activeWorkspace = ws; }" />
     </template>
   </TitleBar>
 
@@ -181,9 +205,10 @@ function stopResize() {
               <div class="ide-tab-actions">
                 <button class="ide-tab-action" @click="handleSaveAll" title="Save All">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                    <polyline points="17 21 17 13 7 13 7 21" />
-                    <polyline points="7 3 7 8 15 8" />
+                    <path d="M15 17H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8l4 4v9a2 2 0 0 1-2 2z" />
+                    <polyline points="13 17 13 10 5 10 5 17" />
+                    <polyline points="6 2 6 5 12 5" />
+                    <path d="M19 7v13a2 2 0 0 1-2 2H7" />
                   </svg>
                 </button>
                 <button
@@ -227,14 +252,6 @@ function stopResize() {
 </template>
 
 <style scoped>
-.ide-title {
-  font-size: var(--lum-text-md);
-  font-weight: var(--lum-font-weight-medium);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 220px;
-}
 
 .ide-shell {
   display: flex;

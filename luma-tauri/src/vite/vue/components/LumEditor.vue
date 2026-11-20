@@ -71,8 +71,29 @@ function layoutEditor() {
   }
 }
 
-function createEditor() {
+function onFontsLoaded() {
+  monaco.editor.remeasureFonts();
+  layoutEditor();
+}
+
+function onWindowFocus() {
+  monaco.editor.remeasureFonts();
+  layoutEditor();
+}
+
+async function createEditor() {
   if (!editorRef.value) return;
+
+  // Await web font loading before Monaco measures font metrics
+  if ("fonts" in document) {
+    try {
+      await document.fonts.load('14px "JetBrains Mono"');
+      await document.fonts.ready;
+    } catch {
+      // Graceful fallback if font loading fails
+    }
+  }
+
   editor = monaco.editor.create(editorRef.value, {
     readOnly: props.readOnly,
     fontFamily: '"JetBrains Mono", monospace',
@@ -82,16 +103,28 @@ function createEditor() {
     automaticLayout: false,
     scrollBeyondLastLine: false,
     wordWrap: "on",
+    letterSpacing: 0,
+    fontLigatures: false,
   });
+
+  monaco.editor.remeasureFonts();
   switchModel();
   requestAnimationFrame(() => layoutEditor());
+
   contentListener = editor.onDidChangeModelContent(() => {
     if (isUpdating || !editor) return;
     value.value = editor.getValue();
   });
+
   resizeObserver = new ResizeObserver(layoutEditor);
   resizeObserver.observe(editorRef.value);
   window.addEventListener("resize", layoutEditor);
+  window.addEventListener("focus", onWindowFocus);
+
+  if ("fonts" in document) {
+    document.fonts.addEventListener("loadingdone", onFontsLoaded);
+  }
+
   requestAnimationFrame(layoutEditor);
   emit("load", editor);
 }
@@ -102,7 +135,11 @@ watch(() => props.modelKey, switchModel);
 watch(() => value.value, (next) => {
   if (!editorModel || editorModel.isDisposed() || editorModel.getValue() === next) return;
   isUpdating = true;
-  try { editorModel.setValue(next); }
+  try {
+    const state = editor?.saveViewState();
+    editorModel.setValue(next);
+    if (state && editor) editor.restoreViewState(state);
+  }
   finally { isUpdating = false; }
 });
 
@@ -117,6 +154,10 @@ onBeforeUnmount(() => {
   resizeObserver?.disconnect();
   resizeObserver = null;
   window.removeEventListener("resize", layoutEditor);
+  window.removeEventListener("focus", onWindowFocus);
+  if ("fonts" in document) {
+    document.fonts.removeEventListener("loadingdone", onFontsLoaded);
+  }
   contentListener?.dispose();
   contentListener = null;
   editor?.dispose();
@@ -131,5 +172,24 @@ onBeforeUnmount(() => {
 <template><div ref="editorRef" class="lum-editor" /></template>
 
 <style scoped>
-.lum-editor { width: 100%; height: 100%; min-height: 0; display: block; overflow: hidden; }
+.lum-editor {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: block;
+  overflow: hidden;
+}
+
+.lum-editor :deep(.monaco-editor) {
+  text-rendering: auto !important;
+  letter-spacing: normal !important;
+}
+
+.lum-editor :deep(.monaco-editor .view-line),
+.lum-editor :deep(.monaco-editor .view-lines),
+.lum-editor :deep(.monaco-editor .lines-content) {
+  letter-spacing: normal !important;
+  font-variant-ligatures: none !important;
+  text-rendering: auto !important;
+}
 </style>
