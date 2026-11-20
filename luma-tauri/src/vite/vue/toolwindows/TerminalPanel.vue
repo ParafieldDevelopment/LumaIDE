@@ -1,73 +1,197 @@
 <script setup lang="ts">
-import { ref, computed, nextTick } from "vue";
+import { ref, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
+import { invoke } from "@tauri-apps/api/core";
+import { Terminal } from "@xterm/xterm";
+import { FitAddon } from "@xterm/addon-fit";
+import "@xterm/xterm/css/xterm.css";
 import LumToolWindow from "../components/LumToolWindow.vue";
-import { runTerminalCommand, changeDirectory, type CommandOutput } from "../composables/useShell";
 
 const props = defineProps<{ workspacePath: string }>();
 const emit = defineEmits<{ (event: "hide"): void }>();
-const cwd = ref(props.workspacePath);
-const command = ref("");
-const running = ref(false);
-const output = ref<{ command: string; cwd: string; result: CommandOutput | null; error?: string }[]>([]);
-const input = ref<HTMLInputElement | null>(null);
-const scroll = ref<HTMLElement | null>(null);
-const prompt = computed(() => cwd.value);
-async function execute() {
-  const text = command.value.trim();
-  if (!text || running.value) return;
-  command.value = "";
-  if (text === "clear" || text === "cls") { output.value = []; return; }
-  if (text === "cd" || text.startsWith("cd ")) {
-    const target = text.slice(2).trim() || "~";
-    const previous = cwd.value;
-    try {
-      cwd.value = await changeDirectory(cwd.value, target);
-      output.value.push({ command: text, cwd: previous, result: { code: 0, stdout: cwd.value, stderr: "", timedOut: false } });
-    } catch (error) { output.value.push({ command: text, cwd: previous, result: null, error: String(error) }); }
-    await nextTick(); scroll.value?.scrollTo({ top: scroll.value.scrollHeight });
-    return;
+
+const host = ref<HTMLDivElement | null>(null);
+const sessionId = ref("");
+const shellName = ref("");
+const terminalReady = ref(false);
+
+let terminal: Terminal | undefined;
+let fitAddon: FitAddon | undefined;
+let resizeObserver: ResizeObserver | undefined;
+let poller: ReturnType<typeof setInterval> | undefined;
+let offset = 0;
+let disposed = false;
+let writeQueue = Promise.resolve();
+
+async function openSession() {
+  try {
+    const session = await invoke<{ id: string; shell: string }>(
+      "terminal_open_session",
+      { cwd: props.workspacePath },
+    );
+    if (disposed) {
+      await invoke("terminal_close_session", { sessionId: session.id }).catch(() => undefined);
+      return;
+    }
+    sessionId.value = session.id;
+    shellName.value = session.shell;
+    offset = 0;
+
+    await poll();
+    poller = setInterval(() => void poll(), 80);
+    await nextTick();
+    fitAddon?.fit();
+    terminal?.focus();
+  } catch (error) {
+    terminal?.writeln("");
+    terminal?.writeln("\x1b[31mFailed to open terminal: " + String(error) + "\x1b[0m");
   }
-  running.value = true;
-  output.value.push({ command: text, cwd: prompt.value, result: null });
-  const index = output.value.length - 1;
-  try { output.value[index].result = await runTerminalCommand(cwd.value, text); }
-  catch (error) { output.value[index].error = String(error); }
-  finally { running.value = false; await nextTick(); scroll.value?.scrollTo({ top: scroll.value.scrollHeight }); input.value?.focus(); }
 }
+
+async function poll() {
+  if (!sessionId.value || disposed) return;
+  try {
+    const result = await invoke<{ output: string; nextOffset: number; exited: boolean }>(
+      "terminal_read",
+      { sessionId: sessionId.value, offset },
+    );
+    if (result.output) {
+      offset = result.nextOffset;
+      terminal?.write(result.output);
+    }
+    if (result.exited) {
+      terminal?.writeln("\r\n[Shell exited]");
+      stopPolling();
+    }
+  } catch (error) {
+    if (!disposed) terminal?.writeln("\r\n\x1b[31mTerminal read error: " + String(error) + "\x1b[0m");
+    stopPolling();
+  }
+}
+
+function stopPolling() {
+  if (poller) clearInterval(poller);
+  poller = undefined;
+}
+
+function send(data: string) {
+  const currentSession = sessionId.value;
+  if (!currentSession) return;
+  writeQueue = writeQueue.then(async () => {
+    if (sessionId.value === currentSession) {
+      await invoke("terminal_write", { sessionId: currentSession, input: data });
+    }
+  }).catch((error) => {
+    terminal?.writeln("\r\n\x1b[31mTerminal input error: " + String(error) + "\x1b[0m");
+  });
+}
+
+function createTerminal() {
+  terminal = new Terminal({
+    cursorBlink: true,
+    convertEol: false,
+    allowProposedApi: true,
+    fontFamily: "Cascadia Code, Consolas, 'Courier New', monospace",
+    fontSize: 13,
+    lineHeight: 1.25,
+    scrollback: 5000,
+    theme: {
+      background: getCssVariable("--lum-bg-app", "#111318"),
+      foreground: getCssVariable("--lum-fg", "#d6d9e0"),
+      cursor: getCssVariable("--lum-accent", "#8ab4f8"),
+      selectionBackground: "rgba(120, 150, 210, 0.32)",
+    },
+  });
+
+  fitAddon = new FitAddon();
+  terminal.loadAddon(fitAddon);
+
+  terminal.onData((data) => send(data));
+  terminal.open(host.value!);
+  terminalReady.value = true;
+
+  resizeObserver = new ResizeObserver(() => {
+    requestAnimationFrame(() => {
+      if (!host.value || !terminal || !fitAddon) return;
+      fitAddon.fit();
+      const { cols, rows } = terminal;
+      if (sessionId.value) {
+        void invoke("terminal_resize", { sessionId: sessionId.value, cols, rows }).catch(() => undefined);
+      }
+    });
+  });
+  resizeObserver.observe(host.value!);
+}
+
+function getCssVariable(name: string, fallback: string) {
+  if (typeof window === "undefined") return fallback;
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
+}
+
+function disposeTerminal() {
+  resizeObserver?.disconnect();
+  resizeObserver = undefined;
+  stopPolling();
+  terminal?.dispose();
+  terminal = undefined;
+  fitAddon = undefined;
+  terminalReady.value = false;
+}
+
+async function closeSession() {
+  stopPolling();
+  const currentSession = sessionId.value;
+  sessionId.value = "";
+  if (currentSession) {
+    try {
+      await invoke("terminal_close_session", { sessionId: currentSession });
+    } catch {
+      // The shell may already have exited.
+    }
+  }
+}
+
+onMounted(async () => {
+  createTerminal();
+  await openSession();
+});
+
+onBeforeUnmount(() => {
+  disposed = true;
+  disposeTerminal();
+  void closeSession();
+});
+
+watch(() => props.workspacePath, async (path, oldPath) => {
+  if (path === oldPath) return;
+  await closeSession();
+  terminal?.clear();
+  terminal?.writeln("Opening shell in " + path);
+  await openSession();
+});
 </script>
+
 <template>
   <LumToolWindow title="Terminal" @hide="emit('hide')">
-    <div class="lum-terminal" ref="scroll">
-      <div class="lum-terminal-welcome">Command runner (non-interactive) · {{ cwd }}</div>
-      <div v-for="(item, i) in output" :key="i" class="lum-terminal-entry">
-        <div class="lum-terminal-prompt"><span>PS</span> {{ item.cwd }} &gt; {{ item.command }}</div>
-        <pre v-if="item.result?.stdout" class="lum-terminal-out">{{ item.result.stdout }}</pre>
-        <pre v-if="item.result?.stderr" class="lum-terminal-err">{{ item.result.stderr }}</pre>
-        <pre v-if="item.error" class="lum-terminal-err">{{ item.error }}</pre>
-        <div v-if="item.result?.timedOut" class="lum-terminal-err">Command timed out (60 seconds).</div>
-        <div v-if="item.result && item.result.code !== 0 && !item.result.timedOut" class="lum-terminal-err">Exit code: {{ item.result.code }}</div>
-      </div>
-      <div v-if="running" class="lum-terminal-status">Running…</div>
-    </div>
-    <form class="lum-terminal-input-row" @submit.prevent="execute">
-      <span class="lum-terminal-input-prompt">&gt;</span>
-      <input ref="input" v-model="command" :disabled="running" spellcheck="false" autocomplete="off" placeholder="Enter command…" />
-      <button type="submit" :disabled="running || !command.trim()">Run</button>
-    </form>
+    <div class="lum-terminal-host" ref="host" :data-ready="terminalReady" />
   </LumToolWindow>
 </template>
+
 <style scoped>
-.lum-terminal { flex:1; min-height:0; overflow:auto; padding:10px 12px; background:var(--lum-bg-app); color:var(--lum-fg); font-family:var(--lum-font-mono); font-size:var(--lum-text-xs); }
-.lum-terminal-welcome { color:var(--lum-fg-muted); padding-bottom:8px; }
-.lum-terminal-entry { margin:0 0 10px; }
-.lum-terminal-prompt { color:var(--lum-accent); white-space:pre-wrap; overflow-wrap:anywhere; }
-.lum-terminal-prompt span { color:var(--lum-fg-muted); }
-.lum-terminal-out,.lum-terminal-err { margin:3px 0 0; white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; }
-.lum-terminal-err { color:var(--lum-danger); }
-.lum-terminal-status { color:var(--lum-fg-muted); }
-.lum-terminal-input-row { display:flex; align-items:center; gap:8px; flex-shrink:0; padding:7px 10px; border-top:1px solid var(--lum-border); background:var(--lum-bg-surface); }
-.lum-terminal-input-prompt { color:var(--lum-accent); font-family:var(--lum-font-mono); }
-.lum-terminal-input-row input { flex:1; min-width:0; border:0; outline:0; background:transparent; color:var(--lum-fg); font:var(--lum-text-xs) var(--lum-font-mono); }
-.lum-terminal-input-row button { border:1px solid var(--lum-border); border-radius:var(--lum-radius-sm); background:var(--lum-bg-hover); color:var(--lum-fg); padding:3px 9px; cursor:pointer; }
-.lum-terminal-input-row button:disabled { opacity:.45; cursor:default; }
+.lum-terminal-host {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  padding: 8px 10px;
+  background: var(--lum-bg-app);
+}
+.lum-terminal-host :deep(.xterm) {
+  height: 100%;
+}
+.lum-terminal-host :deep(.xterm-viewport) {
+  overflow-y: auto;
+}
 </style>

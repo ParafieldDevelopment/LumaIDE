@@ -147,8 +147,12 @@ fn build_tauri_app() -> Result<tauri::App> {
             file_system::delete_entry,
             // shell (tool windows)
             shell::git_command,
-            shell::run_terminal_command,
-            shell::terminal_change_dir,
+            shell::terminal_open_session,
+            shell::terminal_write,
+            shell::terminal_resize,
+            shell::terminal_read,
+            shell::terminal_close_session,
+            
         ])
         .plugin(
             tauri_plugin_log::Builder::new()
