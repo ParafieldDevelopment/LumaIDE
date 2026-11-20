@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, computed } from "vue";
+import { onBeforeUnmount, onMounted, ref, computed, watch } from "vue";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { LumContextMenu, LumModals, LumFileTabs, LumEditor, LumProjectExplorer } from "./components";
@@ -33,6 +33,16 @@ const activeWorkspace = ref<ActiveWorkspace | null>(null);
 const unlistenWorkspace = ref<UnlistenFn | null>(null);
 const sidebarWidth = ref(260);
 const isResizing = ref(false);
+let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+watch(openFiles, () => {
+  if (autosaveTimer) clearTimeout(autosaveTimer);
+  if (!openFiles.value.some((file) => file.dirty)) return;
+  autosaveTimer = setTimeout(() => {
+    autosaveTimer = null;
+    void saveAll();
+  }, 1500);
+}, { deep: true });
 
 const tabFiles = computed(() =>
   openFiles.value.map((file) => ({
@@ -116,6 +126,8 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  if (autosaveTimer) clearTimeout(autosaveTimer);
+  autosaveTimer = null;
   unlistenWorkspace.value?.();
   window.removeEventListener("keydown", handleKeydown);
 });
@@ -150,7 +162,7 @@ function stopResize() {
 
   <div class="ide-shell" v-if="activeWorkspace">
     <div class="ide-body">
-      <div class="lum-split-pane ide-sidebar">
+      <div class="lum-split-pane ide-sidebar" :style="{ width: sidebarWidth + 'px' }">
         <LumProjectExplorer :workspace-path="activeWorkspace.path" />
       </div>
       <div
@@ -194,6 +206,7 @@ function stopResize() {
           <LumEditor
             v-if="activeFile"
             v-model="editorValue"
+            :model-key="activeFile.id"
             :language="activeFile.language"
           />
           <div v-else class="ide-empty">

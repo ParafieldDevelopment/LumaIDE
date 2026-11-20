@@ -12,7 +12,7 @@ pub fn startup_window(app: tauri::AppHandle) -> anyhow::Result<WebviewWindow> {
 
         window
     } else {
-        let mut builder = WebviewWindowBuilder::new(
+        let builder = WebviewWindowBuilder::new(
             &app,
             "startup",
             WebviewUrl::App("windows/startup.html".into()),
