@@ -47,3 +47,8 @@ export const AnalyzerIcon = strokeIcon([
   { d: "M12 9v4" },
   { d: "M12 17h.01" },
 ]);
+
+export const NotificationIcon = strokeIcon([
+  { d: "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" },
+  { d: "M10 21h4" },
+]);
