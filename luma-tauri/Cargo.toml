@@ -33,7 +33,7 @@ luma-diagnostics = { path = "../luma-diagnostics" }
 
 anyhow = "1.0.104"
 tauri-plugin-decorum = "1.1.1"
-uuid = { version = "1", features = ["v4"] }
+uuid = { version = "1.29.3", features = ["v4"] }
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Graphics_Gdi"] }
