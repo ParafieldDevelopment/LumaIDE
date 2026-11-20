@@ -343,6 +343,38 @@ pub async fn get_recent_workspaces() -> Result<Vec<Project>, tauri::ipc::InvokeE
     Ok(workspaces)
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TemplateFile {
+    pub path: String,
+    pub content: String,
+}
+
+fn validate_template_file_path(path_str: &str) -> anyhow::Result<PathBuf> {
+    let path = Path::new(path_str);
+    if path.is_absolute() {
+        anyhow::bail!("Template file path must be relative: {}", path_str);
+    }
+    for component in path.components() {
+        match component {
+            std::path::Component::Normal(c) => {
+                let name = c.to_string_lossy();
+                if name.contains('\0') {
+                    anyhow::bail!("Template filename cannot contain null bytes: {}", path_str);
+                }
+                #[cfg(windows)]
+                {
+                    if name.chars().any(|ch| "<>:\"|?*".contains(ch)) {
+                        anyhow::bail!("Template filename contains invalid characters: {}", path_str);
+                    }
+                }
+            }
+            std::path::Component::CurDir => continue,
+            _ => anyhow::bail!("Invalid path traversal in template file: {}", path_str),
+        }
+    }
+    Ok(path.to_path_buf())
+}
+
 #[tauri::command]
 pub async fn create_workspace(
     title: String,
@@ -350,6 +382,7 @@ pub async fn create_workspace(
     project_type: Option<String>,
     runtime: Option<String>,
     template: Option<String>,
+    files: Option<Vec<TemplateFile>>,
 ) -> Result<Project, tauri::ipc::InvokeError> {
     let project_type = validate_choice_id("project type", project_type)?;
     let runtime = validate_choice_id("runtime", runtime)?;
@@ -422,6 +455,26 @@ pub async fn create_workspace(
     ) {
         let _ = std::fs::remove_dir_all(&workspace_path);
         return Err(error);
+    }
+
+    if let Some(files) = files {
+        for file in files {
+            let write_result: anyhow::Result<()> = (|| {
+                let rel = validate_template_file_path(&file.path)?;
+                let dest = workspace_path.join(rel);
+                if let Some(parent) = dest.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                std::fs::write(&dest, file.content)?;
+                Ok(())
+            })();
+            if let Err(error) = write_result {
+                let _ = std::fs::remove_dir_all(&workspace_path);
+                return Err(tauri::ipc::InvokeError::from_anyhow(
+                    error.context("Failed to write template files"),
+                ));
+            }
+        }
     }
 
     let project = Project {

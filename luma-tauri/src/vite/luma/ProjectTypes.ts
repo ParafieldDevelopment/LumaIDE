@@ -5,8 +5,9 @@
  * runtime. Adding Lua 5.5, Defold, Love2D, etc. means adding an entry here
  * (later: contributed by an extension), not editing the wizard UI.
  *
- * NOTE: the chosen type, runtime and template ids are saved in the workspace's
- * `.luma/project.json` and the recent list. Template files are not generated yet.
+ * The chosen type, runtime and template ids are saved in the workspace's
+ * `.luma/project.json` and the recent list, and template files are generated
+ * into the newly created workspace.
  */
 
 import { ref } from "vue";
@@ -16,10 +17,23 @@ export interface ProjectRuntime {
     label: string;
 }
 
+export interface TemplateFile {
+    path: string;
+    content: string;
+}
+
+export interface TemplateContext {
+    title: string;
+    projectType: string;
+    runtime?: string;
+    template: string;
+}
+
 export interface ProjectTemplate {
     id: string;
     label: string;
     description: string;
+    generate?: (context: TemplateContext) => TemplateFile[];
 }
 
 /** Built-in groups are listed below; extensions may introduce any group name. */
@@ -39,10 +53,161 @@ export interface ProjectType {
     templates: ProjectTemplate[];
 }
 
+function toIdentifier(name: string): string {
+    const cleaned = name.replace(/[^a-zA-Z0-9_]/g, "");
+    if (!cleaned || /^[0-9]/.test(cleaned)) {
+        return "App";
+    }
+    return cleaned;
+}
+
 const GENERIC_TEMPLATES: ProjectTemplate[] = [
     { id: "empty", label: "Empty", description: "Workspace with no source files." },
-    { id: "hello-world", label: "Hello World", description: "A single main script that prints a message." },
-    { id: "library", label: "Library", description: "A reusable module with an entry point and a usage example." },
+    {
+        id: "hello-world",
+        label: "Hello World",
+        description: "A single main script that prints a message.",
+        generate(context: TemplateContext): TemplateFile[] {
+            if (context.projectType === "luau") {
+                return [
+                    {
+                        path: "main.luau",
+                        content: [
+                            "--!strict",
+                            `-- main.luau (${context.title})`,
+                            "",
+                            "local function greet(name: string): string",
+                            "    return `Hello, {name}!`",
+                            "end",
+                            "",
+                            'print(greet("Luau"))',
+                            "",
+                        ].join("\n"),
+                    },
+                ];
+            }
+
+            if (context.projectType === "luajit") {
+                return [
+                    {
+                        path: "main.lua",
+                        content: [
+                            `-- main.lua (${context.title})`,
+                            "-- LuaJIT runtime",
+                            "",
+                            'local ffi = require("ffi")',
+                            "",
+                            'print(string.format("Running %s on %s", jit.version, jit.os))',
+                            'print("Hello from LuaJIT!")',
+                            "",
+                        ].join("\n"),
+                    },
+                ];
+            }
+
+            return [
+                {
+                    path: "main.lua",
+                    content: [
+                        `-- main.lua (${context.title})`,
+                        "",
+                        "local function main()",
+                        '    print("Hello, World!")',
+                        "end",
+                        "",
+                        "main()",
+                        "",
+                    ].join("\n"),
+                },
+            ];
+        },
+    },
+    {
+        id: "library",
+        label: "Library",
+        description: "A reusable module with an entry point and a usage example.",
+        generate(context: TemplateContext): TemplateFile[] {
+            if (context.projectType === "luau") {
+                return [
+                    {
+                        path: "src/lib.luau",
+                        content: [
+                            "--!strict",
+                            `-- src/lib.luau (${context.title})`,
+                            "",
+                            "export type Greeter = {",
+                            "    prefix: string,",
+                            "}",
+                            "",
+                            "local Lib = {}",
+                            "",
+                            "function Lib.new(prefix: string?): Greeter",
+                            "    return {",
+                            '        prefix = prefix or "Hello",',
+                            "    }",
+                            "end",
+                            "",
+                            "function Lib.greet(self: Greeter, target: string?): string",
+                            '    local who = target or "World"',
+                            "    return `{self.prefix}, {who}!`",
+                            "end",
+                            "",
+                            "return Lib",
+                            "",
+                        ].join("\n"),
+                    },
+                    {
+                        path: "main.luau",
+                        content: [
+                            "--!strict",
+                            `-- main.luau (${context.title})`,
+                            "",
+                            'local Lib = require("./src/lib")',
+                            "",
+                            'local greeter = Lib.new("Welcome")',
+                            'print(greeter:greet("Luau"))',
+                            "",
+                        ].join("\n"),
+                    },
+                ];
+            }
+
+            return [
+                {
+                    path: "src/lib.lua",
+                    content: [
+                        `-- src/lib.lua (${context.title})`,
+                        "",
+                        "local M = {}",
+                        "",
+                        "function M.greet(name)",
+                        '    local target = name or "World"',
+                        '    return string.format("Hello, %s!", target)',
+                        "end",
+                        "",
+                        "function M.add(a, b)",
+                        "    return a + b",
+                        "end",
+                        "",
+                        "return M",
+                        "",
+                    ].join("\n"),
+                },
+                {
+                    path: "main.lua",
+                    content: [
+                        `-- main.lua (${context.title})`,
+                        "",
+                        'local lib = require("src.lib")',
+                        "",
+                        'print(lib.greet("Developer"))',
+                        'print("2 + 3 =", lib.add(2, 3))',
+                        "",
+                    ].join("\n"),
+                },
+            ];
+        },
+    },
 ];
 
 const BUILTIN_PROJECT_TYPES: ProjectType[] = [
@@ -92,8 +257,110 @@ const BUILTIN_PROJECT_TYPES: ProjectType[] = [
         runtimes: [{ id: "roblox-studio", label: "Roblox Studio (Luau)" }],
         templates: [
             { id: "empty", label: "Empty", description: "Workspace with no source files." },
-            { id: "module-library", label: "Module library", description: "A ModuleScript-style library with a test script." },
-            { id: "plugin", label: "Studio plugin", description: "A plugin entry script for Roblox Studio." },
+            {
+                id: "module-library",
+                label: "Module library",
+                description: "A ModuleScript-style library with a test script.",
+                generate(context: TemplateContext): TemplateFile[] {
+                    const ident = toIdentifier(context.title);
+                    return [
+                        {
+                            path: "default.project.json",
+                            content:
+                                JSON.stringify(
+                                    {
+                                        name: context.title,
+                                        tree: {
+                                            $className: "DataModel",
+                                            ReplicatedStorage: {
+                                                [context.title]: {
+                                                    $path: "src",
+                                                },
+                                            },
+                                        },
+                                    },
+                                    null,
+                                    2,
+                                ) + "\n",
+                        },
+                        {
+                            path: "src/init.luau",
+                            content: [
+                                "--!strict",
+                                `-- ModuleScript: ${context.title}`,
+                                "",
+                                `local ${ident} = {}`,
+                                "",
+                                "function " + ident + ".greet(name: string?): string",
+                                '    local target = name or "Roblox"',
+                                "    return `Hello, {target}!`",
+                                "end",
+                                "",
+                                `return ${ident}`,
+                                "",
+                            ].join("\n"),
+                        },
+                        {
+                            path: "tests/test.server.luau",
+                            content: [
+                                "--!strict",
+                                `-- Test script for ${context.title}`,
+                                "",
+                                'local ReplicatedStorage = game:GetService("ReplicatedStorage")',
+                                `local ${ident} = require(ReplicatedStorage:WaitForChild("${context.title}"))`,
+                                "",
+                                `print(${ident}.greet())`,
+                                "",
+                            ].join("\n"),
+                        },
+                    ];
+                },
+            },
+            {
+                id: "plugin",
+                label: "Studio plugin",
+                description: "A plugin entry script for Roblox Studio.",
+                generate(context: TemplateContext): TemplateFile[] {
+                    return [
+                        {
+                            path: "default.project.json",
+                            content:
+                                JSON.stringify(
+                                    {
+                                        name: context.title,
+                                        tree: {
+                                            $className: "DataModel",
+                                            Plugin: {
+                                                $path: "src",
+                                            },
+                                        },
+                                    },
+                                    null,
+                                    2,
+                                ) + "\n",
+                        },
+                        {
+                            path: "src/init.server.luau",
+                            content: [
+                                "--!strict",
+                                `-- Roblox Studio Plugin: ${context.title}`,
+                                "",
+                                `local toolbar = plugin:CreateToolbar("${context.title}")`,
+                                `local button = toolbar:CreateButton(`,
+                                `    "Toggle ${context.title}",`,
+                                `    "Open or close ${context.title}",`,
+                                '    "rbxassetid://4458901886"',
+                                ")",
+                                "",
+                                "button.Click:Connect(function()",
+                                `    print("${context.title} button clicked!")`,
+                                "end)",
+                                "",
+                            ].join("\n"),
+                        },
+                    ];
+                },
+            },
         ],
     },
     {
@@ -104,9 +371,104 @@ const BUILTIN_PROJECT_TYPES: ProjectType[] = [
         runtimes: [{ id: "cc-tweaked", label: "CC:Tweaked" }],
         templates: [
             { id: "empty", label: "Empty", description: "Workspace with no source files." },
-            { id: "program", label: "Computer program", description: "A program with a startup script." },
-            { id: "turtle", label: "Turtle program", description: "A turtle program skeleton." },
-            { id: "api", label: "API library", description: "A reusable library loaded with require." },
+            {
+                id: "program",
+                label: "Computer program",
+                description: "A program with a startup script.",
+                generate(context: TemplateContext): TemplateFile[] {
+                    return [
+                        {
+                            path: "startup.lua",
+                            content: [
+                                `-- startup.lua (${context.title})`,
+                                "-- CC:Tweaked Computer program",
+                                "",
+                                "term.clear()",
+                                "term.setCursorPos(1, 1)",
+                                "",
+                                `print("=== ${context.title} ===")`,
+                                'print("Press any key to continue...")',
+                                'os.pullEvent("key")',
+                                "",
+                                'print("Program finished.")',
+                                "",
+                            ].join("\n"),
+                        },
+                    ];
+                },
+            },
+            {
+                id: "turtle",
+                label: "Turtle program",
+                description: "A turtle program skeleton.",
+                generate(context: TemplateContext): TemplateFile[] {
+                    return [
+                        {
+                            path: "startup.lua",
+                            content: [
+                                `-- startup.lua (${context.title})`,
+                                "-- CC:Tweaked Turtle program",
+                                "",
+                                "if not turtle then",
+                                '    printError("Error: This program must be run on a Turtle!")',
+                                "    return",
+                                "end",
+                                "",
+                                "term.clear()",
+                                "term.setCursorPos(1, 1)",
+                                "",
+                                `print("=== Turtle: ${context.title} ===")`,
+                                'print("Fuel level: " .. tostring(turtle.getFuelLevel()) .. "/" .. tostring(turtle.getFuelLimit()))',
+                                "",
+                                "if turtle.getFuelLevel() == 0 then",
+                                '    print("Warning: Turtle needs fuel to move.")',
+                                "end",
+                                "",
+                            ].join("\n"),
+                        },
+                    ];
+                },
+            },
+            {
+                id: "api",
+                label: "API library",
+                description: "A reusable library loaded with require.",
+                generate(context: TemplateContext): TemplateFile[] {
+                    const ident = toIdentifier(context.title);
+                    return [
+                        {
+                            path: `src/${ident}.lua`,
+                            content: [
+                                `-- src/${ident}.lua (${context.title})`,
+                                "-- CC:Tweaked API module",
+                                "",
+                                "local api = {}",
+                                "",
+                                "function api.greet(name)",
+                                '    return "Hello, " .. (name or "CC User") .. "!"',
+                                "end",
+                                "",
+                                "return api",
+                                "",
+                            ].join("\n"),
+                        },
+                        {
+                            path: "startup.lua",
+                            content: [
+                                `-- startup.lua (${context.title})`,
+                                "",
+                                `local api = require("src/${ident}")`,
+                                "",
+                                "term.clear()",
+                                "term.setCursorPos(1, 1)",
+                                `print("=== ${context.title} ===")`,
+                                "print(api.greet())",
+                                "",
+                            ].join("\n"),
+                        },
+                    ];
+                },
+            },
         ],
     },
     {
@@ -159,4 +521,22 @@ export function groupedProjectTypes(): ProjectTypeGroupEntry[] {
 
 export function getProjectType(id: string): ProjectType {
     return registry.value.find(type => type.id === id) ?? registry.value[0];
+}
+
+export function getTemplateFiles(
+    typeId: string,
+    templateId: string,
+    context: { title: string; runtime?: string },
+): TemplateFile[] {
+    const type = getProjectType(typeId);
+    const template = type.templates.find(t => t.id === templateId);
+    if (!template?.generate) {
+        return [];
+    }
+    return template.generate({
+        title: context.title,
+        projectType: typeId,
+        runtime: context.runtime,
+        template: templateId,
+    });
 }

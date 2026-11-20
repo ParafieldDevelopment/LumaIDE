@@ -4,7 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { LumButton, LumField, LumInput, LumList, LumListItem, LumSelect } from "~/vue/components";
 import { getProjectColor } from "~/luma/Workspace.ts";
-import { getProjectType, groupedProjectTypes, type ProjectType } from "~/luma/ProjectTypes.ts";
+import { getProjectType, getTemplateFiles, groupedProjectTypes, type ProjectType } from "~/luma/ProjectTypes.ts";
 
 interface WorkspaceCreated {
   project_uuid: string;
@@ -40,6 +40,14 @@ watch(
 const runtimeOptions = computed(() =>
   selectedType.value.runtimes.map(runtime => ({ value: runtime.id, label: runtime.label })),
 );
+
+const templateFiles = computed(() => {
+  if (!templateId.value) return [];
+  return getTemplateFiles(selectedTypeId.value, templateId.value, {
+    title: title.value.trim() || "Workspace",
+    runtime: runtimeId.value || undefined,
+  });
+});
 
 const title = ref("");
 const parentPath = ref("");
@@ -106,12 +114,17 @@ async function createWorkspace() {
   busy.value = true;
   error.value = "";
   try {
+    const files = getTemplateFiles(selectedTypeId.value, templateId.value, {
+      title: workspaceTitle,
+      runtime: runtimeId.value || undefined,
+    });
     const workspace = await invoke<WorkspaceCreated>("create_workspace", {
       title: workspaceTitle,
       parentPath: location,
       projectType: selectedTypeId.value,
       runtime: runtimeId.value || null,
       template: templateId.value || null,
+      files: files.length > 0 ? files : null,
     });
     await invoke("open_workspace", { path: workspace.path });
     await props.onCreated?.(workspace);
@@ -191,7 +204,13 @@ async function createWorkspace() {
           </LumList>
         </LumField>
 
-        <p class="note">Your choices are saved with the workspace. Template files are not generated yet.</p>
+        <p v-if="templateFiles.length > 0" class="note">
+          Generates starter files:
+          <span class="file-badges">
+            <code v-for="file in templateFiles" :key="file.path">{{ file.path }}</code>
+          </span>
+        </p>
+        <p v-else class="note">Empty workspace with no initial files.</p>
 
         <p v-if="error" class="error" role="alert">{{ error }}</p>
       </section>
@@ -296,6 +315,23 @@ async function createWorkspace() {
   margin: 0;
   font-size: 0.8rem;
   color: var(--lum-gray-300);
+}
+
+.file-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-left: 0.35rem;
+  vertical-align: middle;
+
+  code {
+    font-size: 0.75rem;
+    padding: 0.1rem 0.35rem;
+    background: var(--lum-bg-hover, rgba(255, 255, 255, 0.06));
+    border: 1px solid var(--lum-border);
+    border-radius: 4px;
+    color: var(--lum-text);
+  }
 }
 
 .error {
