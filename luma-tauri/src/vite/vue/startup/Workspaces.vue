@@ -48,7 +48,7 @@ onMounted(refreshWorkspaces);
 
 function newWorkspace() {
   const modals = useModals();
-  const item = modals.modal("New Workspace", ModalNewWorkspace, { size: "md" });
+  const item = modals.modal("New Workspace", ModalNewWorkspace, { size: "xl" });
   item.componentProps = {
     onCreated: refreshWorkspaces,
     onClose: () => modals.dismiss(item.id),
