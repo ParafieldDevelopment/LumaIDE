@@ -24,16 +24,16 @@
   display: flex;
   align-items: center;
   gap: var(--lum-space-2);
-  height: var(--lum-list-item-height);
+  min-height: var(--lum-list-item-height);
+  height: auto;
   min-width: 0;
-  padding: 0 var(--lum-space-2);
+  padding: var(--lum-space-1) var(--lum-space-2);
   font-size: var(--lum-text-md);
   color: var(--lum-list-item-fg);
   background: none;
   border: none;
   border-radius: var(--lum-list-item-radius);
   cursor: pointer;
-  overflow: hidden;
   transition: background var(--lum-transition-fast);
 
   &:hover { background: var(--lum-list-item-bg-hover); }
@@ -45,9 +45,8 @@
   &.disabled { opacity: 0.4; pointer-events: none; }
 
   .lum-list-item-label {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .lum-list-item-trailing { margin-left: auto; flex-shrink: 0; }
@@ -58,7 +57,8 @@
   margin-left: auto;
   font-size: var(--lum-text-xs);
   color: var(--lum-fg-subtle);
-  flex-shrink: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* ----- Tree ----- */

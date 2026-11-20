@@ -2,9 +2,8 @@
 import { computed, ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { LumButton, LumField, LumInput, LumList, LumListItem, LumSelect } from "~/vue/components";
-import { getProjectColor } from "~/luma/Workspace.ts";
-import { getProjectType, getTemplateFiles, groupedProjectTypes, type ProjectType } from "~/luma/ProjectTypes.ts";
+import { LumButton, LumField, LumInput, LumList, LumListItem } from "~/vue/components";
+import { getProjectType, getTemplateFiles, groupedProjectTypes } from "~/luma/ProjectTypes.ts";
 
 interface WorkspaceCreated {
   project_uuid: string;
@@ -35,10 +34,6 @@ watch(
     templateId.value = type.templates[0]?.id ?? "";
   },
   { immediate: true },
-);
-
-const runtimeOptions = computed(() =>
-  selectedType.value.runtimes.map(runtime => ({ value: runtime.id, label: runtime.label })),
 );
 
 const templateFiles = computed(() => {
@@ -72,12 +67,14 @@ const targetPath = computed(() => {
   return parent + separator + name;
 });
 
-function typeColor(type: ProjectType) {
-  return type.color ?? getProjectColor(type.label);
+const FALLBACK_TYPE_ICON = "/project_type_icons/package.svg";
+
+function typeIcon(icon?: string) {
+  return icon ?? FALLBACK_TYPE_ICON;
 }
 
-function typeBadge(type: ProjectType) {
-  return type.badge ?? type.label.slice(0, 2).toUpperCase();
+function runtimeIcon(icon?: string) {
+  return icon ?? FALLBACK_TYPE_ICON;
 }
 
 async function chooseLocation() {
@@ -151,8 +148,8 @@ async function createWorkspace() {
                 :disabled="busy"
                 @select="selectedTypeId = type.id"
             >
-              <span class="badge" :style="{ backgroundColor: typeColor(type) }">
-                {{ typeBadge(type) }}
+              <span class="badge">
+                <img :src="typeIcon(type.icon)" :alt="`${type.label} icon`" />
               </span>
               {{ type.label }}
             </LumListItem>
@@ -185,8 +182,21 @@ async function createWorkspace() {
           </template>
         </LumField>
 
-        <LumField v-if="runtimeOptions.length > 0" label="Runtime">
-          <LumSelect v-model="runtimeId" :options="runtimeOptions" :disabled="busy" />
+        <LumField v-if="selectedType.runtimes.length > 0" label="Runtime">
+          <LumList>
+            <LumListItem
+                v-for="runtime in selectedType.runtimes"
+                :key="runtime.id"
+                :selected="runtime.id === runtimeId"
+                :disabled="busy"
+                @select="runtimeId = runtime.id"
+            >
+              <span class="badge">
+                <img :src="runtimeIcon(runtime.icon)" :alt="`${runtime.label} icon`" />
+              </span>
+              {{ runtime.label }}
+            </LumListItem>
+          </LumList>
         </LumField>
 
         <LumField v-if="selectedType.templates.length > 0" label="Template">
@@ -267,16 +277,24 @@ async function createWorkspace() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 30px;
-  height: 22px;
-  padding: 0 4px;
+  width: 30px;
+  height: 30px;
+  padding: 1px;
   box-sizing: border-box;
   margin-right: 0.5rem;
-  border-radius: 6px;
-  font-size: 0.65rem;
-  font-weight: 600;
-  color: white;
   vertical-align: middle;
+}
+
+.badge img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* These feather-style icons use currentColor, which is black inside an <img>. */
+.badge img[src*="box.svg"],
+.badge img[src*="package.svg"] {
+  filter: invert(1);
 }
 
 .details {

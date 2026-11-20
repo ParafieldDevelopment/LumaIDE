@@ -2,8 +2,8 @@
  * Project type registry for the New Workspace wizard.
  *
  * Data-driven on purpose: the wizard shell knows nothing about any specific
- * runtime. Adding Lua 5.5, Defold, Love2D, etc. means adding an entry here
- * (later: contributed by an extension), not editing the wizard UI.
+ * runtime. Adding a new language version, engine or platform means adding an
+ * entry here (later: contributed by an extension), not editing the wizard UI.
  *
  * The chosen type, runtime and template ids are saved in the workspace's
  * `.luma/project.json` and the recent list, and template files are generated
@@ -15,6 +15,8 @@ import { ref } from "vue";
 export interface ProjectRuntime {
     id: string;
     label: string;
+    /** Icon path under Vite's `public/project_type_icons/` directory. */
+    icon?: string;
 }
 
 export interface TemplateFile {
@@ -47,6 +49,8 @@ export interface ProjectType {
     badge?: string;
     /** Badge background (any CSS color). Defaults to a color derived from the label. */
     color?: string;
+    /** Icon path under Vite's `public/project_type_icons/` directory. */
+    icon?: string;
     /** One or two sentences shown at the top of the right-hand pane. */
     description: string;
     runtimes: ProjectRuntime[];
@@ -60,6 +64,47 @@ function toIdentifier(name: string): string {
     }
     return cleaned;
 }
+
+/* --------------------------------- Runtimes ---------------------------------- */
+
+const LUA_ICON = "/project_type_icons/lua.svg";
+const LUAU_ICON = "/project_type_icons/luau.svg";
+const LUMA_ICON = "/project_type_icons/luma.svg";
+const ROJO_ICON = "/project_type_icons/rojo.png";
+const CC_ICON = "/project_type_icons/cc.png";
+
+const LUA_VERSION_RUNTIMES: ProjectRuntime[] = [
+    { id: "lua-5.5", label: "Lua (PUC) 5.5", icon: LUA_ICON },
+    { id: "lua-5.4", label: "Lua (PUC) 5.4", icon: LUA_ICON },
+    { id: "lua-5.3", label: "Lua (PUC) 5.3", icon: LUA_ICON },
+    { id: "lua-5.2", label: "Lua (PUC) 5.2", icon: LUA_ICON },
+    { id: "lua-5.1", label: "Lua (PUC) 5.1", icon: LUA_ICON },
+];
+
+const LUA_ENGINE_RUNTIMES: ProjectRuntime[] = [
+    { id: "love2d", label: "LÖVE", icon: "/project_type_icons/love.svg" },
+    { id: "defold", label: "Defold", icon: "/project_type_icons/defold.svg"  },
+    { id: "openresty", label: "OpenResty", icon: "/project_type_icons/openresty.webp"  },
+    { id: "tarantool", label: "Tarantool", icon: "/project_type_icons/tarantool.svg" },
+];
+
+const LUA_RUNTIMES: ProjectRuntime[] = [...LUA_VERSION_RUNTIMES, ...LUA_ENGINE_RUNTIMES];
+
+const LUAJIT_RUNTIMES: ProjectRuntime[] = [
+    { id: "luajit-2.1", label: "LuaJIT 2.1", icon: LUA_ICON },
+    { id: "luajit-2.0", label: "LuaJIT 2.0", icon: LUA_ICON },
+    { id: "openresty-luajit", label: "OpenResty (LuaJIT)", icon: "/project_type_icons/openresty.webp" },
+    { id: "love2d-luajit", label: "LÖVE (LuaJIT)", icon: "/project_type_icons/love.svg" },
+];
+
+const LUAU_RUNTIMES: ProjectRuntime[] = [
+    { id: "lune", label: "Lune", icon: LUAU_ICON },
+    { id: "lute", label: "Lute", icon: "/project_type_icons/lune.svg" },
+    { id: "seal", label: "Seal", icon: "/project_type_icons/seal.png" },
+    { id: "zune", label: "Zune", icon: LUAU_ICON },
+];
+
+/* --------------------------------- Templates --------------------------------- */
 
 const GENERIC_TEMPLATES: ProjectTemplate[] = [
     { id: "empty", label: "Empty", description: "Workspace with no source files." },
@@ -210,20 +255,125 @@ const GENERIC_TEMPLATES: ProjectTemplate[] = [
     },
 ];
 
+const ROBLOX_TEMPLATES: ProjectTemplate[] = [
+    { id: "empty", label: "Empty", description: "Workspace with no source files." },
+    {
+        id: "module-library",
+        label: "Module library",
+        description: "A ModuleScript-style library with a test script.",
+        generate(context: TemplateContext): TemplateFile[] {
+            const ident = toIdentifier(context.title);
+            return [
+                {
+                    path: "default.project.json",
+                    content:
+                        JSON.stringify(
+                            {
+                                name: context.title,
+                                tree: {
+                                    $className: "DataModel",
+                                    ReplicatedStorage: {
+                                        [context.title]: {
+                                            $path: "src",
+                                        },
+                                    },
+                                },
+                            },
+                            null,
+                            2,
+                        ) + "\n",
+                },
+                {
+                    path: "src/init.luau",
+                    content: [
+                        "--!strict",
+                        `-- ModuleScript: ${context.title}`,
+                        "",
+                        `local ${ident} = {}`,
+                        "",
+                        "function " + ident + ".greet(name: string?): string",
+                        '    local target = name or "Roblox"',
+                        "    return `Hello, {target}!`",
+                        "end",
+                        "",
+                        `return ${ident}`,
+                        "",
+                    ].join("\n"),
+                },
+                {
+                    path: "tests/test.server.luau",
+                    content: [
+                        "--!strict",
+                        `-- Test script for ${context.title}`,
+                        "",
+                        'local ReplicatedStorage = game:GetService("ReplicatedStorage")',
+                        `local ${ident} = require(ReplicatedStorage:WaitForChild("${context.title}"))`,
+                        "",
+                        `print(${ident}.greet())`,
+                        "",
+                    ].join("\n"),
+                },
+            ];
+        },
+    },
+    {
+        id: "plugin",
+        label: "Studio plugin",
+        description: "A plugin entry script for Roblox Studio.",
+        generate(context: TemplateContext): TemplateFile[] {
+            return [
+                {
+                    path: "default.project.json",
+                    content:
+                        JSON.stringify(
+                            {
+                                name: context.title,
+                                tree: {
+                                    $className: "DataModel",
+                                    Plugin: {
+                                        $path: "src",
+                                    },
+                                },
+                            },
+                            null,
+                            2,
+                        ) + "\n",
+                },
+                {
+                    path: "src/init.server.luau",
+                    content: [
+                        "--!strict",
+                        `-- Roblox Studio Plugin: ${context.title}`,
+                        "",
+                        `local toolbar = plugin:CreateToolbar("${context.title}")`,
+                        `local button = toolbar:CreateButton(`,
+                        `    "Toggle ${context.title}",`,
+                        `    "Open or close ${context.title}",`,
+                        '    "rbxassetid://4458901886"',
+                        ")",
+                        "",
+                        "button.Click:Connect(function()",
+                        `    print("${context.title} button clicked!")`,
+                        "end)",
+                        "",
+                    ].join("\n"),
+                },
+            ];
+        },
+    },
+];
+
+/* ------------------------------- Project types ------------------------------- */
+
 const BUILTIN_PROJECT_TYPES: ProjectType[] = [
     {
         id: "lua",
         label: "Lua",
         group: "Lua runtimes",
         badge: "Lua",
-        color: "#3f5fd0",
+        icon: LUA_ICON,
         description: "Standard Lua scripts and libraries, run with a Lua interpreter.",
-        runtimes: [
-            { id: "lua-5.4", label: "Lua 5.4" },
-            { id: "lua-5.3", label: "Lua 5.3" },
-            { id: "lua-5.2", label: "Lua 5.2" },
-            { id: "lua-5.1", label: "Lua 5.1" },
-        ],
+        runtimes: LUA_RUNTIMES,
         templates: GENERIC_TEMPLATES,
     },
     {
@@ -231,12 +381,9 @@ const BUILTIN_PROJECT_TYPES: ProjectType[] = [
         label: "LuaJIT",
         group: "Lua runtimes",
         badge: "JIT",
-        color: "#1d9e86",
+        icon: LUA_ICON,
         description: "Lua projects targeting LuaJIT, including FFI-based code.",
-        runtimes: [
-            { id: "luajit-2.1", label: "LuaJIT 2.1" },
-            { id: "luajit-2.0", label: "LuaJIT 2.0" },
-        ],
+        runtimes: LUAJIT_RUNTIMES,
         templates: GENERIC_TEMPLATES,
     },
     {
@@ -244,131 +391,32 @@ const BUILTIN_PROJECT_TYPES: ProjectType[] = [
         label: "Luau",
         group: "Lua runtimes",
         badge: "Luau",
-        color: "#7a5ad0",
+        icon: LUAU_ICON,
         description: "Standalone Luau projects with type annotations, outside Roblox.",
-        runtimes: [{ id: "luau-latest", label: "Luau (latest)" }],
+        runtimes: LUAU_RUNTIMES,
         templates: GENERIC_TEMPLATES,
     },
     {
         id: "roblox",
         label: "Roblox",
         group: "Platforms",
+        icon: "/project_type_icons/robloxstudio.svg",
         description: "Luau projects for Roblox experiences, libraries and Studio plugins.",
-        runtimes: [{ id: "roblox-studio", label: "Roblox Studio (Luau)" }],
-        templates: [
-            { id: "empty", label: "Empty", description: "Workspace with no source files." },
-            {
-                id: "module-library",
-                label: "Module library",
-                description: "A ModuleScript-style library with a test script.",
-                generate(context: TemplateContext): TemplateFile[] {
-                    const ident = toIdentifier(context.title);
-                    return [
-                        {
-                            path: "default.project.json",
-                            content:
-                                JSON.stringify(
-                                    {
-                                        name: context.title,
-                                        tree: {
-                                            $className: "DataModel",
-                                            ReplicatedStorage: {
-                                                [context.title]: {
-                                                    $path: "src",
-                                                },
-                                            },
-                                        },
-                                    },
-                                    null,
-                                    2,
-                                ) + "\n",
-                        },
-                        {
-                            path: "src/init.luau",
-                            content: [
-                                "--!strict",
-                                `-- ModuleScript: ${context.title}`,
-                                "",
-                                `local ${ident} = {}`,
-                                "",
-                                "function " + ident + ".greet(name: string?): string",
-                                '    local target = name or "Roblox"',
-                                "    return `Hello, {target}!`",
-                                "end",
-                                "",
-                                `return ${ident}`,
-                                "",
-                            ].join("\n"),
-                        },
-                        {
-                            path: "tests/test.server.luau",
-                            content: [
-                                "--!strict",
-                                `-- Test script for ${context.title}`,
-                                "",
-                                'local ReplicatedStorage = game:GetService("ReplicatedStorage")',
-                                `local ${ident} = require(ReplicatedStorage:WaitForChild("${context.title}"))`,
-                                "",
-                                `print(${ident}.greet())`,
-                                "",
-                            ].join("\n"),
-                        },
-                    ];
-                },
-            },
-            {
-                id: "plugin",
-                label: "Studio plugin",
-                description: "A plugin entry script for Roblox Studio.",
-                generate(context: TemplateContext): TemplateFile[] {
-                    return [
-                        {
-                            path: "default.project.json",
-                            content:
-                                JSON.stringify(
-                                    {
-                                        name: context.title,
-                                        tree: {
-                                            $className: "DataModel",
-                                            Plugin: {
-                                                $path: "src",
-                                            },
-                                        },
-                                    },
-                                    null,
-                                    2,
-                                ) + "\n",
-                        },
-                        {
-                            path: "src/init.server.luau",
-                            content: [
-                                "--!strict",
-                                `-- Roblox Studio Plugin: ${context.title}`,
-                                "",
-                                `local toolbar = plugin:CreateToolbar("${context.title}")`,
-                                `local button = toolbar:CreateButton(`,
-                                `    "Toggle ${context.title}",`,
-                                `    "Open or close ${context.title}",`,
-                                '    "rbxassetid://4458901886"',
-                                ")",
-                                "",
-                                "button.Click:Connect(function()",
-                                `    print("${context.title} button clicked!")`,
-                                "end)",
-                                "",
-                            ].join("\n"),
-                        },
-                    ];
-                },
-            },
+        runtimes: [
+            { id: "luma_sync", label: "Luma Sync", icon: "/project_type_icons/lumasync.svg" },
+            { id: "rojo", label: "Rojo (Rokit)", icon: "/project_type_icons/rojo.png" },
         ],
+        templates: ROBLOX_TEMPLATES,
     },
     {
         id: "computercraft",
         label: "ComputerCraft",
         group: "Platforms",
+        icon: CC_ICON,
         description: "Programs for computers and turtles in CC:Tweaked.",
-        runtimes: [{ id: "cc-tweaked", label: "CC:Tweaked" }],
+        runtimes: [
+            { id: "cc-tweaked", label: "CC: Tweaked", icon: CC_ICON }
+        ],
         templates: [
             { id: "empty", label: "Empty", description: "Workspace with no source files." },
             {
@@ -477,11 +525,14 @@ const BUILTIN_PROJECT_TYPES: ProjectType[] = [
         group: "Other",
         badge: "Em",
         color: "#6b7280",
+        icon: "/project_type_icons/box.svg",
         description: "A plain workspace folder. Choose a runtime later.",
         runtimes: [],
         templates: [{ id: "empty", label: "Empty", description: "Workspace with no source files." }],
     },
 ];
+
+/* --------------------------------- Registry ---------------------------------- */
 
 /** Reactive, so the wizard updates if an extension registers a type while it is open. */
 const registry = ref<ProjectType[]>([...BUILTIN_PROJECT_TYPES]);
