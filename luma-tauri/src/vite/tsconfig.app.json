@@ -12,7 +12,8 @@
     "noFallthroughCasesInSwitch": true,
 
     "paths": {
-      "~/*": ["./*"]
+      "~/*": ["./*"],
+      "@splash/*": ["../splash/*"]
     }
   },
   "include": [

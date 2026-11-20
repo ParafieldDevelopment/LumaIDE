@@ -559,8 +559,22 @@ pub async fn get_active_workspace() -> Result<Option<Project>, tauri::ipc::Invok
 }
 
 #[tauri::command]
-pub async fn webview_ready(window: tauri::WebviewWindow) -> Result<(), tauri::ipc::InvokeError> {
+pub async fn webview_ready(
+    app_handle: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+) -> Result<(), tauri::ipc::InvokeError> {
     log::info!("webview_ready label={}", window.label());
+
+    let is_splash = window.label() == crate::splash_window::SPLASH_LABEL;
+
+    if !is_splash {
+        // Keep real windows hidden until the splash has had its minimum time.
+        let handle = app_handle.clone();
+        let _ = tauri::async_runtime::spawn_blocking(move || {
+            crate::splash_window::hold_until_splash_done(&handle);
+        })
+        .await;
+    }
 
     window
         .show()
@@ -570,6 +584,12 @@ pub async fn webview_ready(window: tauri::WebviewWindow) -> Result<(), tauri::ip
         .set_focus()
         .context(format!("Failed to focus the {} window", window.label()))
         .map_err(tauri::ipc::InvokeError::from_anyhow)?;
+
+    if is_splash {
+        crate::splash_window::mark_shown();
+    } else {
+        crate::splash_window::finish(&app_handle);
+    }
 
     Ok(())
 }
