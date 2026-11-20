@@ -55,6 +55,38 @@ struct WorkspaceMetadata {
     title: String,
     #[serde(default)]
     created_at: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    project_type: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    runtime: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    template: Option<String>,
+}
+
+/// Validate an optional wizard id (project type, runtime or template).
+/// Backend only checks the format. The set of valid ids is owned by the
+/// frontend registry and extensions.
+fn validate_choice_id(
+    label: &str,
+    value: Option<String>,
+) -> Result<Option<String>, tauri::ipc::InvokeError> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    let value = value.trim();
+    if value.is_empty() {
+        return Ok(None);
+    }
+    if value.len() > 64
+        || !value
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+    {
+        return Err(tauri::ipc::InvokeError::from_anyhow(anyhow::anyhow!(
+            "Invalid {label}"
+        )));
+    }
+    Ok(Some(value.to_string()))
 }
 
 fn write_json_file(path: &Path, contents: &str) -> Result<(), tauri::ipc::InvokeError> {
@@ -125,6 +157,9 @@ fn load_or_initialize_workspace_metadata(
         project_uuid: existing_uuid.unwrap_or_else(|| Uuid::new_v4().to_string()),
         title: default_title.to_string(),
         created_at: unix_timestamp(),
+        project_type: None,
+        runtime: None,
+        template: None,
     };
     let contents = serde_json::to_string_pretty(&metadata)
         .context("Failed to serialize workspace metadata")
@@ -312,7 +347,14 @@ pub async fn get_recent_workspaces() -> Result<Vec<Project>, tauri::ipc::InvokeE
 pub async fn create_workspace(
     title: String,
     parent_path: String,
+    project_type: Option<String>,
+    runtime: Option<String>,
+    template: Option<String>,
 ) -> Result<Project, tauri::ipc::InvokeError> {
+    let project_type = validate_choice_id("project type", project_type)?;
+    let runtime = validate_choice_id("runtime", runtime)?;
+    let template = validate_choice_id("template", template)?;
+
     let title = title.trim();
     if title.is_empty() {
         return Err(tauri::ipc::InvokeError::from_anyhow(anyhow::anyhow!(
@@ -367,6 +409,9 @@ pub async fn create_workspace(
         project_uuid: Uuid::new_v4().to_string(),
         title: title.to_string(),
         created_at: unix_timestamp(),
+        project_type: project_type.clone(),
+        runtime: runtime.clone(),
+        template: template.clone(),
     };
     let metadata_contents = serde_json::to_string_pretty(&metadata)
         .context("Failed to serialize workspace metadata")
@@ -393,6 +438,9 @@ pub async fn create_workspace(
         git_branch: None,
         icon_path: None,
         last_opened_at: Some(unix_timestamp()),
+        project_type,
+        runtime,
+        template,
     };
 
     record_recent_workspace(project)
@@ -532,6 +580,9 @@ pub async fn open_workspace(
         git_branch: None,
         icon_path: None,
         last_opened_at: Some(unix_timestamp()),
+        project_type: metadata.project_type,
+        runtime: metadata.runtime,
+        template: metadata.template,
     };
     let project = record_recent_workspace(project)?;
 

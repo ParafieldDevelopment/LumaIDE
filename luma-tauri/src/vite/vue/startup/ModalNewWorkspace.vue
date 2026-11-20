@@ -106,11 +106,12 @@ async function createWorkspace() {
   busy.value = true;
   error.value = "";
   try {
-    // Backend currently only takes a title and parent path. Project type,
-    // runtime and template are not sent until the Rust model supports them.
     const workspace = await invoke<WorkspaceCreated>("create_workspace", {
       title: workspaceTitle,
       parentPath: location,
+      projectType: selectedTypeId.value,
+      runtime: runtimeId.value || null,
+      template: templateId.value || null,
     });
     await invoke("open_workspace", { path: workspace.path });
     await props.onCreated?.(workspace);
@@ -190,7 +191,7 @@ async function createWorkspace() {
           </LumList>
         </LumField>
 
-        <p class="note">Runtime and template are saved with the workspace in a later update.</p>
+        <p class="note">Your choices are saved with the workspace. Template files are not generated yet.</p>
 
         <p v-if="error" class="error" role="alert">{{ error }}</p>
       </section>

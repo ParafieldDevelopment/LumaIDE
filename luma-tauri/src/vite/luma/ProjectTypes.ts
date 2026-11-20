@@ -5,8 +5,8 @@
  * runtime. Adding Lua 5.5, Defold, Love2D, etc. means adding an entry here
  * (later: contributed by an extension), not editing the wizard UI.
  *
- * NOTE: runtime and template choices are not applied by the backend yet.
- * `create_workspace` currently only receives a title and parent path.
+ * NOTE: the chosen type, runtime and template ids are saved in the workspace's
+ * `.luma/project.json` and the recent list. Template files are not generated yet.
  */
 
 import { ref } from "vue";
