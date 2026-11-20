@@ -9,11 +9,12 @@ import { useEditor } from "~/vue/composables/useEditor.ts";
 import { useToasts } from "~/vue/components/toasts";
 import LumToolStripe from "./components/LumToolStripe.vue";
 import { useToolWindows, registerToolWindow } from "~/vue/composables/useToolWindows";
-import { FolderIcon, CommitIcon, TerminalIcon, AnalyzerIcon } from "~/vue/icons/ToolIcons";
+import { FolderIcon, CommitIcon, TerminalIcon, AnalyzerIcon, NotificationIcon } from "~/vue/icons/ToolIcons";
 import ProjectExplorerPanel from "./components/ProjectExplorer.vue";
 import TerminalPanel from "./toolwindows/TerminalPanel.vue";
 import AnalyzerPanel from "./toolwindows/AnalyzerPanel.vue";
 import GitCommitPanel from "./toolwindows/GitCommitPanel.vue";
+import NotificationsPanel from "./toolwindows/NotificationsPanel.vue";
 
 interface ActiveWorkspace {
   project_uuid: string;
@@ -34,7 +35,8 @@ registerToolWindow({ id: "project-explorer", title: "Project", anchor: "left", i
 registerToolWindow({ id: "git-commit", title: "Git Commit", anchor: "left", icon: CommitIcon, component: GitCommitPanel, order: 20, hotkey: "Alt+9" });
 registerToolWindow({ id: "terminal", title: "Terminal", anchor: "bottom", icon: TerminalIcon, component: TerminalPanel, order: 10, hotkey: "Alt+F12", defaultOpen: true });
 registerToolWindow({ id: "analyzer", title: "Analyzer", anchor: "bottom", icon: AnalyzerIcon, component: AnalyzerPanel, order: 20, hotkey: "Ctrl+Shift+A" });
-const { leftTools, bottomTools, leftTool, rightTool, bottomTool, activeIds, sizes, toggle, close, setSize, handleHotkey } = tools;
+registerToolWindow({ id: "notifications", title: "Notifications", anchor: "right", icon: NotificationIcon, component: NotificationsPanel, order: 10 });
+const { leftTools, bottomTools, rightTools, leftTool, rightTool, bottomTool, activeIds, sizes, toggle, close, setSize, handleHotkey } = tools;
 
 const resizeAnchor = ref<"left" | "right" | "bottom" | null>(null);
 let resizeStart = 0;
@@ -144,44 +146,43 @@ onBeforeUnmount(() => {
 
   <div class="ide-shell" v-if="activeWorkspace">
     <div class="ide-body">
-      <LumToolStripe side="left" :top="leftTools" :active-ids="activeIds" @toggle="toggleTool" />
-      <aside v-if="leftTool" class="ide-dock ide-dock-left" :style="{ width: sizes.left + 'px' }">
-        <keep-alive><component :is="leftTool.component" :workspace-path="activeWorkspace.path" @hide="close('left')" /></keep-alive>
-      </aside>
-      <div v-if="leftTool" class="lum-resizer ide-dock-resizer" @mousedown="startDockResize('left', $event)" :class="{ 'is-dragging': resizeAnchor === 'left' }"></div>
+    <LumToolStripe side="left" :top="leftTools" :bottom="bottomTools" :active-ids="activeIds" @toggle="toggleTool" />
+    <aside v-if="leftTool" class="ide-dock ide-dock-left" :style="{ width: sizes.left + 'px' }">
+      <keep-alive><component :is="leftTool.component" :workspace-path="activeWorkspace.path" @hide="close('left')" /></keep-alive>
+    </aside>
+    <div v-if="leftTool" class="lum-resizer ide-dock-resizer" @mousedown="startDockResize('left', $event)" :class="{ 'is-dragging': resizeAnchor === 'left' }"></div>
 
-      <div class="ide-editor-area">
-        <div class="ide-tabs">
-          <LumFileTabs v-model="activeFileId" :files="tabFiles" @close="handleCloseTab">
-            <template #extra>
-              <div class="ide-tab-actions">
-                <button class="ide-tab-action" @click="handleSaveAll" title="Save All" aria-label="Save All">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M15 17H4a2 2 0 0 1-2-2V4a2 2 0 0 a2-2h8l4 4v9a2 2 0 0 1-2 2z" /><polyline points="13 17 13 10 5 10 5 17" /><polyline points="6 2 6 5 12 5" /></svg>
-                </button>
-                <button class="ide-tab-action" @click="handleSave" :title="saveTooltip" aria-label="Save">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
-                </button>
-              </div>
-            </template>
-          </LumFileTabs>
-        </div>
-        <div class="ide-editor-surface">
-          <LumEditor v-if="activeFile" v-model="editorValue" :model-key="activeFile.id" :language="activeFile.language" />
-          <div v-else class="ide-empty"><p>Open a file from the project explorer to start editing.</p></div>
-        </div>
+    <div class="ide-editor-area">
+      <div class="ide-tabs">
+        <LumFileTabs v-model="activeFileId" :files="tabFiles" @close="handleCloseTab">
+          <template #extra>
+            <div class="ide-tab-actions">
+              <button class="ide-tab-action" @click="handleSaveAll" title="Save All" aria-label="Save All">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M15 17H4a2 2 0 0 1-2-2V4a2 2 0 0 1-2-2h8l4 4v9a2 2 0 0 2-2 2z" /><polyline points="13 17 13 10 5 10 5 17" /><polyline points="6 2 6 5 12 5" /></svg>
+              </button>
+              <button class="ide-tab-action" @click="handleSave" :title="saveTooltip" aria-label="Save">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 a2-2h11l5 5v11a2 2 0 0 2-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
+              </button>
+            </div>
+          </template>
+        </LumFileTabs>
       </div>
-
-      <div v-if="rightTool" class="lum-resizer ide-dock-resizer" @mousedown="startDockResize('right', $event)" :class="{ 'is-dragging': resizeAnchor === 'right' }"></div>
-      <aside v-if="rightTool" class="ide-dock ide-dock-right" :style="{ width: sizes.right + 'px' }">
-        <keep-alive><component :is="rightTool.component" :workspace-path="activeWorkspace.path" @hide="close('right')" /></keep-alive>
-      </aside>
-
+      <div class="ide-editor-surface">
+        <LumEditor v-if="activeFile" v-model="editorValue" :model-key="activeFile.id" :language="activeFile.language" />
+        <div v-else class="ide-empty"><p>Open a file from the project explorer to start editing.</p></div>
+      </div>
+      <div v-if="bottomTool" class="lum-resizer ide-bottom-resizer" @mousedown="startDockResize('bottom', $event)" :class="{ 'is-dragging': resizeAnchor === 'bottom' }"></div>
+      <section v-if="bottomTool" class="ide-bottom-dock" :style="{ height: sizes.bottom + 'px' }">
+        <keep-alive><component :is="bottomTool.component" :workspace-path="activeWorkspace.path" @hide="close('bottom')" /></keep-alive>
+      </section>
     </div>
 
-    <div class="ide-bottom-toolstripe"><LumToolStripe side="right" :top="[]" :bottom="bottomTools" :active-ids="activeIds" @toggle="toggleTool" /></div>\n    <div v-if="bottomTool" class="lum-resizer ide-bottom-resizer" @mousedown="startDockResize('bottom', $event)" :class="{ 'is-dragging': resizeAnchor === 'bottom' }"></div>
-    <section v-if="bottomTool" class="ide-bottom-dock" :style="{ height: sizes.bottom + 'px' }">
-      <keep-alive><component :is="bottomTool.component" :workspace-path="activeWorkspace.path" @hide="close('bottom')" /></keep-alive>
-    </section>
+    <div v-if="rightTool" class="lum-resizer ide-dock-resizer" @mousedown="startDockResize('right', $event)" :class="{ 'is-dragging': resizeAnchor === 'right' }"></div>
+    <aside v-if="rightTool" class="ide-dock ide-dock-right" :style="{ width: sizes.right + 'px' }">
+      <keep-alive><component :is="rightTool.component" :workspace-path="activeWorkspace.path" @hide="close('right')" /></keep-alive>
+    </aside>
+    <LumToolStripe side="right" :top="rightTools" :active-ids="activeIds" @toggle="toggleTool" />
+  </div>
   </div>
   <div v-else-if="editorLoadError" class="ide-load-error">{{ editorLoadError }}</div>
   <div v-else class="ide-loading">Loading workspace…</div>
@@ -198,9 +199,9 @@ onBeforeUnmount(() => {
 .ide-dock-right { border-left:1px solid var(--lum-border); }
 .ide-dock-resizer { flex-shrink:0; width:4px; cursor:col-resize; z-index:var(--lum-z-sticky); touch-action:none; }
 .ide-dock-resizer:hover,.ide-dock-resizer.is-dragging,.ide-bottom-resizer:hover,.ide-bottom-resizer.is-dragging { background:var(--lum-accent); }
-.ide-bottom-toolstripe { flex:0 0 auto; display:flex; justify-content:flex-end; height:36px; background:var(--lum-bg-surface); border-top:1px solid var(--lum-border); }\n.ide-bottom-toolstripe :deep(.lum-stripe) { width:auto; height:36px; flex-direction:row; padding:2px 6px; border:0; }\n.ide-bottom-toolstripe :deep(.lum-stripe-group) { flex-direction:row; }\n.ide-bottom-toolstripe :deep(.lum-stripe-spacer) { display:none; }\n.ide-bottom-toolstripe :deep(.lum-stripe-btn) { width:32px; height:32px; }\n.ide-bottom-resizer { height:4px; flex:0 0 auto; cursor:row-resize; }
+\n\n\n\n\n.ide-bottom-resizer { height:4px; flex:0 0 auto; cursor:row-resize; }
 .ide-bottom-dock { flex:0 0 auto; min-height:0; overflow:hidden; border-top:1px solid var(--lum-border); }
-.ide-editor-area { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; min-height:0; }
+.ide-editor-area { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; min-height:0; overflow:hidden; }
 .ide-tabs { flex-shrink:0; }
 .ide-tab-actions { display:flex; gap:4px; }
 .ide-tab-action { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border:none; background:transparent; color:var(--lum-fg-muted); cursor:pointer; border-radius:var(--lum-radius-sm); }
