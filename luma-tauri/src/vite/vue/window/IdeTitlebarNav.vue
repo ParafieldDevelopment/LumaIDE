@@ -170,7 +170,7 @@ async function openDevtools() {
   <div ref="navRef" class="ide-titlebar-nav" data-tauri-drag-region="false">
     <!-- Brand badge -->
     <div class="brand-badge" title="Luma IDE">
-      <span class="brand-text">LM</span>
+      <img src="/logo.svg" alt="Luma" class="brand-logo" />
     </div>
 
     <!-- Main menu button (hamburger) -->
@@ -381,21 +381,19 @@ async function openDevtools() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  background: var(--lum-bg-sunken);
-  border: 1px solid var(--lum-orange-400, #f59e4c);
-  border-radius: 4px;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
   margin-right: 2px;
   flex-shrink: 0;
+  background: var(--lum-orange-400, rgb(168 43 146 / 0));
 }
 
-.brand-text {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--lum-orange-400, #f59e4c);
-  font-family: var(--lum-font-mono);
-  letter-spacing: -0.5px;
+.brand-logo {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  display: block;
 }
 
 .menu-container {
