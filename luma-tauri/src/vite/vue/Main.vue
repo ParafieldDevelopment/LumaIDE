@@ -23,14 +23,14 @@ const { toast } = useToasts();
 const tools = useToolWindows();
 
 registerToolWindow({ id: "project-explorer", title: "Project", position: "left-top", icon: FolderIcon, component: ProjectExplorerPanel, order: 10, hotkey: "Alt+1", defaultOpen: true });
-registerToolWindow({ id: "git-commit", title: "Git Commit", position: "left-bottom", icon: CommitIcon, component: GitCommitPanel, order: 20, hotkey: "Alt+9" });
-registerToolWindow({ id: "terminal", title: "Terminal", position: "right-bottom", icon: TerminalIcon, component: TerminalPanel, order: 10, hotkey: "Alt+F12", defaultOpen: true });
+registerToolWindow({ id: "git-commit", title: "Commit", position: "left-top", icon: CommitIcon, component: GitCommitPanel, order: 20, hotkey: "Alt+0" });
+registerToolWindow({ id: "terminal", title: "Terminal", position: "left-bottom", icon: TerminalIcon, component: TerminalPanel, order: 20, hotkey: "Alt+F12" });
 registerToolWindow({ id: "analyzer", title: "Analyzer", position: "left-bottom", icon: AnalyzerIcon, component: AnalyzerPanel, order: 30, hotkey: "Ctrl+Shift+A" });
 registerToolWindow({ id: "notifications", title: "Notifications", position: "right-top", icon: NotificationIcon, component: NotificationsPanel, order: 20 });
 
 const {
   leftTopTools, leftBottomTools, rightTopTools, rightBottomTools,
-  leftTool, rightTool, activeIds, sizes, toggle, close, setSize, handleHotkey, move,
+  leftTool, rightTool, bottomTool, activeIds, sizes, toggle, close, setSize, handleHotkey, move,
 } = tools;
 
 const activeWorkspace = ref<ActiveWorkspace | null>(null);
@@ -40,7 +40,7 @@ let resizeInitial = 0;
 
 function startDockResize(side: ToolSide, event: MouseEvent) {
   resizeSide.value = side;
-  resizeStart = event.clientX;
+  resizeStart = side === "bottom" ? event.clientY : event.clientX;
   resizeInitial = sizes[side];
   window.addEventListener("mousemove", onDockResize);
   window.addEventListener("mouseup", stopDockResize);
@@ -50,7 +50,11 @@ function startDockResize(side: ToolSide, event: MouseEvent) {
 function onDockResize(event: MouseEvent) {
   const side = resizeSide.value;
   if (!side) return;
-  const delta = side === "left" ? event.clientX - resizeStart : resizeStart - event.clientX;
+  const delta = side === "left"
+    ? event.clientX - resizeStart
+    : side === "right"
+      ? resizeStart - event.clientX
+      : resizeStart - event.clientY;
   setSize(side, resizeInitial + delta);
 }
 
@@ -212,20 +216,23 @@ onBeforeUnmount(() => {
 
   <div v-if="activeWorkspace" class="ide-shell">
     <div class="ide-main-row">
-      <div class="ide-edge ide-edge-left">
-        <LumToolStripe
-          side="left"
-          :top="leftTopTools"
-          :bottom="leftBottomTools"
-          :active-ids="activeIds"
-          :drop-target="dragTarget"
-          @toggle="toggleTool"
-          @dragstart="beginToolDrag"
-          @dragend="endToolDrag"
-          @dragover="allowToolDrop"
-          @dragleave="clearDropTarget"
-          @drop="dropTool"
-        />
+      <LumToolStripe
+        class="ide-stripe-left"
+        side="left"
+        :top="leftTopTools"
+        :bottom="leftBottomTools"
+        :active-ids="activeIds"
+        :drop-target="dragTarget"
+        @toggle="toggleTool"
+        @dragstart="beginToolDrag"
+        @dragend="endToolDrag"
+        @dragover="allowToolDrop"
+        @dragleave="clearDropTarget"
+        @drop="dropTool"
+      />
+
+      <div class="ide-center">
+      <div class="ide-upper-row">
         <aside v-if="leftTool" class="ide-dock ide-dock-left" :style="{ width: sizes.left + 'px' }">
           <keep-alive>
             <component :is="leftTool.component" :workspace-path="activeWorkspace.path" @hide="close('left')" />
@@ -237,7 +244,6 @@ onBeforeUnmount(() => {
           :class="{ 'is-dragging': resizeSide === 'left' }"
           @mousedown="startDockResize('left', $event)"
         />
-      </div>
 
       <div class="ide-editor-area">
         <div class="ide-tabs">
@@ -269,7 +275,6 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <div class="ide-edge ide-edge-right">
         <div
           v-if="rightTool"
           class="lum-resizer ide-dock-resizer"
@@ -281,20 +286,35 @@ onBeforeUnmount(() => {
             <component :is="rightTool.component" :workspace-path="activeWorkspace.path" @hide="close('right')" />
           </keep-alive>
         </aside>
-        <LumToolStripe
-          side="right"
-          :top="rightTopTools"
-          :bottom="rightBottomTools"
-          :active-ids="activeIds"
-          :drop-target="dragTarget"
-          @toggle="toggleTool"
-          @dragstart="beginToolDrag"
-          @dragend="endToolDrag"
-          @dragover="allowToolDrop"
-          @dragleave="clearDropTarget"
-          @drop="dropTool"
-        />
       </div>
+
+        <div
+          v-if="bottomTool"
+          class="lum-resizer ide-dock-resizer-h"
+          :class="{ 'is-dragging': resizeSide === 'bottom' }"
+          @mousedown="startDockResize('bottom', $event)"
+        />
+        <aside v-if="bottomTool" class="ide-dock ide-dock-bottom" :style="{ height: sizes.bottom + 'px' }">
+          <keep-alive>
+            <component :is="bottomTool.component" :workspace-path="activeWorkspace.path" @hide="close('bottom')" />
+          </keep-alive>
+        </aside>
+      </div>
+
+      <LumToolStripe
+        class="ide-stripe-right"
+        side="right"
+        :top="rightTopTools"
+        :bottom="rightBottomTools"
+        :active-ids="activeIds"
+        :drop-target="dragTarget"
+        @toggle="toggleTool"
+        @dragstart="beginToolDrag"
+        @dragend="endToolDrag"
+        @dragover="allowToolDrop"
+        @dragleave="clearDropTarget"
+        @drop="dropTool"
+      />
     </div>
   </div>
 
@@ -321,26 +341,48 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-.ide-edge {
-  display: flex;
-  flex: 0 0 auto;
-  min-width: 40px;
-  min-height: 0;
-  transition: background var(--lum-transition-fast);
-}
-
-.ide-edge-left {
+.ide-stripe-left {
   border-right: 1px solid var(--lum-border);
 }
 
-.ide-edge-right {
+.ide-stripe-right {
   border-left: 1px solid var(--lum-border);
 }
 
-.ide-edge.is-drop-target {
-  background: var(--lum-accent-muted);
-  outline: 1px dashed var(--lum-accent);
-  outline-offset: -2px;
+/* Side docks + editor on top, bottom dock underneath, all between the stripes. */
+.ide-center {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ide-upper-row {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ide-dock-bottom {
+  width: 100%;
+  border-top: 1px solid var(--lum-border);
+}
+
+.ide-dock-resizer-h {
+  flex: 0 0 3px;
+  height: 3px;
+  width: 100%;
+  cursor: row-resize;
+  touch-action: none;
+}
+
+.ide-dock-resizer-h:hover,
+.ide-dock-resizer-h.is-dragging {
+  background: var(--lum-accent);
 }
 
 .ide-dock {
