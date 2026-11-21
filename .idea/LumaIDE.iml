@@ -10,10 +10,14 @@
       <sourceFolder url="file://$MODULE_DIR$/luma-crash-handler/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/luma-api/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/luma-core/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/extensions/example_extension/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/luma-extensions/examples" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/dist" />
       <excludeFolder url="file://$MODULE_DIR$/gen" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/vite_dist" />
+      <excludeFolder url="file://$MODULE_DIR$/extensions/example_extension/.pack" />
+      <excludeFolder url="file://$MODULE_DIR$/extensions/example_extension/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
