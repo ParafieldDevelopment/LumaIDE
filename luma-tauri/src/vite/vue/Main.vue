@@ -36,7 +36,7 @@ const {
 } = tools;
 
 const activeWorkspace = ref<ActiveWorkspace | null>(null);
-const resizeSide = ref<ToolSide | null>(null);
+const resizeSide = ref<ToolSide | "bottom-split" | null>(null);
 let resizeStart = 0;
 let resizeInitial = 0;
 
@@ -51,7 +51,7 @@ function startDockResize(side: ToolSide, event: MouseEvent) {
 
 function onDockResize(event: MouseEvent) {
   const side = resizeSide.value;
-  if (!side) return;
+  if (!side || side === "bottom-split") return;
   const delta = side === "left"
     ? event.clientX - resizeStart
     : side === "right"
@@ -68,6 +68,37 @@ function stopDockResize() {
   resizeSide.value = null;
   window.removeEventListener("mousemove", onDockResize);
   window.removeEventListener("mouseup", stopDockResize);
+}
+
+let bottomSplitStart = 0;
+let bottomSplitInitialLeft = 0;
+let bottomSplitInitialRight = 0;
+
+function startBottomSplitResize(event: MouseEvent) {
+  resizeSide.value = "bottom-split";
+  bottomSplitStart = event.clientX;
+  bottomSplitInitialLeft = sizes["bottom-left"];
+  bottomSplitInitialRight = sizes["bottom-right"];
+  window.addEventListener("mousemove", onBottomSplitResize);
+  window.addEventListener("mouseup", stopBottomSplitResize);
+  event.preventDefault();
+}
+
+function onBottomSplitResize(event: MouseEvent) {
+  const delta = event.clientX - bottomSplitStart;
+  let newLeft = bottomSplitInitialLeft + delta;
+  let newRight = bottomSplitInitialRight - delta;
+  const min = 200;
+  newLeft = Math.max(min, newLeft);
+  newRight = Math.max(min, newRight);
+  setSize("bottom-left", newLeft);
+  setSize("bottom-right", newRight);
+}
+
+function stopBottomSplitResize() {
+  resizeSide.value = null;
+  window.removeEventListener("mousemove", onBottomSplitResize);
+  window.removeEventListener("mouseup", stopBottomSplitResize);
 }
 
 function toggleTool(id: string) {
@@ -317,6 +348,7 @@ function onVisibilityChange() {
 
 onBeforeUnmount(() => {
   stopDockResize();
+  stopBottomSplitResize();
   cleanupToolDrag();
   if (autosaveTimer) clearTimeout(autosaveTimer);
   autosaveTimer = null;
@@ -414,7 +446,7 @@ onBeforeUnmount(() => {
           @mousedown="startDockResize('bottom', $event)"
         />
         <div v-if="bottomLeftTool || bottomRightTool" class="ide-bottom-row" :style="{ height: sizes.bottom + 'px' }">
-          <aside v-if="bottomLeftTool" class="ide-dock ide-dock-bottom-left" :style="{ width: sizes['bottom-left'] + 'px' }">
+          <aside v-if="bottomLeftTool" class="ide-dock ide-dock-bottom-left" :style="{ flex: `1 1 ${sizes['bottom-left']}px`, minWidth: '200px' }">
             <keep-alive>
               <component
                 :is="bottomLeftTool.component"
@@ -423,7 +455,12 @@ onBeforeUnmount(() => {
               />
             </keep-alive>
           </aside>
-          <aside v-if="bottomRightTool" class="ide-dock ide-dock-bottom-right" :style="{ width: sizes['bottom-right'] + 'px' }">
+          <div
+            v-if="bottomLeftTool && bottomRightTool"
+            class="lum-resizer ide-dock-resizer-v"
+            @mousedown="startBottomSplitResize($event)"
+          />
+          <aside v-if="bottomRightTool" class="ide-dock ide-dock-bottom-right" :style="{ flex: `1 1 ${sizes['bottom-right']}px`, minWidth: '200px' }">
             <keep-alive>
               <component
                 :is="bottomRightTool.component"
@@ -530,6 +567,20 @@ onBeforeUnmount(() => {
 
 .ide-dock-resizer-h:hover,
 .ide-dock-resizer-h.is-dragging {
+  background: var(--lum-accent);
+}
+
+.ide-dock-resizer-v {
+  flex: 0 0 3px;
+  width: 3px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+}
+
+.ide-dock-resizer-v:hover,
+.ide-dock-resizer-v.is-dragging {
   background: var(--lum-accent);
 }
 

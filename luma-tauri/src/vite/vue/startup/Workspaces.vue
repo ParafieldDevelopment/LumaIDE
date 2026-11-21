@@ -7,7 +7,6 @@ import ModalNewWorkspace from "~/vue/startup/ModalNewWorkspace.vue";
 import { computed, onMounted, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { askOpenMode } from "~/vue/composables/useConfirm";
 
 interface RecentWorkspace {
   project_uuid: string;
@@ -66,11 +65,8 @@ async function openWorkspace() {
       title: "Open Workspace Folder",
     });
     if (typeof selected !== "string") return;
-    const folderName = selected.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || selected;
-    const mode = await askOpenMode(folderName);
-    if (mode === "cancel") return;
     opening.value = true;
-    await invoke("open_workspace", { path: selected, new_window: mode === "new" });
+    await invoke("open_workspace", { path: selected });
   } catch (error) {
     actionError.value = `Unable to open workspace: ${String(error)}`;
   } finally {
@@ -111,10 +107,7 @@ async function openRecentWorkspace(workspace: Workspace) {
   actionError.value = "";
   opening.value = true;
   try {
-    const mode = await askOpenMode(workspace.title);
-    if (mode !== "cancel") {
-      await invoke("open_workspace", { path: workspace.path, new_window: mode === "new" });
-    }
+    await invoke("open_workspace", { path: workspace.path });
   } catch (error) {
     actionError.value = `Unable to open workspace: ${String(error)}`;
   } finally {
