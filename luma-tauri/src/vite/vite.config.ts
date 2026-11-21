@@ -13,6 +13,10 @@ export default defineConfig({
   server: {
     port: 1420,
     strictPort: true,
+    fs: {
+      // Allow importing from ../splash (outside the Vite root).
+      allow: [resolve(__dirname, "..")],
+    },
   },
 
   build: {
@@ -22,7 +26,8 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, "windows" ,"main.html"),
         settings: resolve(__dirname, "windows", "settings.html"),
-        startup: resolve(__dirname, "windows", "startup.html")
+        startup: resolve(__dirname, "windows", "startup.html"),
+        splash: resolve(__dirname, "windows", "splash.html")
       }
     }
   },
@@ -30,6 +35,7 @@ export default defineConfig({
     alias: {
       // "~" maps to the Vite project root (there is no ./src directory here).
       "~": fileURLToPath(new URL(".", import.meta.url)),
+      "@splash": resolve(__dirname, "../splash"),
     },
   },
 });

@@ -3,6 +3,7 @@ pub mod base_invokes;
 mod error_report;
 pub mod file_system;
 pub mod settings_window;
+pub mod splash_window;
 pub mod startup_window;
 pub mod tauri_utils;
 
@@ -127,6 +128,8 @@ fn build_tauri_app() -> Result<tauri::App> {
                 // full path stores window state in Roaming/Luma instead of the
                 // bundle-identifier directory.
                 .with_filename(window_state_path.to_string_lossy().into_owned())
+                // The splash has a fixed size and position.
+                .with_denylist(&[splash_window::SPLASH_LABEL])
                 .build(),
         )
         .invoke_handler(tauri::generate_handler![
@@ -162,7 +165,10 @@ fn build_tauri_app() -> Result<tauri::App> {
         .setup(|app| {
             log::info!("Tauri ready");
 
-
+            // Splash first; the startup window stays hidden until the splash
+            // has been up for its minimum time (see base_invokes::webview_ready).
+            splash_window::splash_window(app.handle().clone())
+                .context("Failed to initialize splash window")?;
 
             startup_window::startup_window(app.handle().clone())
                 .context("Failed to initialize startup window")?;
