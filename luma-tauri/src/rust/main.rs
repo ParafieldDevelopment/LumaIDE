@@ -3,6 +3,7 @@ pub mod base_invokes;
 mod error_report;
 pub mod file_system;
 pub mod settings_window;
+pub mod shell;
 pub mod splash_window;
 pub mod startup_window;
 pub mod tauri_utils;
@@ -10,6 +11,7 @@ pub mod tauri_utils;
 use anyhow::{Context, Result};
 use luma_diagnostics::ErrorReport;
 use std::panic::{self, AssertUnwindSafe};
+use std::path::Path;
 use std::process::ExitCode;
 use tauri::webview::Color;
 use tauri_plugin_prevent_default::Flags;
@@ -83,7 +85,11 @@ fn main() -> ExitCode {
 
     let run_outcome = panic::catch_unwind(AssertUnwindSafe(move || {
         let app = app;
-        app.run_return(move |_, _| {})
+        app.run_return(move |_, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                shell::terminal_close_all_sessions();
+            }
+        })
     }));
 
     match run_outcome {
@@ -115,7 +121,22 @@ fn build_tauri_app() -> Result<tauri::App> {
                 .with_flags(Flags::all() & !Flags::CONTEXT_MENU & !Flags::DEV_TOOLS)
                 .build(),
         )
-        .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}))
+        .plugin(
+            tauri_plugin_single_instance::init(move |app, args, _cwd| {
+                // A second instance was launched (e.g. opening a folder with LumaIDE).
+                // Forward the project path to this instance so it opens here instead of
+                // starting a whole second copy of the IDE.
+                if let Some(path) = args.into_iter().skip(1).find(|a| !a.starts_with('-') && !a.is_empty()) {
+                    let app = app.clone();
+                    tauri::async_runtime::spawn(async move {
+                        if Path::new(&path).is_dir() {
+                            let label = base_invokes::free_main_label(&app);
+                            let _ = base_invokes::open_workspace_with_label(&app, &path, &label).await;
+                        }
+                    });
+                }
+            })
+        )
         .plugin(
             tauri_plugin_window_state::Builder::new()
                 // DECORATIONS would re-apply a saved `decorations: true` on top of
@@ -141,6 +162,8 @@ fn build_tauri_app() -> Result<tauri::App> {
             base_invokes::create_workspace,
             base_invokes::get_active_workspace,
             base_invokes::get_recent_workspaces,
+            base_invokes::load_tool_window_layout,
+            base_invokes::save_tool_window_layout,
             base_invokes::remove_recent_workspace,
             base_invokes::reveal_workspace,
             // file_system
@@ -151,6 +174,15 @@ fn build_tauri_app() -> Result<tauri::App> {
             file_system::create_file,
             file_system::create_directory,
             file_system::delete_entry,
+            // shell (tool windows)
+            shell::git_command,
+            shell::terminal_open_session,
+            shell::terminal_list_sessions,
+            shell::terminal_write,
+            shell::terminal_resize,
+            shell::terminal_read,
+            shell::terminal_close_session,
+            
         ])
         .plugin(
             tauri_plugin_log::Builder::new()
@@ -180,3 +212,8 @@ fn build_tauri_app() -> Result<tauri::App> {
 
     Ok(app)
 }
+
+
+
+
+

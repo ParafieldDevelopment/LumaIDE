@@ -1,4 +1,4 @@
-use crate::base_invokes::active_workspace;
+use crate::base_invokes::workspace_for_window;
 use anyhow::{Context, Result as AnyResult};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -19,13 +19,9 @@ pub struct DirectoryTree {
     pub children: Option<Vec<DirectoryTree>>,
 }
 
-fn workspace_root() -> AnyResult<PathBuf> {
-    let guard = active_workspace()
-        .read()
-        .map_err(|error| anyhow::anyhow!("Failed to read active workspace lock: {error}"))?;
-    let project = guard
-        .as_ref()
-        .context("No active workspace")?;
+/// Root of the workspace open in the IDE window with this label.
+fn workspace_root(label: &str) -> AnyResult<PathBuf> {
+    let project = workspace_for_window(label).context("No active workspace")?;
     PathBuf::from(&project.path)
         .canonicalize()
         .context("Active workspace path does not exist")
@@ -41,8 +37,8 @@ fn is_within(root: &Path, path: &Path) -> bool {
     }
 }
 
-fn resolve_within_workspace(path: &Path) -> AnyResult<PathBuf> {
-    let root = workspace_root()?;
+fn resolve_within_workspace(label: &str, path: &Path) -> AnyResult<PathBuf> {
+    let root = workspace_root(label)?;
     let path = if path.is_relative() {
         root.join(path)
     } else {
@@ -55,8 +51,8 @@ fn resolve_within_workspace(path: &Path) -> AnyResult<PathBuf> {
     Ok(canonical)
 }
 
-fn resolve_target_within_workspace(path: &Path) -> AnyResult<PathBuf> {
-    let root = workspace_root()?;
+fn resolve_target_within_workspace(label: &str, path: &Path) -> AnyResult<PathBuf> {
+    let root = workspace_root(label)?;
     let path = if path.is_relative() {
         root.join(path)
     } else {
@@ -77,9 +73,9 @@ fn resolve_target_within_workspace(path: &Path) -> AnyResult<PathBuf> {
 }
 
 #[tauri::command]
-pub async fn read_file(path: String) -> Result<String, InvokeError> {
+pub async fn read_file(window: tauri::WebviewWindow, path: String) -> Result<String, InvokeError> {
     let target = PathBuf::from(&path);
-    let canonical = resolve_within_workspace(&target).map_err(InvokeError::from_anyhow)?;
+    let canonical = resolve_within_workspace(window.label(), &target).map_err(InvokeError::from_anyhow)?;
     if !canonical.is_file() {
         return Err(InvokeError::from_anyhow(anyhow::anyhow!(
             "Not a file: {}",
@@ -92,13 +88,13 @@ pub async fn read_file(path: String) -> Result<String, InvokeError> {
 }
 
 #[tauri::command]
-pub async fn write_file(path: String, contents: String) -> Result<(), InvokeError> {
+pub async fn write_file(window: tauri::WebviewWindow, path: String, contents: String) -> Result<(), InvokeError> {
     let target = PathBuf::from(&path);
     let parent = target
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
         .unwrap_or(target.as_path());
-    resolve_within_workspace(parent).map_err(InvokeError::from_anyhow)?;
+    resolve_within_workspace(window.label(), parent).map_err(InvokeError::from_anyhow)?;
 
     if let Some(parent) = target.parent() {
         std::fs::create_dir_all(parent)
@@ -120,9 +116,9 @@ pub async fn write_file(path: String, contents: String) -> Result<(), InvokeErro
 }
 
 #[tauri::command]
-pub async fn create_file(path: String) -> Result<String, InvokeError> {
+pub async fn create_file(window: tauri::WebviewWindow, path: String) -> Result<String, InvokeError> {
     let target = PathBuf::from(&path);
-    let resolved = resolve_target_within_workspace(&target).map_err(InvokeError::from_anyhow)?;
+    let resolved = resolve_target_within_workspace(window.label(), &target).map_err(InvokeError::from_anyhow)?;
     if resolved.exists() {
         return Err(InvokeError::from_anyhow(anyhow::anyhow!(
             "File already exists: {}",
@@ -136,9 +132,9 @@ pub async fn create_file(path: String) -> Result<String, InvokeError> {
 }
 
 #[tauri::command]
-pub async fn create_directory(path: String) -> Result<String, InvokeError> {
+pub async fn create_directory(window: tauri::WebviewWindow, path: String) -> Result<String, InvokeError> {
     let target = PathBuf::from(&path);
-    let resolved = resolve_target_within_workspace(&target).map_err(InvokeError::from_anyhow)?;
+    let resolved = resolve_target_within_workspace(window.label(), &target).map_err(InvokeError::from_anyhow)?;
     if resolved.exists() {
         return Err(InvokeError::from_anyhow(anyhow::anyhow!(
             "Directory already exists: {}",
@@ -152,10 +148,10 @@ pub async fn create_directory(path: String) -> Result<String, InvokeError> {
 }
 
 #[tauri::command]
-pub async fn delete_entry(path: String) -> Result<(), InvokeError> {
+pub async fn delete_entry(window: tauri::WebviewWindow, path: String) -> Result<(), InvokeError> {
     let target = PathBuf::from(&path);
-    let canonical = resolve_within_workspace(&target).map_err(InvokeError::from_anyhow)?;
-    let root = workspace_root().map_err(InvokeError::from_anyhow)?;
+    let canonical = resolve_within_workspace(window.label(), &target).map_err(InvokeError::from_anyhow)?;
+    let root = workspace_root(window.label()).map_err(InvokeError::from_anyhow)?;
     if canonical == root {
         return Err(InvokeError::from_anyhow(anyhow::anyhow!(
             "Cannot delete the workspace root"
@@ -173,9 +169,9 @@ pub async fn delete_entry(path: String) -> Result<(), InvokeError> {
 }
 
 #[tauri::command]
-pub async fn read_directory(path: String) -> Result<Vec<FileEntry>, InvokeError> {
+pub async fn read_directory(window: tauri::WebviewWindow, path: String) -> Result<Vec<FileEntry>, InvokeError> {
     let target = PathBuf::from(&path);
-    let canonical = resolve_within_workspace(&target).map_err(InvokeError::from_anyhow)?;
+    let canonical = resolve_within_workspace(window.label(), &target).map_err(InvokeError::from_anyhow)?;
     if !canonical.is_dir() {
         return Err(InvokeError::from_anyhow(anyhow::anyhow!(
             "Not a directory: {}",
@@ -217,9 +213,9 @@ pub async fn read_directory(path: String) -> Result<Vec<FileEntry>, InvokeError>
 }
 
 #[tauri::command]
-pub async fn read_directory_tree(path: String) -> Result<DirectoryTree, InvokeError> {
+pub async fn read_directory_tree(window: tauri::WebviewWindow, path: String) -> Result<DirectoryTree, InvokeError> {
     let target = PathBuf::from(&path);
-    let canonical = resolve_within_workspace(&target).map_err(InvokeError::from_anyhow)?;
+    let canonical = resolve_within_workspace(window.label(), &target).map_err(InvokeError::from_anyhow)?;
     if !canonical.is_dir() {
         return Err(InvokeError::from_anyhow(anyhow::anyhow!(
             "Not a directory: {}",

@@ -17,6 +17,8 @@ interface WorkspaceCreated {
 const props = defineProps<{
   onCreated?: (workspace: WorkspaceCreated) => void | Promise<void>;
   onClose?: () => void;
+  /** When set (inside the IDE), the parent decides how to open the new workspace. */
+  onOpenWorkspace?: (path: string, title: string) => void | Promise<void>;
 }>();
 
 const groups = computed(() => groupedProjectTypes());
@@ -123,6 +125,13 @@ async function createWorkspace() {
       template: templateId.value || null,
       files: files.length > 0 ? files : null,
     });
+    if (props.onOpenWorkspace) {
+      // Close this modal first so the "open in this/new window" prompt isn't queued behind it.
+      await props.onCreated?.(workspace);
+      props.onClose?.();
+      await props.onOpenWorkspace(workspace.path, workspace.title);
+      return;
+    }
     await invoke("open_workspace", { path: workspace.path });
     await props.onCreated?.(workspace);
     props.onClose?.();
