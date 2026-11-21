@@ -20,18 +20,26 @@ async function refresh() {
   loading.value = true; error.value = "";
   try {
     const [s, d, staged] = await Promise.all([runGit(props.workspacePath, ["status", "--short", "--branch"]), runGit(props.workspacePath, ["diff", "--stat"]), runGit(props.workspacePath, ["diff", "--cached", "--stat"])]);
+    const notARepo = s.stderr.includes("not a git repository");
+    if (notARepo) {
+      gitInitialized.value = false;
+      error.value = "Git is not initialized";
+      status.value = "";
+      diff.value = "";
+      stagedDiff.value = "";
+      return;
+    }
     status.value = s.stdout || s.stderr;
     diff.value = d.stdout || (d.stderr ? d.stderr : "Working tree clean");
     stagedDiff.value = staged.stdout || (staged.stderr ? staged.stderr : "No staged changes");
     if (s.code !== 0) {
-      const notARepo = s.stderr.includes("not a git repository");
       gitInitialized.value = false;
-      if (notARepo) error.value = "Git is not initialized";
-      else error.value = s.stderr || "Git status failed";
+      error.value = s.stderr || "Git status failed";
     } else {
       gitInitialized.value = true;
+      error.value = "";
     }
-  } catch (e) { error.value = String(e); gitInitialized.value = false; }
+  } catch (e) { error.value = String(e); gitInitialized.value = false; status.value = ""; diff.value = ""; stagedDiff.value = ""; }
   finally { loading.value = false; }
 }
 async function initGit() {
@@ -73,13 +81,19 @@ onMounted(refresh);
         <button @click="stageAll" :disabled="loading">Stage All</button>
         <button v-if="!gitInitialized" @click="initGit" :disabled="loading" class="lum-git-init">Init Git Repo</button>
       </div>
-      <label class="lum-git-label">Changes</label>
-      <pre class="lum-git-status">{{ status || "Loading status…" }}</pre>
-      <label class="lum-git-label">Unstaged diff summary</label>
-      <pre class="lum-git-diff">{{ diff || "No changes" }}</pre>
-      <label class="lum-git-label">Staged diff summary</label>
-      <pre class="lum-git-diff">{{ stagedDiff || "No staged changes" }}</pre>
-      <div class="lum-git-message">
+      <div class="lum-git-not-init" v-if="!gitInitialized">
+        <p class="lum-git-error">{{ error }}</p>
+        <p class="lum-git-hint">This project is not a git repository. Click "Init Git Repo" to initialize one.</p>
+      </div>
+      <div v-else>
+        <label class="lum-git-label">Changes</label>
+        <pre class="lum-git-status">{{ status || "Loading status…" }}</pre>
+        <label class="lum-git-label">Unstaged diff summary</label>
+        <pre class="lum-git-diff">{{ diff || "No changes" }}</pre>
+        <label class="lum-git-label">Staged diff summary</label>
+        <pre class="lum-git-diff">{{ stagedDiff || "No staged changes" }}</pre>
+      </div>
+      <div class="lum-git-message" v-if="gitInitialized">
         <label class="lum-git-label" for="lum-commit-message">Commit message</label>
         <textarea id="lum-commit-message" v-model="message" rows="3" placeholder="Describe your changes"></textarea>
         <button class="lum-git-commit" @click="commit" :disabled="committing || loading || !message.trim()">Commit staged changes</button>
@@ -100,4 +114,5 @@ onMounted(refresh);
 .lum-git-commit { width:100%; margin-top:8px; background:var(--lum-accent-muted); }
 .lum-git-success { color:var(--lum-success, #45a36a); white-space:pre-wrap; }
 .lum-git-error { color:var(--lum-danger); white-space:pre-wrap; overflow-wrap:anywhere; }
+.lum-git-hint { color:var(--lum-fg-muted); margin-top:6px; font-size:var(--lum-text-sm); }
 </style>
