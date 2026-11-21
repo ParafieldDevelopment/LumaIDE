@@ -45,6 +45,8 @@ export { default as LumToasts } from "./LumToasts.vue";
 export { default as LumTooltip } from "./LumTooltip.vue";
 export { default as LumTree } from "./LumTree.vue";
 export { default as LumTreeNode } from "./LumTreeNode.vue";
+export { default as LumToolStripe } from "./LumToolStripe.vue";
+export { default as LumToolWindow } from "./LumToolWindow.vue";
 
 export * from "./types";
 export * from "./toasts";
