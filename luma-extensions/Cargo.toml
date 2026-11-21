@@ -3,9 +3,29 @@ name = "luma-extensions"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = ["host", "native", "wasm"]
+# Host-side discovery/extraction. Guests do not need ZIP support: enabling it
+# on wasm32 pulls in wasm-bindgen through `zip`'s getrandom dependency.
+host = ["dep:sha2", "dep:zip"]
+# Loading native cdylibs / DLLs through a stable C ABI. The ABI/macro layer is
+# always available to guests; this feature only enables the host-side loader.
+native = ["dep:libloading"]
+# Loading WASM modules through Wasmtime.
+wasm = ["dep:wasmtime"]
+
 [dependencies]
 luma-api = { path = "../luma-api" }
 log = "0.4.34"
 anyhow = "1.0.104"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+semver = { version = "1", features = ["serde"] }
+sha2 = { version = "0.10", optional = true }
+zip = { version = "9", default-features = false, features = ["deflate"], optional = true }
+libloading = { version = "0.8", optional = true }
+wasmtime = { version = "51", default-features = false, features = ["anyhow", "cranelift", "runtime", "std"], optional = true }
+
+[dev-dependencies]
+tempfile = "3"
+luma-core = { path = "../luma-core" }

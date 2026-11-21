@@ -23,17 +23,24 @@ const STARTUP_COLOR: Color = Color {
 fn run_setup() -> Result<()> {
     let coreapi = luma_core::init().context("Failed to initialize Luma core")?;
 
-    let mut manager = coreapi.get_ide_configuration().write().unwrap();
-
+    // Boot extensions before configuration is frozen, but do not hold the
+    // write lock while booting: extensions can call back into the
+    // configuration manager through the host API.
     luma_extensions::init(&coreapi).context("Failed to initialize Luma extensions")?;
 
-    manager.freeze(); // This is used to freeze configuration registries after extensions and core is initialized.
+    {
+        let mut manager = coreapi.get_ide_configuration().write().unwrap();
+        manager.freeze(); // Freeze registries after extensions and core are initialized.
+    }
 
     if let Ok(mut ws) = coreapi.get_workspace_configuration().write() {
         ws.freeze();
     }
 
-    manager
+    coreapi
+        .get_ide_configuration()
+        .write()
+        .unwrap()
         .load_global(&coreapi.get_configuration_dir())
         .context("Failed to load global configuration")?;
 

@@ -1,0 +1,130 @@
+name: Build extensions
+
+on:
+  push:
+    paths:
+      - 'extensions/**'
+      - 'luma-api/**'
+      - 'luma-core/**'
+      - 'luma-extensions/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/build-extensions.yml'
+  pull_request:
+    paths:
+      - 'extensions/**'
+      - 'luma-api/**'
+      - 'luma-core/**'
+      - 'luma-extensions/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/build-extensions.yml'
+  workflow_dispatch:
+
+# Each job produces a ready-to-drop-in ZIP: extension.json and all binaries
+# live at the archive root. Add more matrix entries here as CI runners become
+# available (Linux/macOS use the same layout with libexample_extension.so /
+# libexample_extension.dylib).
+jobs:
+  native:
+    name: Native (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            runner: windows-latest
+            library: example_extension.dll
+          - target: aarch64-pc-windows-msvc
+            runner: windows-latest
+            library: example_extension.dll
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Set up MSVC ARM64 build tools
+        if: matrix.target == 'aarch64-pc-windows-msvc'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: arm64
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: extensions/example_extension -> target
+
+      - name: Build native extension
+        run: cargo build --release --target ${{ matrix.target }} --manifest-path extensions/example_extension/Cargo.toml
+
+      - name: Package ZIP
+        shell: pwsh
+        run: |
+          $stage = "stage/${{ matrix.target }}"
+          $libDir = "$stage/native/${{ matrix.target }}"
+          New-Item -ItemType Directory -Force $libDir | Out-Null
+          Copy-Item extensions/example_extension/extension.json "$stage/extension.json"
+          Copy-Item "extensions/example_extension/target/${{ matrix.target }}/release/${{ matrix.library }}" "$libDir/${{ matrix.library }}"
+          Compress-Archive -Path "$stage/*" -DestinationPath "example-extension-${{ matrix.target }}.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: example-extension-${{ matrix.target }}
+          path: example-extension-${{ matrix.target }}.zip
+          if-no-files-found: error
+
+  wasm:
+    name: WASM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: extensions/example_extension -> target
+
+      - name: Build WASM extension
+        run: cargo build --release --target wasm32-unknown-unknown --manifest-path extensions/example_extension/Cargo.toml
+
+      - name: Package ZIP
+        run: |
+          mkdir -p stage/wasm
+          cp extensions/example_extension/extension.wasm.json stage/wasm/extension.json
+          cp extensions/example_extension/target/wasm32-unknown-unknown/release/example_extension.wasm stage/wasm/example_extension.wasm
+          (cd stage/wasm && zip ../../example-extension-wasm.zip extension.json example_extension.wasm)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: example-extension-wasm
+          path: example-extension-wasm.zip
+          if-no-files-found: error
+
+  release:
+    name: Collect artifacts
+    needs: [native, wasm]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Build combined archive
+        run: |
+          # Keep the individual extension ZIPs at the root so they can be
+          # extracted into LUMA_DIR/extensions and discovered directly.
+          mkdir -p dist
+          cp artifacts/*.zip dist/
+          (cd dist && zip ../luma-extensions.zip *.zip)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: luma-extensions
+          path: luma-extensions.zip
+          if-no-files-found: error

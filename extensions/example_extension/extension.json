@@ -1,0 +1,17 @@
+{
+  "name": "example-extension",
+  "description": "Example Luma extension, shipped as a native library per platform",
+  "version": "0.1.0",
+  "type": "native",
+  "entry": {
+    "x86_64-pc-windows-msvc": "native/x86_64-pc-windows-msvc/example_extension.dll",
+    "aarch64-pc-windows-msvc": "native/aarch64-pc-windows-msvc/example_extension.dll",
+    "x86_64-unknown-linux-gnu": "native/x86_64-unknown-linux-gnu/libexample_extension.so",
+    "aarch64-unknown-linux-gnu": "native/aarch64-unknown-linux-gnu/libexample_extension.so",
+    "x86_64-apple-darwin": "native/x86_64-apple-darwin/libexample_extension.dylib",
+    "aarch64-apple-darwin": "native/aarch64-apple-darwin/libexample_extension.dylib"
+  },
+  "dependencies": [],
+  "authors": ["You!"],
+  "license": "MIT"
+}

@@ -1,0 +1,20 @@
+[package]
+name = "example-extension"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "example_extension"
+crate-type = ["cdylib"]
+
+[dependencies]
+luma-api = { path = "../../luma-api" }
+anyhow = "1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# Native extensions only need the ABI/macro layer. The host-only discovery,
+# ZIP and libloading dependencies are not linked into the DLL/cdylib.
+luma-extensions = { path = "../../luma-extensions", default-features = false }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+luma-extensions = { path = "../../luma-extensions", default-features = false }

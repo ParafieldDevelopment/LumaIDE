@@ -15,5 +15,10 @@ node_modules/
 .idea/discord.xml
 .idea/workspace.xml
 
+# Extension build artifacts
+extensions/**/target/
+extensions/**/.pack/
+extensions/**/*.zip
+
 # Dev-Notes
 .ai/dev-notes.md

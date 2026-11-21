@@ -1,0 +1,10 @@
+{
+  "name": "example-extension-wasm",
+  "description": "Example Luma extension, built as a WASM module",
+  "version": "0.1.0",
+  "type": "wasm",
+  "entry": "example_extension.wasm",
+  "dependencies": [],
+  "authors": ["You!"],
+  "license": "MIT"
+}

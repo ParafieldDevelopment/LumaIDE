@@ -28,6 +28,16 @@ pub trait CoreAPI: Send + Sync {
 
 pub trait ExtensionsCoreAPI: Send + Sync {
     fn boot(&self, core_api: &Shared<dyn CoreAPI>) -> anyhow::Result<()>;
+
+    /// Names of extensions that are currently loaded.
+    fn loaded_extension_names(&self) -> Vec<String> {
+        Vec::new()
+    }
+
+    /// `name: error` descriptions of extensions that failed to load.
+    fn extension_failures(&self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 pub static CORE_API: OnceLock<Shared<dyn CoreAPI>> = OnceLock::new();

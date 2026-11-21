@@ -2,6 +2,10 @@
 
 members = ["luma-core", "luma-extensions", "luma-diagnostics", "luma-tauri", "luma-api"]
 
+exclude = [
+    "extensions/example_extension"
+]
+
 resolver = "2"
 
 [profile.release]
