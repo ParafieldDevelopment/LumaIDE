@@ -3,17 +3,55 @@ use anyhow::Context;
 use luma_api::projects::{Project, RecentProjects};
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::HashMap,
     path::{Path, PathBuf},
     sync::{OnceLock, RwLock},
     time::{SystemTime, UNIX_EPOCH},
 };
-use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 use uuid::Uuid;
 
-static ACTIVE_WORKSPACE: OnceLock<RwLock<Option<Project>>> = OnceLock::new();
+/// Workspace open in each IDE window, keyed by window label ("main", "main-2", ...).
+static WINDOW_WORKSPACES: OnceLock<RwLock<HashMap<String, Project>>> = OnceLock::new();
 
-pub fn active_workspace() -> &'static RwLock<Option<Project>> {
-    ACTIVE_WORKSPACE.get_or_init(|| RwLock::new(None))
+fn window_workspaces() -> &'static RwLock<HashMap<String, Project>> {
+    WINDOW_WORKSPACES.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
+/// The workspace currently open in the IDE window with this label.
+pub fn workspace_for_window(label: &str) -> Option<Project> {
+    window_workspaces().read().ok()?.get(label).cloned()
+}
+
+fn is_ide_label(label: &str) -> bool {
+    label == "main" || label.starts_with("main-")
+}
+
+fn free_main_label(app: &tauri::AppHandle) -> String {
+    if app.get_webview_window("main").is_none() {
+        return "main".to_string();
+    }
+    let mut n = 2;
+    loop {
+        let label = format!("main-{n}");
+        if app.get_webview_window(&label).is_none() {
+            return label;
+        }
+        n += 1;
+    }
+}
+
+/// "This window" reuses the calling IDE window; otherwise (new window, or called
+/// from the startup window) the lowest free IDE label is used.
+fn target_window_label(
+    app: &tauri::AppHandle,
+    caller: &tauri::WebviewWindow,
+    new_window: bool,
+) -> String {
+    if !new_window && is_ide_label(caller.label()) {
+        return caller.label().to_string();
+    }
+    free_main_label(app)
 }
 
 fn unix_timestamp() -> u64 {
@@ -272,24 +310,32 @@ fn record_recent_workspace(mut project: Project) -> Result<Project, tauri::ipc::
     Ok(project)
 }
 
-fn open_main_window(app: &tauri::AppHandle, project: &Project) -> anyhow::Result<()> {
+fn open_main_window(app: &tauri::AppHandle, project: &Project, label: &str) -> anyhow::Result<()> {
     let title = format!("Luma â€” {}", project.title);
 
-    let window = if let Some(window) = app.get_webview_window("main") {
+    let window = if let Some(window) = app.get_webview_window(label) {
         window.set_title(&title)?;
         window
     } else {
-        WebviewWindowBuilder::new(app, "main", WebviewUrl::App("windows/main.html".into()))
+        let window = WebviewWindowBuilder::new(app, label, WebviewUrl::App("windows/main.html".into()))
             .visible(false)
             .decorations(!cfg!(target_os = "windows"))
             .min_inner_size(750.0, 500.0)
             .title(&title)
             .background_color(crate::STARTUP_COLOR)
-            // Windows WebView2 blocks HTML5 drag-and-drop unless Tauri's native
-            // file-drop handler is off. Needed for dragging tool-window buttons.
-            .disable_drag_drop_handler()
             .build()
-            .context("Failed to create the IDE window")?
+            .context("Failed to create the IDE window")?;
+
+        // Forget this window's workspace once it is gone.
+        let owned_label = label.to_string();
+        window.on_window_event(move |event| {
+            if matches!(event, tauri::WindowEvent::Destroyed) {
+                if let Ok(mut map) = window_workspaces().write() {
+                    map.remove(&owned_label);
+                }
+            }
+        });
+        window
     };
 
     window.show().context("Failed to show the IDE window")?;
@@ -297,7 +343,8 @@ fn open_main_window(app: &tauri::AppHandle, project: &Project) -> anyhow::Result
         .set_focus()
         .context("Failed to focus the IDE window")?;
 
-    app.emit("workspace-opened", project.clone())?;
+    // No global broadcast: each IDE window loads its own workspace via
+    // `get_active_workspace` (new windows) or the `open_workspace` return value.
     if let Some(startup) = app.get_webview_window("startup") {
         if startup.label() != window.label() {
             startup
@@ -378,7 +425,7 @@ pub async fn save_tool_window_layout(workspace_path: String, layout: String) -> 
     let workspace = PathBuf::from(&workspace_path).canonicalize().context("Workspace folder does not exist").map_err(tauri::ipc::InvokeError::from_anyhow)?;
     if !workspace.is_dir() { return Err(tauri::ipc::InvokeError::from_anyhow(anyhow::anyhow!("Workspace path is not a directory"))); }
     let value: serde_json::Value = serde_json::from_str(&layout).context("Invalid tool-window layout JSON").map_err(tauri::ipc::InvokeError::from_anyhow)?;
-    if value.get("version").and_then(|v| v.as_u64()) != Some(2) { return Err(tauri::ipc::InvokeError::from_anyhow(anyhow::anyhow!("Unsupported tool-window layout version"))); }
+    if value.get("version").and_then(|v| v.as_u64()).is_none() { return Err(tauri::ipc::InvokeError::from_anyhow(anyhow::anyhow!("Unsupported tool-window layout version"))); }
     let path = workspace.join(".luma").join("tool-windows.json");
     let serialized = serde_json::to_string_pretty(&value)
         .map_err(|error| tauri::ipc::InvokeError::from_anyhow(anyhow::Error::from(error)))?;
@@ -573,15 +620,10 @@ pub async fn reveal_workspace(
 }
 
 #[tauri::command]
-pub async fn get_active_workspace() -> Result<Option<Project>, tauri::ipc::InvokeError> {
-    active_workspace()
-        .read()
-        .map(|workspace| workspace.clone())
-        .map_err(|error| {
-            tauri::ipc::InvokeError::from_anyhow(anyhow::anyhow!(
-                "Failed to read active workspace: {error}"
-            ))
-        })
+pub async fn get_active_workspace(
+    window: tauri::WebviewWindow,
+) -> Result<Option<Project>, tauri::ipc::InvokeError> {
+    Ok(workspace_for_window(window.label()))
 }
 
 #[tauri::command]
@@ -648,8 +690,10 @@ pub async fn open_devtools(window: tauri::WebviewWindow) -> Result<(), tauri::ip
 #[tauri::command]
 pub async fn open_workspace(
     path: String,
+    new_window: Option<bool>,
     app_handle: tauri::AppHandle,
-) -> Result<(), tauri::ipc::InvokeError> {
+    window: tauri::WebviewWindow,
+) -> Result<Project, tauri::ipc::InvokeError> {
     log::info!("opening workspace {}", path);
 
     let workspace_path = clean_path(
@@ -700,17 +744,21 @@ pub async fn open_workspace(
     };
     let project = record_recent_workspace(project)?;
 
-    *active_workspace().write().map_err(|error| {
-        tauri::ipc::InvokeError::from_anyhow(anyhow::anyhow!(
-            "Failed to update active workspace: {error}"
-        ))
-    })? = Some(project.clone());
+    let label = target_window_label(&app_handle, &window, new_window.unwrap_or(false));
+    window_workspaces()
+        .write()
+        .map_err(|error| {
+            tauri::ipc::InvokeError::from_anyhow(anyhow::anyhow!(
+                "Failed to update active workspace: {error}"
+            ))
+        })?
+        .insert(label.clone(), project.clone());
 
-    open_main_window(&app_handle, &project)
+    open_main_window(&app_handle, &project, &label)
         .context("Failed to open IDE window")
         .map_err(tauri::ipc::InvokeError::from_anyhow)?;
 
-    Ok(())
+    Ok(project)
 }
 
 

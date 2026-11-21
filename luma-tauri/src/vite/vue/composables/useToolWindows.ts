@@ -215,6 +215,8 @@ function move(id: string, target: ToolPosition, index?: number) {
   if (!source || !positions.includes(target)) return;
   const sourceSide = sideOf(source);
   const targetSide = sideOf(target);
+  // Moving a button keeps its panel open only if it was already open.
+  const wasActive = state.active[sourceSide] === id;
 
   state.order[source] = state.order[source].filter((item) => item !== id);
   if (sourceSide !== targetSide && state.active[sourceSide] === id) {
@@ -226,7 +228,7 @@ function move(id: string, target: ToolPosition, index?: number) {
   const position = Math.max(0, Math.min(index ?? list.length, list.length));
   list.splice(position, 0, id);
   state.order[target] = list;
-  state.active[targetSide] = id;
+  if (wasActive) state.active[targetSide] = id;
 }
 
 function hideAll() {
