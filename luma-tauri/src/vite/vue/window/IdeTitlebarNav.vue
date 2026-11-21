@@ -140,7 +140,7 @@ async function openProject(path: string, title: string) {
   if (mode === "cancel") return;
 
   try {
-    const project = await invoke<WorkspaceInfo>("open_workspace", { path, newWindow: mode === "new" });
+    const project = await invoke<WorkspaceInfo>("open_workspace", { path, new_window: mode === "new" });
     if (mode === "this") emit("workspace-changed", project);
     await refreshRecent();
   } catch (error) {

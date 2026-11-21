@@ -27,7 +27,7 @@ fn is_ide_label(label: &str) -> bool {
     label == "main" || label.starts_with("main-")
 }
 
-fn free_main_label(app: &tauri::AppHandle) -> String {
+pub(crate) fn free_main_label(app: &tauri::AppHandle) -> String {
     if app.get_webview_window("main").is_none() {
         return "main".to_string();
     }
@@ -687,15 +687,13 @@ pub async fn open_devtools(window: tauri::WebviewWindow) -> Result<(), tauri::ip
     Ok(())
 }
 
-#[tauri::command]
-pub async fn open_workspace(
-    path: String,
-    new_window: Option<bool>,
-    app_handle: tauri::AppHandle,
-    window: tauri::WebviewWindow,
+/// Shared logic: open a workspace and show it in the IDE window with the given label.
+/// Used both by the `open_workspace` command and by the single-instance callback.
+pub(crate) async fn open_workspace_with_label(
+    app: &tauri::AppHandle,
+    path: &str,
+    label: &str,
 ) -> Result<Project, tauri::ipc::InvokeError> {
-    log::info!("opening workspace {}", path);
-
     let workspace_path = clean_path(
         PathBuf::from(path)
             .canonicalize()
@@ -744,7 +742,6 @@ pub async fn open_workspace(
     };
     let project = record_recent_workspace(project)?;
 
-    let label = target_window_label(&app_handle, &window, new_window.unwrap_or(false));
     window_workspaces()
         .write()
         .map_err(|error| {
@@ -752,13 +749,26 @@ pub async fn open_workspace(
                 "Failed to update active workspace: {error}"
             ))
         })?
-        .insert(label.clone(), project.clone());
+        .insert(label.to_string(), project.clone());
 
-    open_main_window(&app_handle, &project, &label)
+    open_main_window(app, &project, label)
         .context("Failed to open IDE window")
         .map_err(tauri::ipc::InvokeError::from_anyhow)?;
 
     Ok(project)
+}
+
+#[tauri::command]
+pub async fn open_workspace(
+    path: String,
+    new_window: Option<bool>,
+    app_handle: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+) -> Result<Project, tauri::ipc::InvokeError> {
+    log::info!("opening workspace {}", path);
+    let new_window = new_window.unwrap_or(false);
+    let label = target_window_label(&app_handle, &window, new_window);
+    open_workspace_with_label(&app_handle, &path, &label).await
 }
 
 
