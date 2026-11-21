@@ -35,9 +35,11 @@ jobs:
         include:
           - target: x86_64-pc-windows-msvc
             runner: windows-latest
+            msvc_arch: amd64
             library: example_extension.dll
           - target: aarch64-pc-windows-msvc
             runner: windows-latest
+            msvc_arch: amd64_arm64
             library: example_extension.dll
     steps:
       - uses: actions/checkout@v4
@@ -46,17 +48,33 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Set up MSVC ARM64 build tools
-        if: matrix.target == 'aarch64-pc-windows-msvc'
+      - name: Set up MSVC build tools (${{ matrix.msvc_arch }})
         uses: ilammy/msvc-dev-cmd@v1
         with:
-          arch: arm64
+          arch: ${{ matrix.msvc_arch }}
+
+      # Git for Windows ships a GNU utility called link.exe. When it appears
+      # before MSVC's linker on PATH, rustc invokes it and fails with
+      # "/usr/bin/link: missing operand". Prepend the real MSVC linker dir.
+      - name: Prefer the MSVC linker
+        shell: pwsh
+        run: |
+          $msvcLink = Get-Command link.exe -All -ErrorAction SilentlyContinue |
+            Where-Object { $_.Source -match '\\VC\\Tools\\MSVC\\' } |
+            Select-Object -First 1
+          if (-not $msvcLink) {
+            throw 'MSVC link.exe was not found after configuring the Developer Command Prompt.'
+          }
+          $linkDir = Split-Path -Parent $msvcLink.Source
+          Write-Host "Using linker: $($msvcLink.Source)"
+          Add-Content -Path $env:GITHUB_PATH -Value $linkDir
 
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: extensions/example_extension -> target
 
       - name: Build native extension
+        shell: pwsh
         run: cargo build --release --target ${{ matrix.target }} --manifest-path extensions/example_extension/Cargo.toml
 
       - name: Package ZIP
