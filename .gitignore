@@ -20,5 +20,7 @@ extensions/**/target/
 extensions/**/.pack/
 extensions/**/*.zip
 
+**/Cargo.lock
+
 # Dev-Notes
 .ai/dev-notes.md
