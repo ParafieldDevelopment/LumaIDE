@@ -27,12 +27,12 @@ const tools = useToolWindows();
 registerToolWindow({ id: "project-explorer", title: "Project", position: "left-top", icon: FolderIcon, component: ProjectExplorerPanel, order: 10, hotkey: "Alt+1", defaultOpen: true });
 registerToolWindow({ id: "git-commit", title: "Commit", position: "left-top", icon: CommitIcon, component: GitCommitPanel, order: 20, hotkey: "Alt+0" });
 registerToolWindow({ id: "terminal", title: "Terminal", position: "left-bottom", icon: TerminalIcon, component: TerminalPanel, order: 20, hotkey: "Alt+F12" });
-registerToolWindow({ id: "analyzer", title: "Analyzer", position: "left-bottom", icon: AnalyzerIcon, component: AnalyzerPanel, order: 30, hotkey: "Ctrl+Shift+A" });
+registerToolWindow({ id: "analyzer", title: "Analyzer", position: "right-bottom", icon: AnalyzerIcon, component: AnalyzerPanel, order: 30, hotkey: "Ctrl+Shift+A" });
 registerToolWindow({ id: "notifications", title: "Notifications", position: "right-top", icon: NotificationIcon, component: NotificationsPanel, order: 20 });
 
 const {
   leftTopTools, leftBottomTools, rightTopTools, rightBottomTools,
-  leftTool, rightTool, bottomTool, activeIds, sizes, toggle, close, setSize, handleHotkey, move,
+  leftTool, rightTool, bottomLeftTool, bottomRightTool, activeIds, sizes, toggle, close, setSize, handleHotkey, move,
 } = tools;
 
 const activeWorkspace = ref<ActiveWorkspace | null>(null);
@@ -56,7 +56,11 @@ function onDockResize(event: MouseEvent) {
     ? event.clientX - resizeStart
     : side === "right"
       ? resizeStart - event.clientX
-      : resizeStart - event.clientY;
+      : side === "bottom-left"
+        ? event.clientX - resizeStart
+        : side === "bottom-right"
+          ? resizeStart - event.clientX
+          : resizeStart - event.clientY;
   setSize(side, resizeInitial + delta);
 }
 
@@ -404,16 +408,31 @@ onBeforeUnmount(() => {
       </div>
 
         <div
-          v-if="bottomTool"
+          v-if="bottomLeftTool || bottomRightTool"
           class="lum-resizer ide-dock-resizer-h"
           :class="{ 'is-dragging': resizeSide === 'bottom' }"
           @mousedown="startDockResize('bottom', $event)"
         />
-        <aside v-if="bottomTool" class="ide-dock ide-dock-bottom" :style="{ height: sizes.bottom + 'px' }">
-          <keep-alive>
-            <component :is="bottomTool.component" :workspace-path="activeWorkspace.path" @hide="close('bottom')" />
-          </keep-alive>
-        </aside>
+        <div v-if="bottomLeftTool || bottomRightTool" class="ide-bottom-row" :style="{ height: sizes.bottom + 'px' }">
+          <aside v-if="bottomLeftTool" class="ide-dock ide-dock-bottom-left" :style="{ width: sizes['bottom-left'] + 'px' }">
+            <keep-alive>
+              <component
+                :is="bottomLeftTool.component"
+                :workspace-path="activeWorkspace.path"
+                @hide="close('bottom-left')"
+              />
+            </keep-alive>
+          </aside>
+          <aside v-if="bottomRightTool" class="ide-dock ide-dock-bottom-right" :style="{ width: sizes['bottom-right'] + 'px' }">
+            <keep-alive>
+              <component
+                :is="bottomRightTool.component"
+                :workspace-path="activeWorkspace.path"
+                @hide="close('bottom-right')"
+              />
+            </keep-alive>
+          </aside>
+        </div>
       </div>
 
       <LumToolStripe
@@ -483,6 +502,22 @@ onBeforeUnmount(() => {
 .ide-dock-bottom {
   width: 100%;
   border-top: 1px solid var(--lum-border);
+}
+
+.ide-bottom-row {
+  display: flex;
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow: hidden;
+  border-top: 1px solid var(--lum-border);
+}
+
+.ide-dock-bottom-left,
+.ide-dock-bottom-right {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .ide-dock-resizer-h {

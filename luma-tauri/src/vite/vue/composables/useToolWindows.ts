@@ -5,8 +5,8 @@
 import { computed, reactive, shallowRef, watch, type Component } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 
-/** Which dock a tool opens in. *-top buttons open a side dock; *-bottom buttons open the bottom dock. */
-export type ToolSide = "left" | "right" | "bottom";
+/** Which dock a tool opens in. *-top buttons open a side dock; *-bottom buttons open a bottom dock. */
+export type ToolSide = "left" | "right" | "bottom" | "bottom-left" | "bottom-right";
 export type ToolPosition = "left-top" | "left-bottom" | "right-top" | "right-bottom";
 
 export interface ToolWindowDef {
@@ -29,12 +29,20 @@ interface PersistedState {
 }
 
 const positions: ToolPosition[] = ["left-top", "left-bottom", "right-top", "right-bottom"];
-const sides: ToolSide[] = ["left", "right", "bottom"];
-const DEFAULT_SIZES: Record<ToolSide, number> = { left: 280, right: 280, bottom: 260 };
+const sides: ToolSide[] = ["left", "right", "bottom", "bottom-left", "bottom-right"];
+const DEFAULT_SIZES: Record<ToolSide, number> = {
+  left: 280,
+  right: 280,
+  bottom: 260,
+  "bottom-left": 400,
+  "bottom-right": 400,
+};
 const LIMITS: Record<ToolSide, { min: number; max: number }> = {
   left: { min: 180, max: 700 },
   right: { min: 180, max: 700 },
   bottom: { min: 120, max: 700 },
+  "bottom-left": { min: 200, max: 900 },
+  "bottom-right": { min: 200, max: 900 },
 };
 
 function emptyState(): PersistedState {
@@ -42,13 +50,14 @@ function emptyState(): PersistedState {
     version: 5,
     positions: {},
     order: { "left-top": [], "left-bottom": [], "right-top": [], "right-bottom": [] },
-    active: { left: null, right: null, bottom: null },
+    active: { left: null, right: null, bottom: null, "bottom-left": null, "bottom-right": null },
     sizes: { ...DEFAULT_SIZES },
   };
 }
 
 function sideOf(position: ToolPosition): ToolSide {
-  if (position.endsWith("-bottom")) return "bottom";
+  if (position === "left-bottom") return "bottom-left";
+  if (position === "right-bottom") return "bottom-right";
   return position.startsWith("left-") ? "left" : "right";
 }
 
@@ -273,7 +282,8 @@ export function useToolWindows() {
     rightBottomTools: computed(() => ordered("right-bottom")),
     leftTool: computed(() => activeTool("left")),
     rightTool: computed(() => activeTool("right")),
-    bottomTool: computed(() => activeTool("bottom")),
+    bottomLeftTool: computed(() => activeTool("bottom-left")),
+    bottomRightTool: computed(() => activeTool("bottom-right")),
     activeIds: computed(() => sides.map((side) => activeTool(side)?.id).filter((id): id is string => !!id)),
     anchors: state.positions,
     sizes: state.sizes,

@@ -311,7 +311,7 @@ fn record_recent_workspace(mut project: Project) -> Result<Project, tauri::ipc::
 }
 
 fn open_main_window(app: &tauri::AppHandle, project: &Project, label: &str) -> anyhow::Result<()> {
-    let title = format!("Luma â€” {}", project.title);
+    let title = format!("Luma — {}", project.title);
 
     let window = if let Some(window) = app.get_webview_window(label) {
         window.set_title(&title)?;
