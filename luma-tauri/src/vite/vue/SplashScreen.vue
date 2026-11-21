@@ -40,6 +40,7 @@ onBeforeUnmount(() => clearTimeout(fallbackTimer));
       class="splash"
       :class="{ leaving }"
       :style="{ '--splash-fade': `${fadeOutMs}ms` }"
+      @contextmenu.prevent
   >
     <img
         class="art"
