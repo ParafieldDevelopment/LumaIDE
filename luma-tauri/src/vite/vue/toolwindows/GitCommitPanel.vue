@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
+import { invoke } from "@tauri-apps/api/core";
 import LumToolWindow from "../components/LumToolWindow.vue";
 import { runGit } from "../composables/useShell";
 const props = defineProps<{ workspacePath: string }>();
@@ -12,6 +13,8 @@ const loading = ref(false);
 const committing = ref(false);
 const error = ref("");
 const result = ref("");
+const gitInitialized = ref(true);
+
 async function refresh() {
   if (loading.value) return;
   loading.value = true; error.value = "";
@@ -20,8 +23,25 @@ async function refresh() {
     status.value = s.stdout || s.stderr;
     diff.value = d.stdout || (d.stderr ? d.stderr : "Working tree clean");
     stagedDiff.value = staged.stdout || (staged.stderr ? staged.stderr : "No staged changes");
-    if (s.code !== 0) error.value = s.stderr || "Git status failed";
-  } catch (e) { error.value = String(e); }
+    if (s.code !== 0) {
+      const notARepo = s.stderr.includes("not a git repository");
+      gitInitialized.value = false;
+      if (notARepo) error.value = "Git is not initialized";
+      else error.value = s.stderr || "Git status failed";
+    } else {
+      gitInitialized.value = true;
+    }
+  } catch (e) { error.value = String(e); gitInitialized.value = false; }
+  finally { loading.value = false; }
+}
+async function initGit() {
+  loading.value = true; error.value = "";
+  try {
+    const r = await invoke<any>("git_command", { cwd: props.workspacePath, args: ["init"] });
+    if (r.code !== 0) throw new Error(r.stderr || "git init failed");
+    gitInitialized.value = true;
+    await refresh();
+  } catch(e) { error.value = String(e); gitInitialized.value = false; }
   finally { loading.value = false; }
 }
 async function stageAll() {
@@ -51,6 +71,7 @@ onMounted(refresh);
       <div class="lum-git-toolbar">
         <button @click="refresh" :disabled="loading">Refresh</button>
         <button @click="stageAll" :disabled="loading">Stage All</button>
+        <button v-if="!gitInitialized" @click="initGit" :disabled="loading" class="lum-git-init">Init Git Repo</button>
       </div>
       <label class="lum-git-label">Changes</label>
       <pre class="lum-git-status">{{ status || "Loading status…" }}</pre>
