@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onBeforeUnmount } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import LumToolWindow from "../components/LumToolWindow.vue";
 import { runGit } from "../composables/useShell";
@@ -14,6 +14,9 @@ const committing = ref(false);
 const error = ref("");
 const result = ref("");
 const gitInitialized = ref(true);
+
+let refreshTimer: ReturnType<typeof setInterval> | null = null;
+const REFRESH_MS = 3000;
 
 async function refresh() {
   if (loading.value) return;
@@ -38,10 +41,23 @@ async function refresh() {
     } else {
       gitInitialized.value = true;
       error.value = "";
+      startAutoRefresh();
     }
   } catch (e) { error.value = String(e); gitInitialized.value = false; status.value = ""; diff.value = ""; stagedDiff.value = ""; }
   finally { loading.value = false; }
 }
+
+function startAutoRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(() => {
+    if (!document.hidden && gitInitialized.value) void refresh();
+  }, REFRESH_MS);
+}
+
+function stopAutoRefresh() {
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+}
+
 async function initGit() {
   loading.value = true; error.value = "";
   try {
@@ -49,6 +65,7 @@ async function initGit() {
     if (r.code !== 0) throw new Error(r.stderr || "git init failed");
     gitInitialized.value = true;
     await refresh();
+    startAutoRefresh();
   } catch(e) { error.value = String(e); gitInitialized.value = false; }
   finally { loading.value = false; }
 }
@@ -71,7 +88,12 @@ async function commit() {
   } catch(e) { error.value = String(e); }
   finally { committing.value = false; }
 }
-onMounted(refresh);
+onMounted(() => {
+  void refresh();
+});
+onBeforeUnmount(() => {
+  stopAutoRefresh();
+});
 </script>
 <template>
   <LumToolWindow title="Git Commit" @hide="emit('hide')">
@@ -99,7 +121,7 @@ onMounted(refresh);
         <button class="lum-git-commit" @click="commit" :disabled="committing || loading || !message.trim()">Commit staged changes</button>
       </div>
       <p v-if="result" class="lum-git-success">{{ result }}</p>
-      <p v-if="error" class="lum-git-error">{{ error }}</p>
+      <p v-if="error && gitInitialized" class="lum-git-error">{{ error }}</p>
     </div>
   </LumToolWindow>
 </template>
