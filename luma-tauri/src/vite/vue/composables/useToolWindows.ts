@@ -5,7 +5,8 @@
 import { computed, reactive, shallowRef, watch, type Component } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 
-export type ToolSide = "left" | "right";
+/** Which dock a tool opens in. *-top buttons open a side dock; *-bottom buttons open the bottom dock. */
+export type ToolSide = "left" | "right" | "bottom";
 export type ToolPosition = "left-top" | "left-bottom" | "right-top" | "right-bottom";
 
 export interface ToolWindowDef {
@@ -20,7 +21,7 @@ export interface ToolWindowDef {
 }
 
 interface PersistedState {
-  version: 3;
+  version: number;
   positions: Record<string, ToolPosition>;
   order: Record<ToolPosition, string[]>;
   active: Record<ToolSide, string | null>;
@@ -28,40 +29,27 @@ interface PersistedState {
 }
 
 const positions: ToolPosition[] = ["left-top", "left-bottom", "right-top", "right-bottom"];
-const sides: ToolSide[] = ["left", "right"];
-const DEFAULT_SIZES: Record<ToolSide, number> = { left: 280, right: 280 };
+const sides: ToolSide[] = ["left", "right", "bottom"];
+const DEFAULT_SIZES: Record<ToolSide, number> = { left: 280, right: 280, bottom: 260 };
 const LIMITS: Record<ToolSide, { min: number; max: number }> = {
   left: { min: 180, max: 700 },
   right: { min: 180, max: 700 },
+  bottom: { min: 120, max: 700 },
 };
 
 function emptyState(): PersistedState {
   return {
-    version: 3,
+    version: 5,
     positions: {},
     order: { "left-top": [], "left-bottom": [], "right-top": [], "right-bottom": [] },
-    active: { left: null, right: null },
+    active: { left: null, right: null, bottom: null },
     sizes: { ...DEFAULT_SIZES },
   };
 }
 
 function sideOf(position: ToolPosition): ToolSide {
+  if (position.endsWith("-bottom")) return "bottom";
   return position.startsWith("left-") ? "left" : "right";
-}
-
-function legacyPosition(id: string, anchor: unknown): ToolPosition {
-  if (anchor === "left") return id === "git-commit" ? "left-bottom" : "left-top";
-  if (anchor === "right") return "right-top";
-  if (anchor === "top") return "left-top";
-  if (anchor === "bottom") {
-    if (id === "terminal") return "right-bottom";
-    if (id === "analyzer") return "left-bottom";
-    return "right-bottom";
-  }
-  if (id === "terminal") return "right-bottom";
-  if (id === "analyzer" || id === "git-commit") return "left-bottom";
-  if (id === "notifications") return "right-top";
-  return "left-top";
 }
 
 function sanitize(raw: unknown): PersistedState {
@@ -74,7 +62,7 @@ function sanitize(raw: unknown): PersistedState {
     sizes?: Record<string, unknown>;
   };
 
-  if (data.version === 3 && data.positions && typeof data.positions === "object") {
+  if ((data.version === 4 || data.version === 5) && data.positions && typeof data.positions === "object") {
     for (const [id, position] of Object.entries(data.positions)) {
       if (positions.includes(position as ToolPosition)) next.positions[id] = position as ToolPosition;
     }
@@ -99,35 +87,8 @@ function sanitize(raw: unknown): PersistedState {
     return next;
   }
 
-  // Migrate the previous four-edge layout. "bottom" now means a bottom
-  // button group on a vertical stripe, not a separate horizontal dock.
-  if (data.anchors && typeof data.anchors === "object") {
-    for (const [id, anchor] of Object.entries(data.anchors)) {
-      next.positions[id] = legacyPosition(id, anchor);
-    }
-  }
-  if (data.order && typeof data.order === "object") {
-    for (const oldAnchor of ["left", "right", "top", "bottom"] as const) {
-      const list: unknown = (data.order as Record<string, unknown>)[oldAnchor];
-      if (!Array.isArray(list)) continue;
-      for (const rawId of list as unknown[]) {
-        if (typeof rawId !== "string") continue;
-        const id = rawId;
-        const position = next.positions[id] ?? legacyPosition(id, oldAnchor);
-        if (!next.order[position].includes(id)) next.order[position].push(id);
-      }
-    }
-  }
-  if (data.active && typeof data.active === "object") {
-    const oldActive = data.active as Record<string, unknown>;
-    for (const oldSide of ["left", "right", "top", "bottom"] as const) {
-      const id = oldActive[oldSide];
-      if (typeof id !== "string") continue;
-      const position = next.positions[id] ?? legacyPosition(id, oldSide);
-      const side = sideOf(position);
-      if (next.active[side] === null) next.active[side] = id;
-    }
-  }
+  // Older layouts (v3 and earlier) saved the previous default button placement.
+  // Drop their positions so the new defaults apply; keep only dock sizes.
   if (data.sizes && typeof data.sizes === "object") {
     for (const side of sides) {
       const value = data.sizes[side];
@@ -146,7 +107,7 @@ let ready = false;
 let dirty = false;
 
 function replaceState(next: PersistedState) {
-  state.version = 3;
+  state.version = 5;
   state.positions = next.positions;
   for (const position of positions) state.order[position] = next.order[position];
   for (const side of sides) {
@@ -274,7 +235,8 @@ function hideAll() {
 
 function setSize(side: ToolSide, value: number) {
   const limit = LIMITS[side];
-  state.sizes[side] = Math.round(Math.min(Math.max(value, limit.min), Math.min(limit.max, window.innerWidth * 0.7)));
+  const viewport = side === "bottom" ? window.innerHeight : window.innerWidth;
+  state.sizes[side] = Math.round(Math.min(Math.max(value, limit.min), Math.min(limit.max, viewport * 0.7)));
 }
 
 function matchesHotkey(event: KeyboardEvent, hotkey: string) {
@@ -309,6 +271,7 @@ export function useToolWindows() {
     rightBottomTools: computed(() => ordered("right-bottom")),
     leftTool: computed(() => activeTool("left")),
     rightTool: computed(() => activeTool("right")),
+    bottomTool: computed(() => activeTool("bottom")),
     activeIds: computed(() => sides.map((side) => activeTool(side)?.id).filter((id): id is string => !!id)),
     anchors: state.positions,
     sizes: state.sizes,

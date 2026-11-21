@@ -285,6 +285,9 @@ fn open_main_window(app: &tauri::AppHandle, project: &Project) -> anyhow::Result
             .min_inner_size(750.0, 500.0)
             .title(&title)
             .background_color(crate::STARTUP_COLOR)
+            // Windows WebView2 blocks HTML5 drag-and-drop unless Tauri's native
+            // file-drop handler is off. Needed for dragging tool-window buttons.
+            .disable_drag_drop_handler()
             .build()
             .context("Failed to create the IDE window")?
     };

@@ -13,8 +13,10 @@ Tool buttons live on the vertical edge stripes, in four independent groups:
 - `right-bottom`
 
 The button position is saved per workspace in `.luma`. Drag a tool button into another
-corner group to move it. A panel opens on the corresponding left or right side, and both
-side docks can be visible at the same time. There is no separate horizontal bottom toolbar.
+corner group to move it. Like JetBrains, `*-top` buttons open a left/right side dock, and
+`*-bottom` buttons (left or right) open the horizontal bottom dock. All three docks can be
+visible at the same time. Dragging needs `disable_drag_drop_handler()` on the main window
+(see `open_main_window` in `base_invokes.rs`).
 
 ## Add a panel
 
