@@ -282,7 +282,7 @@ fn open_main_window(app: &tauri::AppHandle, project: &Project) -> anyhow::Result
         WebviewWindowBuilder::new(app, "main", WebviewUrl::App("windows/main.html".into()))
             .visible(false)
             .decorations(!cfg!(target_os = "windows"))
-            .min_inner_size(750.0, 500.0)
+            .min_inner_size(1050.0, 600.0)
             .title(&title)
             .background_color(crate::STARTUP_COLOR)
             .build()

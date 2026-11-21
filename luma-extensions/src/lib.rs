@@ -1,3 +1,5 @@
+pub mod extension;
+
 use std::sync::{Arc};
 use log::info;
 use anyhow::{Context, Result};

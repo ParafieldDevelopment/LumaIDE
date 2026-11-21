@@ -38,6 +38,13 @@ window.addEventListener("keydown", async (event) => {
   </TitleBar>
 
   <div class="main">
+    <div class="sidebar">
+
+    </div>
+    <div class="main-content">
+
+    </div>
+
     <LumToasts />
     <LumModals />
     <LumContextMenu />
