@@ -2,6 +2,8 @@
 import { onBeforeUnmount, onMounted, ref, computed, watch } from "vue";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { confirmExit } from "~/vue/composables/useConfirm";
 import { LumContextMenu, LumModals, LumFileTabs, LumEditor } from "./components";
 import TitleBar from "~/vue/window/TitleBar.vue";
 import IdeTitlebarNav from "~/vue/window/IdeTitlebarNav.vue";
@@ -68,38 +70,133 @@ function toggleTool(id: string) {
   toggle(id);
 }
 
-let draggingToolId: string | null = null;
+// ── Tool button drag (pointer events; works regardless of WebView2 drag handling) ──
 const dragTarget = ref<ToolPosition | null>(null);
+const dropIndex = ref(0);
+const draggingId = ref<string | null>(null);
+const DRAG_THRESHOLD = 5;
 
-function beginToolDrag(id: string, event: DragEvent) {
-  draggingToolId = id;
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", id);
+interface ToolDragState {
+  id: string;
+  startX: number;
+  startY: number;
+  started: boolean;
+  ghost: HTMLElement | null;
+  source: HTMLElement;
+}
+let toolDrag: ToolDragState | null = null;
+
+function beginToolDrag(id: string, event: PointerEvent) {
+  if (event.button !== 0) return;
+  cancelToolDrag();
+  toolDrag = {
+    id,
+    startX: event.clientX,
+    startY: event.clientY,
+    started: false,
+    ghost: null,
+    source: event.currentTarget as HTMLElement,
+  };
+  window.addEventListener("pointermove", onToolDragMove);
+  window.addEventListener("pointerup", onToolDragEnd);
+  window.addEventListener("pointercancel", cancelToolDrag);
+  window.addEventListener("keydown", onToolDragKey, true);
+}
+
+function onToolDragMove(event: PointerEvent) {
+  const drag = toolDrag;
+  if (!drag) return;
+  if (!drag.started) {
+    if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < DRAG_THRESHOLD) return;
+    drag.started = true;
+    draggingId.value = drag.id;
+    const ghost = drag.source.cloneNode(true) as HTMLElement;
+    ghost.removeAttribute("title");
+    Object.assign(ghost.style, {
+      position: "fixed",
+      zIndex: "100000",
+      pointerEvents: "none",
+      opacity: "0.9",
+      background: "var(--lum-accent-muted)",
+      boxShadow: "0 4px 14px rgba(0,0,0,.4)",
+    });
+    document.body.appendChild(ghost);
+    drag.ghost = ghost;
+    document.body.style.cursor = "grabbing";
+    document.body.style.userSelect = "none";
+  }
+  if (drag.ghost) {
+    drag.ghost.style.left = `${event.clientX - 16}px`;
+    drag.ghost.style.top = `${event.clientY - 16}px`;
+  }
+  updateDropTarget(event.clientX, event.clientY);
+}
+
+function updateDropTarget(x: number, y: number) {
+  const drag = toolDrag;
+  if (!drag) return;
+  const element = document.elementFromPoint(x, y);
+  const stripe = element?.closest<HTMLElement>("[data-stripe-side]");
+  if (!stripe) {
+    dragTarget.value = null;
+    return;
+  }
+  const side = stripe.dataset.stripeSide === "right" ? "right" : "left";
+  const section = element?.closest<HTMLElement>("[data-drop-position]");
+  let position = section?.dataset.dropPosition as ToolPosition | undefined;
+  if (!position) {
+    const rect = stripe.getBoundingClientRect();
+    position = `${side}-${y < rect.top + rect.height / 2 ? "top" : "bottom"}` as ToolPosition;
+  }
+  const group = stripe.querySelector<HTMLElement>(`[data-drop-position="${position}"]`);
+  const buttons = [...(group?.querySelectorAll<HTMLElement>("[data-tool-id]") ?? [])]
+    .filter((button) => button.dataset.toolId !== drag.id);
+  let index = 0;
+  for (const button of buttons) {
+    const rect = button.getBoundingClientRect();
+    if (y > rect.top + rect.height / 2) index++;
+  }
+  dragTarget.value = position;
+  dropIndex.value = index;
+}
+
+function onToolDragEnd() {
+  const drag = toolDrag;
+  const target = dragTarget.value;
+  const index = dropIndex.value;
+  const moved = !!drag?.started;
+  const id = drag?.id;
+  cleanupToolDrag();
+  if (!moved) return;
+  // The pointerup is followed by a click on the button; swallow it.
+  const swallow = (event: Event) => { event.stopPropagation(); event.preventDefault(); };
+  window.addEventListener("click", swallow, { capture: true, once: true });
+  setTimeout(() => window.removeEventListener("click", swallow, true), 0);
+  if (id && target) move(id, target, index);
+}
+
+function onToolDragKey(event: KeyboardEvent) {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    cancelToolDrag();
   }
 }
 
-function endToolDrag() {
-  draggingToolId = null;
+function cancelToolDrag() {
+  cleanupToolDrag();
+}
+
+function cleanupToolDrag() {
+  window.removeEventListener("pointermove", onToolDragMove);
+  window.removeEventListener("pointerup", onToolDragEnd);
+  window.removeEventListener("pointercancel", cancelToolDrag);
+  window.removeEventListener("keydown", onToolDragKey, true);
+  toolDrag?.ghost?.remove();
+  toolDrag = null;
+  draggingId.value = null;
   dragTarget.value = null;
-}
-
-function allowToolDrop(position: ToolPosition, event: DragEvent) {
-  if (!draggingToolId) return;
-  event.preventDefault();
-  dragTarget.value = position;
-  if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
-}
-
-function dropTool(position: ToolPosition, event: DragEvent) {
-  event.preventDefault();
-  const id = draggingToolId || event.dataTransfer?.getData("text/plain");
-  if (id) move(id, position);
-  endToolDrag();
-}
-
-function clearDropTarget(position: ToolPosition) {
-  if (dragTarget.value === position) dragTarget.value = null;
+  document.body.style.cursor = "";
+  document.body.style.userSelect = "";
 }
 
 const unlistenWorkspace = ref<UnlistenFn | null>(null);
@@ -184,8 +281,26 @@ function handleKeydown(event: KeyboardEvent) {
   }
 }
 
+// X button and Alt+F4 both arrive here. Ask first, then really close the window.
+let confirmingExit = false;
+let unlistenClose: UnlistenFn | null = null;
+
+async function handleCloseRequested(event: { preventDefault: () => void }) {
+  event.preventDefault();
+  if (confirmingExit) return;
+  confirmingExit = true;
+  try {
+    if (!(await confirmExit())) return;
+    if (openFiles.value.some((file) => file.dirty)) await saveAll();
+    await getCurrentWindow().destroy();
+  } finally {
+    confirmingExit = false;
+  }
+}
+
 onMounted(async () => {
   unlistenWorkspace.value = await listen<ActiveWorkspace>("workspace-opened", (event) => { void syncWorkspace(event.payload); });
+  unlistenClose = await getCurrentWindow().onCloseRequested(handleCloseRequested);
   await loadActiveWorkspace();
   window.addEventListener("keydown", handleKeydown);
   window.addEventListener("blur", triggerAutosave);
@@ -198,9 +313,11 @@ function onVisibilityChange() {
 
 onBeforeUnmount(() => {
   stopDockResize();
+  cleanupToolDrag();
   if (autosaveTimer) clearTimeout(autosaveTimer);
   autosaveTimer = null;
   unlistenWorkspace.value?.();
+  unlistenClose?.();
   window.removeEventListener("keydown", handleKeydown);
   window.removeEventListener("blur", triggerAutosave);
   document.removeEventListener("visibilitychange", onVisibilityChange);
@@ -223,12 +340,10 @@ onBeforeUnmount(() => {
         :bottom="leftBottomTools"
         :active-ids="activeIds"
         :drop-target="dragTarget"
+        :drop-index="dropIndex"
+        :dragging-id="draggingId"
         @toggle="toggleTool"
-        @dragstart="beginToolDrag"
-        @dragend="endToolDrag"
-        @dragover="allowToolDrop"
-        @dragleave="clearDropTarget"
-        @drop="dropTool"
+        @tool-pointer-down="beginToolDrag"
       />
 
       <div class="ide-center">
@@ -308,12 +423,10 @@ onBeforeUnmount(() => {
         :bottom="rightBottomTools"
         :active-ids="activeIds"
         :drop-target="dragTarget"
+        :drop-index="dropIndex"
+        :dragging-id="draggingId"
         @toggle="toggleTool"
-        @dragstart="beginToolDrag"
-        @dragend="endToolDrag"
-        @dragover="allowToolDrop"
-        @dragleave="clearDropTarget"
-        @drop="dropTool"
+        @tool-pointer-down="beginToolDrag"
       />
     </div>
   </div>

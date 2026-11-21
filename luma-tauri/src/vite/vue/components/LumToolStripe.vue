@@ -1,5 +1,12 @@
+
 <script setup lang="ts">
-/** JetBrains-style vertical tool-window stripe with four corner drop zones. */
+/**
+ * JetBrains-style vertical tool-window stripe with a top and a bottom button group.
+ * Dragging is pointer-based (not HTML5 drag-and-drop, which WebView2 can swallow).
+ * The parent runs the drag; this component only reports pointer-down on a button and
+ * renders the drop highlight / insertion marker it is told about.
+ */
+import { computed } from "vue";
 import type { ToolPosition, ToolWindowDef } from "~/vue/composables/useToolWindows";
 
 const props = withDefaults(
@@ -9,12 +16,17 @@ const props = withDefaults(
     bottom?: ToolWindowDef[];
     activeIds: string[];
     dropTarget?: ToolPosition | null;
+    /** Insertion index inside `dropTarget`, counted without the dragged button. */
+    dropIndex?: number;
+    draggingId?: string | null;
     labels?: boolean;
     draggable?: boolean;
   }>(),
   {
     bottom: () => [],
     dropTarget: null,
+    dropIndex: 0,
+    draggingId: null,
     labels: false,
     draggable: true,
   },
@@ -22,81 +34,64 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (event: "toggle", id: string): void;
-  (event: "dragstart", id: string, dragEvent: DragEvent): void;
-  (event: "dragend"): void;
-  (event: "dragover", position: ToolPosition, dragEvent: DragEvent): void;
-  (event: "dragleave", position: ToolPosition): void;
-  (event: "drop", position: ToolPosition, dragEvent: DragEvent): void;
+  (event: "toolPointerDown", id: string, pointerEvent: PointerEvent): void;
 }>();
 
-const topPosition = `${props.side}-top` as ToolPosition;
-const bottomPosition = `${props.side}-bottom` as ToolPosition;
+const sections = computed(() => [
+  { position: `${props.side}-top` as ToolPosition, kind: "top", tools: props.top },
+  { position: `${props.side}-bottom` as ToolPosition, kind: "bottom", tools: props.bottom },
+]);
 
 function tip(tool: ToolWindowDef) {
   return tool.hotkey ? `${tool.title} (${tool.hotkey})` : tool.title;
 }
 
-function dragOver(position: ToolPosition, event: DragEvent) {
-  emit("dragover", position, event);
+/** Where to draw the insertion line for a button: "before", "after" or none. */
+function marker(position: ToolPosition, tools: ToolWindowDef[], tool: ToolWindowDef) {
+  if (props.dropTarget !== position || !props.draggingId) return "";
+  const others = tools.filter((item) => item.id !== props.draggingId);
+  const index = others.findIndex((item) => item.id === tool.id);
+  if (index === -1) return "";
+  if (props.dropIndex === index) return "insert-before";
+  if (props.dropIndex >= others.length && index === others.length - 1) return "insert-after";
+  return "";
 }
 
-function dragLeave(position: ToolPosition, event: DragEvent) {
-  const next = event.relatedTarget;
-  if (next instanceof Node && (event.currentTarget as HTMLElement).contains(next)) return;
-  emit("dragleave", position);
+function onPointerDown(tool: ToolWindowDef, event: PointerEvent) {
+  if (!props.draggable) return;
+  emit("toolPointerDown", tool.id, event);
 }
 </script>
 
 <template>
-  <nav class="lum-stripe" :class="[`is-${side}`, { 'has-labels': labels }]" aria-label="Tool windows">
+  <nav
+    class="lum-stripe"
+    :class="[`is-${side}`, { 'has-labels': labels, 'is-dragging': !!draggingId }]"
+    :data-stripe-side="side"
+    aria-label="Tool windows"
+  >
     <div
-      class="lum-stripe-section lum-stripe-section-top"
-      :class="{ 'is-drop-target': dropTarget === topPosition }"
-      @dragover="dragOver(topPosition, $event)"
-      @dragleave="dragLeave(topPosition, $event)"
-      @drop="emit('drop', topPosition, $event)"
+      v-for="section in sections"
+      :key="section.position"
+      class="lum-stripe-section"
+      :class="[`lum-stripe-section-${section.kind}`, { 'is-drop-target': dropTarget === section.position }]"
+      :data-drop-position="section.position"
     >
       <div class="lum-stripe-group">
         <button
-          v-for="tool in top"
+          v-for="tool in section.tools"
           :key="tool.id"
           type="button"
           class="lum-stripe-btn"
-          :class="{ active: activeIds.includes(tool.id) }"
+          :class="[
+            { active: activeIds.includes(tool.id), 'is-being-dragged': draggingId === tool.id },
+            marker(section.position, section.tools, tool),
+          ]"
+          :data-tool-id="tool.id"
           :title="tip(tool)"
           :aria-label="tool.title"
           :aria-pressed="activeIds.includes(tool.id)"
-          :draggable="draggable"
-          @dragstart="emit('dragstart', tool.id, $event)"
-          @dragend="emit('dragend')"
-          @click="emit('toggle', tool.id)"
-        >
-          <component :is="tool.icon" />
-          <span v-if="labels" class="lum-stripe-label">{{ tool.title }}</span>
-        </button>
-      </div>
-    </div>
-
-    <div
-      class="lum-stripe-section lum-stripe-section-bottom"
-      :class="{ 'is-drop-target': dropTarget === bottomPosition }"
-      @dragover="dragOver(bottomPosition, $event)"
-      @dragleave="dragLeave(bottomPosition, $event)"
-      @drop="emit('drop', bottomPosition, $event)"
-    >
-      <div class="lum-stripe-group">
-        <button
-          v-for="tool in bottom"
-          :key="tool.id"
-          type="button"
-          class="lum-stripe-btn"
-          :class="{ active: activeIds.includes(tool.id) }"
-          :title="tip(tool)"
-          :aria-label="tool.title"
-          :aria-pressed="activeIds.includes(tool.id)"
-          :draggable="draggable"
-          @dragstart="emit('dragstart', tool.id, $event)"
-          @dragend="emit('dragend')"
+          @pointerdown="onPointerDown(tool, $event)"
           @click="emit('toggle', tool.id)"
         >
           <component :is="tool.icon" />
@@ -152,6 +147,7 @@ function dragLeave(position: ToolPosition, event: DragEvent) {
 }
 
 .lum-stripe-btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -162,7 +158,8 @@ function dragLeave(position: ToolPosition, event: DragEvent) {
   border-radius: var(--lum-radius-sm);
   background: transparent;
   color: var(--lum-fg-muted);
-  cursor: grab;
+  cursor: pointer;
+  touch-action: none;
   transition: background var(--lum-transition-fast), color var(--lum-transition-fast);
 }
 
@@ -174,6 +171,35 @@ function dragLeave(position: ToolPosition, event: DragEvent) {
 .lum-stripe-btn.active {
   background: var(--lum-accent-muted);
   color: var(--lum-fg-strong);
+}
+
+.lum-stripe-btn.is-being-dragged {
+  opacity: 0.35;
+}
+
+.is-dragging .lum-stripe-btn {
+  cursor: grabbing;
+}
+
+/* Insertion line shown while dragging a button over a group. */
+.lum-stripe-btn.insert-before::before,
+.lum-stripe-btn.insert-after::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--lum-accent);
+  pointer-events: none;
+}
+
+.lum-stripe-btn.insert-before::before {
+  top: -3px;
+}
+
+.lum-stripe-btn.insert-after::after {
+  bottom: -3px;
 }
 
 .lum-stripe-btn:focus-visible {

@@ -13,6 +13,7 @@ import { getProjectColor, getProjectInitials } from "~/luma/Workspace.ts";
 import { useModals } from "~/vue/components";
 import ModalNewWorkspace from "~/vue/startup/ModalNewWorkspace.vue";
 import { useToasts } from "~/vue/components/toasts";
+import { askOpenMode } from "~/vue/composables/useConfirm";
 
 interface WorkspaceInfo {
   project_uuid: string;
@@ -119,7 +120,32 @@ function openNewWorkspaceModal() {
       await refreshRecent();
     },
     onClose: () => modals.dismiss(item.id),
+    onOpenWorkspace: (path: string, title: string) => openProject(path, title),
   };
+}
+
+function normalizePath(path: string): string {
+  return path.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+}
+
+/**
+ * Open a project from inside the IDE. Opening a different project than the current one
+ * asks whether to use this window or a new one (unless the user chose "Don't ask again").
+ */
+async function openProject(path: string, title: string) {
+  const current = props.activeWorkspace;
+  if (current && normalizePath(current.path) === normalizePath(path)) return;
+
+  const mode = current ? await askOpenMode(title) : "this";
+  if (mode === "cancel") return;
+
+  try {
+    const project = await invoke<WorkspaceInfo>("open_workspace", { path, newWindow: mode === "new" });
+    if (mode === "this") emit("workspace-changed", project);
+    await refreshRecent();
+  } catch (error) {
+    toast("danger", "Failed to open workspace", String(error));
+  }
 }
 
 async function handleOpenWorkspaceDialog() {
@@ -131,7 +157,8 @@ async function handleOpenWorkspaceDialog() {
       title: "Open Workspace Folder",
     });
     if (typeof selected !== "string") return;
-    await invoke("open_workspace", { path: selected });
+    const folderName = selected.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || selected;
+    await openProject(selected, folderName);
   } catch (error) {
     toast("danger", "Failed to open workspace", String(error));
   }
@@ -140,11 +167,7 @@ async function handleOpenWorkspaceDialog() {
 async function switchWorkspace(project: WorkspaceInfo) {
   closeAllMenus();
   if (props.activeWorkspace?.project_uuid === project.project_uuid) return;
-  try {
-    await invoke("open_workspace", { path: project.path });
-  } catch (error) {
-    toast("danger", "Failed to switch workspace", String(error));
-  }
+  await openProject(project.path, project.title);
 }
 
 async function openSettings() {
