@@ -3,7 +3,8 @@
 members = ["luma-core", "luma-extensions", "luma-diagnostics", "luma-tauri", "luma-api"]
 
 exclude = [
-    "extensions/example_extension"
+    "extensions/example_extension",
+    "extensions/discord_rpc"
 ]
 edition = "2024"
 rust-version = "1.98"

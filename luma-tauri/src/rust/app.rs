@@ -75,6 +75,12 @@ pub fn build_tauri_app() -> Result<tauri::App> {
             crate::workspace::layout::save_tool_window_layout,
             crate::workspace::commands::remove_recent_workspace,
             crate::workspace::commands::reveal_workspace,
+            crate::workspace::commands::report_active_file,
+            crate::workspace::commands::report_editor_state,
+            crate::discord_rpc::get_discord_rpc_config,
+            crate::discord_rpc::set_discord_rpc_config,
+            crate::discord_rpc::get_discord_rpc_enabled,
+            crate::discord_rpc::set_discord_rpc_enabled,
             crate::filesystem::read_file,
             crate::filesystem::read_file_snapshot,
             crate::filesystem::write_file,
@@ -104,6 +110,10 @@ pub fn build_tauri_app() -> Result<tauri::App> {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             log::info!("Tauri ready");
+
+            // Reset any leftover editor presence so Discord RPC defaults to "Idle"
+            // while the user is in the project selection screen.
+            let _ = crate::workspace::commands::write_editor_presence(false, None, None, None);
 
             // The splash is fixed-size; the startup window stays hidden until
             // `webview_ready` has waited out the splash's minimum visible time.

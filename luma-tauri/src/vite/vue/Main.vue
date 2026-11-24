@@ -387,12 +387,27 @@ watch(activeFile, (file) => {
   });
 }, { immediate: true, deep: true });
 
+// Publish the editor and focused file state for integrations such as Discord RPC.
+function reportPresence(file: string | null = activeFile.value?.path ?? null) {
+  void invoke("report_editor_state", {
+    inEditor: true,
+    workspacePath: activeWorkspace.value?.path ?? null,
+    workspaceTitle: activeWorkspace.value?.title ?? null,
+    activeFile: file,
+  }).catch(() => {});
+}
+
+watch(() => activeFile.value?.path ?? null, (path) => {
+  reportPresence(path);
+}, { immediate: true });
+
 async function syncWorkspace(workspace: ActiveWorkspace | null) {
   activeWorkspace.value = workspace;
   updateActionContext({ workspace: workspace ? { path: workspace.path, title: workspace.title } : null });
   if (workspace) {
     setWorkspacePath(workspace.path);
     await setToolWindowWorkspace(workspace.path);
+    reportPresence();
   } else {
     await setToolWindowWorkspace("");
   }
@@ -466,6 +481,13 @@ function onVisibilityChange() {
 }
 
 onBeforeUnmount(() => {
+  void invoke("report_editor_state", {
+    inEditor: false,
+    workspacePath: null,
+    workspaceTitle: null,
+    activeFile: null,
+  }).catch(() => {});
+  void invoke("report_active_file", { path: null }).catch(() => {});
   actionDisposers.forEach((dispose) => dispose());
   menuDisposers.forEach((dispose) => dispose());
   stopDockResize();

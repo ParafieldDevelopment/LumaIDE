@@ -65,6 +65,9 @@ pub fn open_main_window(
             if matches!(event, tauri::WindowEvent::Destroyed) {
                 crate::filesystem::watch::stop(&owned_label);
                 store::store().remove(&owned_label);
+                if store::store().is_empty() {
+                    let _ = crate::workspace::commands::write_editor_presence(false, None, None, None);
+                }
             }
         });
         window

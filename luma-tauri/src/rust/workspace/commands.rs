@@ -320,3 +320,51 @@ fn write_template_files(root: &Path, files: Vec<TemplateFile>) -> Result<(), Inv
     }
     Ok(())
 }
+
+/// Publishes the editor state to `active_file.json` in the Luma data directory
+/// so integrations (such as the Discord RPC extension) can read it.
+///
+/// When `in_editor` is false, the user is in project select / welcome screen.
+#[tauri::command]
+pub async fn report_editor_state(
+    in_editor: bool,
+    workspace_path: Option<String>,
+    workspace_title: Option<String>,
+    active_file: Option<String>,
+) -> Result<(), InvokeError> {
+    write_editor_presence(in_editor, workspace_path, workspace_title, active_file)
+}
+
+/// Publishes the focused editor file to `active_file.json` in the Luma data
+/// directory so out-of-process integrations (e.g. the Discord RPC extension)
+/// can read it. `None` means no file is focused.
+#[tauri::command]
+pub async fn report_active_file(path: Option<String>) -> Result<(), InvokeError> {
+    let in_editor = path.is_some() || !store::store().is_empty();
+    let current_ws = store::store().first_workspace();
+    let (ws_path, ws_title) = match current_ws {
+        Some(ws) => (Some(ws.face.path), Some(ws.face.title)),
+        None => (None, None),
+    };
+    write_editor_presence(in_editor, ws_path, ws_title, path)
+}
+
+pub fn write_editor_presence(
+    in_editor: bool,
+    workspace_path: Option<String>,
+    workspace_title: Option<String>,
+    active_file: Option<String>,
+) -> Result<(), InvokeError> {
+    let target = luma_core::data_dir()
+        .context("Failed to resolve the Luma data directory")
+        .map_err(InvokeError::from_anyhow)?
+        .join("active_file.json");
+    let payload = serde_json::json!({
+        "in_editor": in_editor,
+        "workspace_path": workspace_path.map(|value| paths::clean_path_string(&value)),
+        "workspace_title": workspace_title,
+        "path": active_file.map(|value| paths::clean_path_string(&value)),
+        "updated_at": unix_timestamp(),
+    });
+    crate::json::write_text(&target, &payload.to_string()).map_err(InvokeError::from_anyhow)
+}

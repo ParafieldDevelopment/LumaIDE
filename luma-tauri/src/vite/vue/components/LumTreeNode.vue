@@ -6,6 +6,7 @@
  */
 import { computed } from "vue";
 import type { TreeNode } from "./types";
+import { pathKey } from "~/vue/composables/paths";
 
 defineOptions({ name: "LumTreeNode" });
 
@@ -24,7 +25,9 @@ const emit = defineEmits<{
   toggle: [node: TreeNode];
 }>();
 
-const key = computed(() => props.node.path ?? props.node.label);
+// `expanded` holds pathKey()-normalized keys (lowercase, forward slashes), so
+// look nodes up the same way. Raw paths never matched on Windows.
+const key = computed(() => (props.node.path ? pathKey(props.node.path) : props.node.label));
 const isDir = computed(() => props.node.is_dir !== false);
 const open = computed(() => props.expanded.has(key.value));
 const hasChildren = computed(() => (props.node.children?.length ?? 0) > 0);

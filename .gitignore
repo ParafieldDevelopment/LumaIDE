@@ -12,8 +12,16 @@
 
 # Node
 node_modules/
-.idea/discord.xml
-.idea/workspace.xml
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
 
 # Extension build artifacts
 extensions/**/target/
