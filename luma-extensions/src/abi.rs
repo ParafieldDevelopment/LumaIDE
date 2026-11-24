@@ -324,6 +324,10 @@ impl CoreAPI for NativeCoreApi {
         }
     }
 
+    fn notify_workspace_loaded(&self) {
+        luma_api::notify_listeners(&self.workspace_callbacks);
+    }
+
     fn open_workspace(&self, workspace_path: &std::path::Path) -> Result<()> {
         let host = self.api.0;
         let path = workspace_path.to_string_lossy();

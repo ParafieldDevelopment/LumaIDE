@@ -7,7 +7,9 @@
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { useEditor } from "~/vue/composables/useEditor";
-import { registerContextMenu, type ContextMenuItem } from "~/vue/composables/contextMenu";
+import { registerContextMenu } from "~/vue/composables/contextMenu";
+import { registerActions } from "~/vue/composables/actions";
+import { Menus, registerMenu } from "~/vue/composables/menus";
 import type { TreeNode } from "~/vue/components/types";
 import LumTree from "~/vue/components/LumTree.vue";
 import { useToasts } from "~/vue/components/toasts";
@@ -36,6 +38,8 @@ const creationError = ref("");
 
 let pollInterval: ReturnType<typeof setInterval> | null = null;
 let unregisterMenu: (() => void) | null = null;
+let unregisterActions: (() => void) | null = null;
+let unregisterMenuEntries: (() => void) | null = null;
 
 function toNode(entry: any): TreeNodeWithPath {
   const node: TreeNodeWithPath = {
@@ -122,52 +126,68 @@ async function submitCreation() {
   }
 }
 
-function getContextMenuItems(): ContextMenuItem[] {
-  return [
+/** Register explorer actions once so the context menu and command palette share them. */
+function registerExplorerActions() {
+  unregisterActions = registerActions([
     {
+      id: "explorer.newFile",
       label: "New File...",
-      action: () => startCreating("file"),
+      category: "Explorer",
+      when: (context) => !!(context.workspace || props.workspacePath),
+      run: () => startCreating("file"),
     },
     {
+      id: "explorer.newFolder",
       label: "New Folder...",
-      action: () => startCreating("folder"),
+      category: "Explorer",
+      when: (context) => !!(context.workspace || props.workspacePath),
+      run: () => startCreating("folder"),
     },
-    { separator: true },
     {
+      id: "explorer.refresh",
       label: "Refresh Explorer",
-      action: loadTree,
+      category: "Explorer",
+      when: (context) => !!(context.workspace || props.workspacePath),
+      run: () => loadTree(),
     },
-    ...(props.workspacePath
-      ? [
-          { separator: true },
-          {
-            label: "Reveal in File Manager",
-            action: async () => {
-              if (props.workspacePath) {
-                await invoke("reveal_workspace", { path: props.workspacePath });
-              }
-            },
-          },
-          {
-            label: "Copy Path",
-            action: async () => {
-              if (props.workspacePath) {
-                await navigator.clipboard.writeText(props.workspacePath);
-                toast("success", "Copied", "Workspace path copied to clipboard");
-              }
-            },
-          },
-        ]
-      : []),
-  ];
+    {
+      id: "explorer.reveal",
+      label: "Reveal in File Manager",
+      category: "Explorer",
+      when: (context) => !!(context.workspace || props.workspacePath),
+      run: (context) => invoke("reveal_workspace", { path: context.workspace?.path ?? props.workspacePath }),
+    },
+    {
+      id: "explorer.copyPath",
+      label: "Copy Path",
+      category: "Explorer",
+      when: (context) => !!(context.workspace || props.workspacePath),
+      run: async (context) => {
+        const path = context.workspace?.path ?? props.workspacePath;
+        if (!path) return;
+        await navigator.clipboard.writeText(path);
+        toast("success", "Copied", "Workspace path copied to clipboard");
+      },
+    },
+  ]);
+
+  unregisterMenuEntries = registerMenu(Menus.explorerContext, [
+    { commandId: "explorer.newFile", group: "01_create", order: 10 },
+    { commandId: "explorer.newFolder", group: "01_create", order: 20 },
+    { commandId: "explorer.refresh", group: "02_refresh", order: 10 },
+    { commandId: "explorer.reveal", group: "03_system", order: 10 },
+    { commandId: "explorer.copyPath", group: "03_system", order: 20 },
+  ]);
 }
+
+registerExplorerActions();
 
 onMounted(() => {
   loading.value = true;
   void loadTree();
 
   if (explorerRef.value) {
-    unregisterMenu = registerContextMenu(explorerRef.value, getContextMenuItems);
+    unregisterMenu = registerContextMenu(explorerRef.value, Menus.explorerContext);
   }
 
   // Auto-refresh when user focuses window
@@ -179,6 +199,8 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   unregisterMenu?.();
+  unregisterActions?.();
+  unregisterMenuEntries?.();
   window.removeEventListener("focus", loadTree);
   if (pollInterval) clearInterval(pollInterval);
 });

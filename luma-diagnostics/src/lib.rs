@@ -52,10 +52,7 @@ impl ErrorReport {
     }
 
     pub fn from_panic_now(payload: &(dyn std::any::Any + Send)) -> Self {
-        Self::from_panic(
-            payload,
-            Backtrace::force_capture().to_string(),
-        )
+        Self::from_panic(payload, Backtrace::force_capture().to_string())
     }
 
     pub fn to_plain_text(&self, meta: &ReportMeta) -> String {
@@ -95,7 +92,10 @@ fn crash_handler_binary() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
     let dir = exe.parent()?;
 
-    let candidate = dir.join(format!("luma-crash-handler{}", std::env::consts::EXE_SUFFIX));
+    let candidate = dir.join(format!(
+        "luma-crash-handler{}",
+        std::env::consts::EXE_SUFFIX
+    ));
     candidate.is_file().then_some(candidate)
 }
 
@@ -103,8 +103,8 @@ fn crash_handler_binary() -> Option<PathBuf> {
 /// so it survives the app exiting or aborting. `report_file`, when present, is
 /// the crash report the handler offers to open for the user.
 pub fn spawn_crash_dialog(report_file: Option<&std::path::Path>) -> Result<(), String> {
-    let handler =
-        crash_handler_binary().ok_or_else(|| "the luma-crash-handler executable could not be located".to_string())?;
+    let handler = crash_handler_binary()
+        .ok_or_else(|| "the luma-crash-handler executable could not be located".to_string())?;
 
     let mut command = std::process::Command::new(&handler);
     if let Some(file) = report_file {
@@ -154,8 +154,8 @@ pub fn install_panic_logger(meta: ReportMeta) {
         }
 
         let mut meta = meta.clone();
-        let report =
-            ErrorReport::from_panic_message(error_text.clone()).with_traceback(Backtrace::force_capture().to_string());
+        let report = ErrorReport::from_panic_message(error_text.clone())
+            .with_traceback(Backtrace::force_capture().to_string());
 
         if let Some(path) = persist(&report, &mut meta) {
             eprintln!("Luma panic reported to: {}", path.display());
@@ -174,10 +174,7 @@ pub fn crash_report_dir() -> PathBuf {
     dir
 }
 pub fn persist(report: &ErrorReport, meta: &mut ReportMeta) -> Option<PathBuf> {
-    let path = crash_report_dir().join(format!(
-        "report-{}.log",
-        file_timestamp(SystemTime::now())
-    ));
+    let path = crash_report_dir().join(format!("report-{}.log", file_timestamp(SystemTime::now())));
 
     fs::write(&path, report.to_plain_text(meta)).ok()?;
     meta.report_file = Some(path.clone());

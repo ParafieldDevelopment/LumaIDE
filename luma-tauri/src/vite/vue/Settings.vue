@@ -47,7 +47,6 @@ window.addEventListener("keydown", async (event) => {
 
     <LumToasts />
     <LumModals />
-    <LumContextMenu />
   </div>
 </template>
 

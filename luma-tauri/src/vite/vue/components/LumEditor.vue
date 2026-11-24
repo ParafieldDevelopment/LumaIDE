@@ -2,8 +2,57 @@
 import { ref, onMounted, onBeforeUnmount, watch } from "vue";
 import * as monaco from "monaco-editor";
 import "../../node_modules/monaco-editor/min/vs/editor/editor.main.css";
+import { getActionContext, registerActions, updateActionContext } from "~/vue/composables/actions";
+import { registerContextMenu } from "~/vue/composables/contextMenu";
+import { getMonacoContextMenuItems } from "~/vue/composables/monacoContextMenu";
 
 monaco.editor.setTheme("vs-dark");
+
+interface EditorCommand {
+  id: string;
+  label: string;
+  shortcut?: string;
+  icon?: string;
+  group: string;
+  order: number;
+  isChecked?: () => boolean;
+  run: (editor: monaco.editor.IStandaloneCodeEditor) => void;
+}
+
+let minimapEnabled = true;
+let wordWrapEnabled = true;
+
+const editorCommands: EditorCommand[] = [
+  { id: "editor.undo", label: "Undo", shortcut: "Ctrl+Z", group: "01_history", order: 10,
+    run: (editor) => editor.trigger("menu", "undo", null) },
+  { id: "editor.redo", label: "Redo", shortcut: "Ctrl+Y", group: "01_history", order: 20,
+    run: (editor) => editor.trigger("menu", "redo", null) },
+  { id: "editor.cut", label: "Cut", shortcut: "Ctrl+X", group: "02_clipboard", order: 10,
+    run: (editor) => editor.trigger("menu", "cut", null) },
+  { id: "editor.copy", label: "Copy", shortcut: "Ctrl+C", group: "02_clipboard", order: 20,
+    run: (editor) => editor.trigger("menu", "copy", null) },
+  { id: "editor.paste", label: "Paste", shortcut: "Ctrl+V", group: "02_clipboard", order: 30,
+    run: (editor) => editor.trigger("menu", "paste", null) },
+  { id: "editor.selectAll", label: "Select All", shortcut: "Ctrl+A", group: "02_clipboard", order: 40,
+    run: (editor) => editor.trigger("menu", "editor.action.selectAll", null) },
+  { id: "editor.formatDocument", label: "Format Document", shortcut: "Shift+Alt+F", group: "03_format", order: 10,
+    run: (editor) => { void editor.getAction("editor.action.formatDocument")?.run(); } },
+  { id: "editor.commentLine", label: "Toggle Line Comment", shortcut: "Ctrl+/", group: "03_format", order: 20,
+    run: (editor) => { void editor.getAction("editor.action.commentLine")?.run(); } },
+  { id: "editor.toggleWordWrap", label: "Word Wrap", group: "04_view", order: 10,
+    isChecked: () => wordWrapEnabled,
+    run: (editor) => {
+      wordWrapEnabled = !wordWrapEnabled;
+      editor.updateOptions({ wordWrap: wordWrapEnabled ? "on" : "off" });
+    } },
+  { id: "editor.toggleMinimap", label: "Minimap", group: "04_view", order: 20,
+    isChecked: () => minimapEnabled,
+    run: (editor) => {
+      minimapEnabled = !minimapEnabled;
+      editor.updateOptions({ minimap: { enabled: minimapEnabled } });
+      requestAnimationFrame(layoutEditor);
+    } },
+];
 
 const props = withDefaults(
   defineProps<{ language?: string; readOnly?: boolean; modelKey?: string | number }>(),
@@ -18,6 +67,8 @@ let editorModel: monaco.editor.ITextModel | null = null;
 let isUpdating = false;
 let resizeObserver: ResizeObserver | null = null;
 let contentListener: monaco.IDisposable | null = null;
+let disposeActions: (() => void) | null = null;
+let disposeContextMenu: (() => void) | null = null;
 
 const models = new Map<string, monaco.editor.ITextModel>();
 const viewStates = new Map<string, monaco.editor.ICodeEditorViewState | null>();
@@ -99,12 +150,14 @@ async function createEditor() {
     fontFamily: '"JetBrains Mono", monospace',
     fontSize: 14,
     lineNumbers: "on",
-    minimap: { enabled: true },
+    minimap: { enabled: minimapEnabled },
     automaticLayout: false,
     scrollBeyondLastLine: false,
-    wordWrap: "on",
+    wordWrap: wordWrapEnabled ? "on" : "off",
     letterSpacing: 0,
     fontLigatures: false,
+    // The IDE renders its own unified context menu instead.
+    contextmenu: false,
   });
 
   monaco.editor.remeasureFonts();
@@ -126,10 +179,28 @@ async function createEditor() {
   }
 
   requestAnimationFrame(layoutEditor);
+
+  // Editor commands become available everywhere: context menu, palette, menus.
+  disposeActions = registerActions(editorCommands.map((command) => ({
+    id: command.id,
+    label: command.label,
+    shortcut: command.shortcut,
+    icon: command.icon,
+    category: "Editor",
+    when: (context) => !!context.editor,
+    checked: command.isChecked ? () => !!command.isChecked?.() : undefined,
+    run: (context) => { if (context.editor) command.run(context.editor); },
+  })));
+  updateActionContext({ editor });
   emit("load", editor);
 }
 
-onMounted(createEditor);
+onMounted(() => {
+  if (editorRef.value) {
+    disposeContextMenu = registerContextMenu(editorRef.value, (event) => getMonacoContextMenuItems(editor, event));
+  }
+  void createEditor();
+});
 watch(() => props.modelKey, switchModel);
 
 watch(() => value.value, (next) => {
@@ -151,6 +222,9 @@ watch(() => props.readOnly, (next) => editor?.updateOptions({ readOnly: next }))
 
 onBeforeUnmount(() => {
   if (editor && editorModel) viewStates.set(keyForModel(editorModel), editor.saveViewState());
+  if (editor && getActionContext().editor === editor) updateActionContext({ editor: null });
+  disposeActions?.();
+  disposeContextMenu?.();
   resizeObserver?.disconnect();
   resizeObserver = null;
   window.removeEventListener("resize", layoutEditor);

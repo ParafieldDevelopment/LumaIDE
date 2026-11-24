@@ -10,10 +10,13 @@ import { ref, onMounted, onBeforeUnmount, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { getProjectColor, getProjectInitials } from "~/luma/Workspace.ts";
-import { useModals } from "~/vue/components";
+import { LumMenuItem, useModals } from "~/vue/components";
 import ModalNewWorkspace from "~/vue/startup/ModalNewWorkspace.vue";
 import { useToasts } from "~/vue/components/toasts";
 import { askOpenMode } from "~/vue/composables/useConfirm";
+import { registerActions, runAction } from "~/vue/composables/actions";
+import { openCommandPalette } from "~/vue/composables/commandPalette";
+import { getMenuItems, Menus, registerMenu, type MenuItem } from "~/vue/composables/menus";
 
 interface WorkspaceInfo {
   project_uuid: string;
@@ -187,6 +190,78 @@ async function openDevtools() {
     toast("danger", "Failed to open devtools", String(error));
   }
 }
+
+const mainMenuItems = computed<MenuItem[]>(() => getMenuItems(Menus.titlebarMain));
+
+function activateMenuItem(item: MenuItem) {
+  closeAllMenus();
+  void item.action?.();
+}
+
+function runCommand(id: string) {
+  closeAllMenus();
+  void runAction(id);
+}
+
+// These actions back both the titlebar menus and the command palette.
+const disposeTitlebarActions = registerActions([
+  {
+    id: "workspace.new",
+    label: "New Project...",
+    category: "Project",
+    icon: "M12 5v14M5 12h14",
+    run: () => openNewWorkspaceModal(),
+  },
+  {
+    id: "workspace.open",
+    label: "Open...",
+    category: "Project",
+    shortcut: "Ctrl+O",
+    keys: "Ctrl+O",
+    icon: "M3 7h6l2 2h10v10H3z",
+    run: () => handleOpenWorkspaceDialog(),
+  },
+  {
+    id: "commandPalette.show",
+    label: "Show Command Palette",
+    category: "Tools",
+    shortcut: "Ctrl+Shift+P",
+    keys: "Ctrl+Shift+P|F1",
+    icon: "M4 17l6-6-6-6M12 19h8",
+    keywords: ["find action", "commands"],
+    run: () => openCommandPalette(),
+  },
+  {
+    id: "settings.open",
+    label: "Settings",
+    category: "Tools",
+    shortcut: "Ctrl+,",
+    keys: "Ctrl+,",
+    run: () => openSettings(),
+  },
+  {
+    id: "devtools.toggle",
+    label: "Developer Tools",
+    category: "Tools",
+    shortcut: "Ctrl+Shift+I",
+    keys: "Ctrl+Shift+I|F12",
+    icon: "M8 6l-6 6 6 6M16 6l6 6-6 6",
+    run: () => openDevtools(),
+  },
+]);
+
+const disposeTitlebarMenu = registerMenu(Menus.titlebarMain, [
+  { commandId: "workspace.new", group: "02_project", order: 10 },
+  { commandId: "workspace.open", group: "02_project", order: 20 },
+  { commandId: "commandPalette.show", group: "03_tools", order: 10 },
+  { commandId: "settings.open", group: "03_tools", order: 20 },
+  { commandId: "devtools.toggle", group: "03_tools", order: 30 },
+]);
+
+onBeforeUnmount(() => {
+  disposeTitlebarActions();
+  disposeTitlebarMenu();
+});
 </script>
 
 <template>
@@ -212,39 +287,24 @@ async function openDevtools() {
         </svg>
       </button>
 
-      <!-- Main menu dropdown -->
+      <!-- Main menu dropdown (built from the shared action menu registry) -->
       <div v-if="isMainMenuOpen" class="lum-popover main-menu-dropdown">
-        <button class="lum-menu-item" @click="openNewWorkspaceModal">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          New Project...
-        </button>
-        <button class="lum-menu-item" @click="handleOpenWorkspaceDialog">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-          </svg>
-          Open...
-          <span class="lum-menu-shortcut">Ctrl+O</span>
-        </button>
-        <div class="lum-menu-separator" />
-        <button class="lum-menu-item" @click="openSettings">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
-          Settings
-          <span class="lum-menu-shortcut">Ctrl+,</span>
-        </button>
-        <button class="lum-menu-item" @click="openDevtools">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="16 18 22 12 16 6" />
-            <polyline points="8 6 2 12 8 18" />
-          </svg>
-          Developer Tools
-          <span class="lum-menu-shortcut">F12</span>
-        </button>
+        <template v-for="(item, index) in mainMenuItems" :key="index">
+          <div v-if="item.separator" class="lum-menu-separator" />
+          <LumMenuItem
+            v-else
+            :disabled="item.disabled"
+            :shortcut="item.shortcut"
+            @click="activateMenuItem(item)"
+          >
+            <template v-if="item.icon" #icon>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                <path :d="item.icon" />
+              </svg>
+            </template>
+            {{ item.label }}
+          </LumMenuItem>
+        </template>
       </div>
     </div>
 
@@ -270,7 +330,7 @@ async function openDevtools() {
 
       <!-- Project Popup Menu (Image 2 & 3) -->
       <div v-if="isProjectMenuOpen" class="lum-popover project-menu-dropdown">
-        <button class="lum-menu-item" @click="openNewWorkspaceModal">
+        <button class="lum-menu-item" @click="runCommand('workspace.new')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
@@ -278,7 +338,7 @@ async function openDevtools() {
           New Project...
         </button>
 
-        <button class="lum-menu-item" @click="handleOpenWorkspaceDialog">
+        <button class="lum-menu-item" @click="runCommand('workspace.open')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
           </svg>

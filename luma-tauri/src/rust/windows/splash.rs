@@ -8,9 +8,9 @@ pub const SPLASH_LABEL: &str = "splash";
 
 /// Minimum time the splash stays on screen once it is visible.
 const MIN_VISIBLE: Duration = Duration::from_millis(2500);
-/// How long other windows will wait for the splash to appear before giving up.
+/// How long other windows wait for the splash before giving up.
 const MAX_WAIT_FOR_SPLASH: Duration = Duration::from_secs(3);
-/// Splash is force-closed this long after "splash-finish" if it didn't close itself.
+/// Hard fallback if the splash does not close itself after `splash-finish`.
 const FORCE_CLOSE_AFTER: Duration = Duration::from_millis(1500);
 
 static SHOWN_AT: OnceLock<Instant> = OnceLock::new();
@@ -38,20 +38,17 @@ pub fn splash_window(app: AppHandle) -> anyhow::Result<WebviewWindow> {
     .context("Failed to build splash window")
 }
 
-/// Called when the splash window has been shown.
+/// Called when the splash webview reports that it is visible.
 pub fn mark_shown() {
     let _ = SHOWN_AT.set(Instant::now());
 }
 
-/// Blocks (call from a blocking thread) until the splash has been visible for
-/// at least `MIN_VISIBLE`. Returns immediately if there is no splash.
+/// Block until the splash has been visible for its minimum duration.
 pub fn hold_until_splash_done(app: &AppHandle) {
     let started = Instant::now();
 
-    // The splash page may still be loading; wait for it to show up.
     while SHOWN_AT.get().is_none() {
-        if app.get_webview_window(SPLASH_LABEL).is_none()
-            || started.elapsed() > MAX_WAIT_FOR_SPLASH
+        if app.get_webview_window(SPLASH_LABEL).is_none() || started.elapsed() > MAX_WAIT_FOR_SPLASH
         {
             return;
         }
@@ -66,7 +63,7 @@ pub fn hold_until_splash_done(app: &AppHandle) {
     }
 }
 
-/// Tells the splash to fade out and close, with a hard fallback.
+/// Ask the splash to fade out, with a hard fallback close.
 pub fn finish(app: &AppHandle) {
     let Some(splash) = app.get_webview_window(SPLASH_LABEL) else {
         return;

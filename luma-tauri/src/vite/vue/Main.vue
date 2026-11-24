@@ -4,7 +4,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { confirmExit } from "~/vue/composables/useConfirm";
-import { LumContextMenu, LumModals, LumFileTabs, LumEditor } from "./components";
+import { LumContextMenu, LumModals, LumFileTabs, LumEditor, LumCommandPalette } from "./components";
 import TitleBar from "~/vue/window/TitleBar.vue";
 import IdeTitlebarNav from "~/vue/window/IdeTitlebarNav.vue";
 import { useEditor } from "~/vue/composables/useEditor.ts";
@@ -17,6 +17,13 @@ import TerminalPanel from "./toolwindows/TerminalPanel.vue";
 import AnalyzerPanel from "./toolwindows/AnalyzerPanel.vue";
 import GitCommitPanel from "./toolwindows/GitCommitPanel.vue";
 import NotificationsPanel from "./toolwindows/NotificationsPanel.vue";
+import {
+  handleActionKeydown,
+  registerActions,
+  updateActionContext,
+} from "~/vue/composables/actions";
+import { Menus, registerMenu } from "~/vue/composables/menus";
+import { commandPaletteOpen } from "~/vue/composables/commandPalette";
 
 interface ActiveWorkspace { project_uuid: string; title: string; path: string; git_branch?: string; icon_path?: string }
 
@@ -30,9 +37,85 @@ registerToolWindow({ id: "terminal", title: "Terminal", position: "left-bottom",
 registerToolWindow({ id: "analyzer", title: "Analyzer", position: "right-bottom", icon: AnalyzerIcon, component: AnalyzerPanel, order: 30, hotkey: "Ctrl+Shift+A" });
 registerToolWindow({ id: "notifications", title: "Notifications", position: "right-top", icon: NotificationIcon, component: NotificationsPanel, order: 20 });
 
+// ── Unified action system: commands, keybindings and menus share one registry ──
+const actionDisposers: Array<() => void> = [];
+const menuDisposers: Array<() => void> = [];
+
+actionDisposers.push(registerActions([
+  {
+    id: "file.save",
+    label: "Save",
+    category: "File",
+    shortcut: "Ctrl+S",
+    keys: "Ctrl+S",
+    icon: "M5 3h12l2 2v16H5zM8 3v6h8V3M8 21v-8h8v8",
+    when: (context) => !!context.activeFile,
+    run: () => handleSave(),
+  },
+  {
+    id: "file.saveAll",
+    label: "Save All",
+    category: "File",
+    when: () => openFiles.value.some((file) => file.dirty),
+    run: () => handleSaveAll(),
+  },
+  {
+    id: "editor.closeTab",
+    label: "Close Tab",
+    category: "Editor",
+    when: (context) => !!context.activeFile,
+    run: (context) => handleCloseTab(context.activeFile?.id ?? activeFileId.value),
+  },
+  {
+    id: "editor.closeAllTabs",
+    label: "Close All Tabs",
+    category: "Editor",
+    when: () => openFiles.value.length > 0,
+    run: () => {
+      for (const file of [...openFiles.value]) closeFile(file.id);
+    },
+  },
+  {
+    id: "view.hideToolWindows",
+    label: "Hide All Tool Windows",
+    category: "View",
+    shortcut: "Ctrl+Shift+F12",
+    keys: "Ctrl+Shift+F12",
+    run: () => tools.hideAll(),
+  },
+]));
+
+const toolWindowEntries = tools.allTools.value.map((tool, index) => {
+  const id = `view.toggle.${tool.id}`;
+  actionDisposers.push(registerActions([{
+    id,
+    label: `Toggle ${tool.title} Tool Window`,
+    category: "View",
+    shortcut: tool.hotkey,
+    keys: tool.hotkey,
+    when: (context) => !!context.workspace,
+    run: () => toggle(tool.id),
+  }]));
+  return { commandId: id, group: "04_view", order: 10 + index };
+});
+
+menuDisposers.push(
+  registerMenu(Menus.titlebarMain, [
+    { commandId: "file.save", group: "01_file", order: 10 },
+    { commandId: "file.saveAll", group: "01_file", order: 20 },
+    ...toolWindowEntries,
+  ]),
+  registerMenu(Menus.editorTabContext, [
+    { commandId: "file.save", group: "01_file", order: 10 },
+    { commandId: "file.saveAll", group: "01_file", order: 20 },
+    { commandId: "editor.closeTab", group: "02_tabs", order: 10 },
+    { commandId: "editor.closeAllTabs", group: "02_tabs", order: 20 },
+  ]),
+);
+
 const {
   leftTopTools, leftBottomTools, rightTopTools, rightBottomTools,
-  leftTool, rightTool, bottomLeftTool, bottomRightTool, activeIds, sizes, toggle, close, setSize, handleHotkey, move,
+  leftTool, rightTool, bottomLeftTool, bottomRightTool, activeIds, sizes, toggle, close, setSize, move,
 } = tools;
 
 const activeWorkspace = ref<ActiveWorkspace | null>(null);
@@ -262,8 +345,15 @@ const editorValue = computed({
   set: (value: string) => { if (activeFile.value) setContents(activeFile.value.id, value); },
 });
 
+watch(activeFile, (file) => {
+  updateActionContext({
+    activeFile: file ? { id: file.id, path: file.path, name: file.name, dirty: file.dirty } : null,
+  });
+}, { immediate: true, deep: true });
+
 async function syncWorkspace(workspace: ActiveWorkspace | null) {
   activeWorkspace.value = workspace;
+  updateActionContext({ workspace: workspace ? { path: workspace.path, title: workspace.title } : null });
   if (workspace) {
     setWorkspacePath(workspace.path);
     await setToolWindowWorkspace(workspace.path);
@@ -297,23 +387,8 @@ async function handleSaveAll() {
 }
 
 function handleKeydown(event: KeyboardEvent) {
-  if (handleHotkey(event)) {
-    event.preventDefault();
-    return;
-  }
-  if (event.key === "F12") {
-    event.preventDefault();
-    return;
-  }
-  if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "i") {
-    event.preventDefault();
-    void invoke("open_devtools");
-    return;
-  }
-  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
-    event.preventDefault();
-    void handleSave();
-  }
+  // All keybindings come from the action registry now.
+  handleActionKeydown(event);
 }
 
 // X button and Alt+F4 both arrive here. Ask first, then really close the window.
@@ -337,7 +412,7 @@ onMounted(async () => {
   unlistenWorkspace.value = await listen<ActiveWorkspace>("workspace-opened", (event) => { void syncWorkspace(event.payload); });
   unlistenClose = await getCurrentWindow().onCloseRequested(handleCloseRequested);
   await loadActiveWorkspace();
-  window.addEventListener("keydown", handleKeydown);
+  window.addEventListener("keydown", handleKeydown, true);
   window.addEventListener("blur", triggerAutosave);
   document.addEventListener("visibilitychange", onVisibilityChange);
 });
@@ -347,6 +422,8 @@ function onVisibilityChange() {
 }
 
 onBeforeUnmount(() => {
+  actionDisposers.forEach((dispose) => dispose());
+  menuDisposers.forEach((dispose) => dispose());
   stopDockResize();
   stopBottomSplitResize();
   cleanupToolDrag();
@@ -354,7 +431,7 @@ onBeforeUnmount(() => {
   autosaveTimer = null;
   unlistenWorkspace.value?.();
   unlistenClose?.();
-  window.removeEventListener("keydown", handleKeydown);
+  window.removeEventListener("keydown", handleKeydown, true);
   window.removeEventListener("blur", triggerAutosave);
   document.removeEventListener("visibilitychange", onVisibilityChange);
 });
@@ -397,7 +474,7 @@ onBeforeUnmount(() => {
         />
 
       <div class="ide-editor-area">
-        <div class="ide-tabs">
+        <div class="ide-tabs" v-context-menu="'editor/tab/context'">
           <LumFileTabs v-model="activeFileId" :files="tabFiles" @close="handleCloseTab">
             <template #extra>
               <div class="ide-tab-actions">
@@ -490,6 +567,7 @@ onBeforeUnmount(() => {
   <div v-else-if="editorLoadError" class="ide-load-error">{{ editorLoadError }}</div>
   <div v-else class="ide-loading">Loading workspace…</div>
 
+  <LumCommandPalette v-model:open="commandPaletteOpen" />
   <LumContextMenu />
   <LumModals />
 </template>

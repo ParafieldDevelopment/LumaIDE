@@ -1,9 +1,9 @@
-pub use luma_api::{CoreAPI, CORE_API, Shared};
+pub use luma_api::{CORE_API, CoreAPI, Shared};
 
 use anyhow::{Context, Result};
 use dirs::home_dir;
 use log::info;
-use luma_api::configuration::{ConfigurationManager, Identifier};
+use luma_api::configuration::ConfigurationManager;
 use std::fs::create_dir_all;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
@@ -38,12 +38,8 @@ struct Core {
 
 impl Core {
     fn new(luma_dir: PathBuf, workspaces_dir: PathBuf) -> Self {
-        let ide_configuration_manager = Arc::new(
-            RwLock::new(ConfigurationManager::new())
-        );
-        let workspace_configuration_manager = Arc::new(
-            RwLock::new(ConfigurationManager::new())
-        );
+        let ide_configuration_manager = Arc::new(RwLock::new(ConfigurationManager::new()));
+        let workspace_configuration_manager = Arc::new(RwLock::new(ConfigurationManager::new()));
 
         let luma_configuration_path = luma_dir.join(CONFIGURATION_FILE_NAME);
 
@@ -58,9 +54,7 @@ impl Core {
     }
 
     pub fn init(luma_dir: PathBuf, workspaces_dir: PathBuf) -> Result<Shared<dyn CoreAPI>> {
-        let api: Shared<dyn CoreAPI> = Arc::new(
-            Self::new(luma_dir, workspaces_dir)
-        );
+        let api: Shared<dyn CoreAPI> = Arc::new(Self::new(luma_dir, workspaces_dir));
 
         CORE_API
             .set(Arc::clone(&api))
@@ -70,17 +64,15 @@ impl Core {
     }
 
     fn initialize_configuration(&self) -> Result<()> {
-        let mut ide_manager = self.ide_configuration_manager
+        let mut ide_manager = self
+            .ide_configuration_manager
             .write()
-            .map_err(|e| anyhow::anyhow!(
-                "Failed to acquire configuration lock: {e}"
-            ))?;
+            .map_err(|e| anyhow::anyhow!("Failed to acquire configuration lock: {e}"))?;
 
-        let mut workspace_manager = self.workspace_configuration_manager
+        let mut workspace_manager = self
+            .workspace_configuration_manager
             .write()
-            .map_err(|e| anyhow::anyhow!(
-                "Failed to acquire configuration lock: {e}"
-            ))?;
+            .map_err(|e| anyhow::anyhow!("Failed to acquire configuration lock: {e}"))?;
 
         // Register the built-in owner if it is not already present.
         let registries_ide = ide_manager.registries_mut();
@@ -88,8 +80,6 @@ impl Core {
 
         let registries_wp = workspace_manager.registries_mut();
         registries_wp.register_owner("luma")?;
-
-
 
         // TODO: add IDE configuration
 
@@ -103,13 +93,13 @@ impl Core {
             workspace_path.to_path_buf()
         };
 
-        let mut manager = self.workspace_configuration_manager
+        let mut manager = self
+            .workspace_configuration_manager
             .write()
-            .map_err(|e| anyhow::anyhow!(
-                "Failed to acquire configuration lock: {e}"
-            ))?;
+            .map_err(|e| anyhow::anyhow!("Failed to acquire configuration lock: {e}"))?;
 
-        manager.load_workspace(&config_path)
+        manager
+            .load_workspace(&config_path)
             .context("Failed to load workspace configuration")?;
 
         Ok(())
@@ -130,7 +120,8 @@ impl CoreAPI for Core {
     }
 
     fn boot(&self) -> Result<()> {
-        self.initialize_configuration().context("Failed to initialize configuration")?;
+        self.initialize_configuration()
+            .context("Failed to initialize configuration")?;
 
         Ok(())
     }
@@ -139,6 +130,10 @@ impl CoreAPI for Core {
         if let Ok(mut callbacks) = self.workspace_loaded_callbacks.write() {
             callbacks.push(callback);
         }
+    }
+
+    fn notify_workspace_loaded(&self) {
+        luma_api::notify_listeners(&self.workspace_loaded_callbacks);
     }
 
     fn open_workspace(&self, workspace_path: &Path) -> Result<()> {
@@ -158,11 +153,9 @@ pub fn init() -> Result<Shared<dyn CoreAPI>> {
     let luma_dir = data_dir()?;
     let projects_dir = workspaces_dir()?;
 
-    create_dir_all(&luma_dir)
-        .context("Failed to create the Luma data directory")?;
+    create_dir_all(&luma_dir).context("Failed to create the Luma data directory")?;
 
-    let core_api = Core::init(luma_dir, projects_dir)
-        .context("Failed to initialize Luma API")?;
+    let core_api = Core::init(luma_dir, projects_dir).context("Failed to initialize Luma API")?;
 
     core_api.boot().context("Failed to boot Luma API")?;
 

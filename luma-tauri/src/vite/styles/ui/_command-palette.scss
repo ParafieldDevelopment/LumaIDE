@@ -32,4 +32,48 @@
     overflow-y: auto;
     padding: var(--lum-space-1);
   }
+
+  .lum-command-group-label {
+    padding: var(--lum-space-2) var(--lum-space-2) var(--lum-space-1);
+    font-size: var(--lum-text-xs);
+    font-weight: var(--lum-font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--lum-fg-subtle);
+  }
+
+  .lum-command-item svg {
+    flex-shrink: 0;
+    color: var(--lum-fg-muted);
+  }
+
+  .lum-command-empty {
+    padding: var(--lum-space-4);
+    text-align: center;
+    font-size: var(--lum-text-sm);
+    color: var(--lum-fg-subtle);
+  }
+
+  .lum-command-footer {
+    display: flex;
+    gap: var(--lum-space-4);
+    padding: var(--lum-space-2) var(--lum-space-3);
+    border-top: 1px solid var(--lum-border);
+    font-size: var(--lum-text-xs);
+    color: var(--lum-fg-subtle);
+
+    span { display: inline-flex; align-items: center; gap: 4px; }
+    kbd {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      padding: 1px 4px;
+      border: 1px solid var(--lum-border-strong);
+      border-radius: var(--lum-radius-sm);
+      background: var(--lum-bg-surface);
+      font-family: var(--lum-font-mono);
+      font-size: 10px;
+    }
+  }
 }

@@ -285,6 +285,7 @@ export function useToolWindows() {
     bottomLeftTool: computed(() => activeTool("bottom-left")),
     bottomRightTool: computed(() => activeTool("bottom-right")),
     activeIds: computed(() => sides.map((side) => activeTool(side)?.id).filter((id): id is string => !!id)),
+    allTools: computed(() => registry.value),
     anchors: state.positions,
     sizes: state.sizes,
     toggle,

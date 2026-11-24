@@ -257,6 +257,10 @@ impl CoreAPI for WasmCoreApi {
         }
     }
 
+    fn notify_workspace_loaded(&self) {
+        luma_api::notify_listeners(&self.workspace_callbacks);
+    }
+
     fn open_workspace(&self, path: &std::path::Path) -> Result<()> {
         log_message(
             2,

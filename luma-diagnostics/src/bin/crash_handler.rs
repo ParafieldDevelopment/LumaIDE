@@ -13,8 +13,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 const DIALOG_TITLE: &str = "Luma has crashed!";
-const DIALOG_MESSAGE: &str =
-    "An unexpected error occurred and Luma has to close.\nA crash report has been saved. Would you like to view it?";
+const DIALOG_MESSAGE: &str = "An unexpected error occurred and Luma has to close.\nA crash report has been saved. Would you like to view it?";
 
 fn main() -> ExitCode {
     let report_file = std::env::args().nth(1).map(PathBuf::from);
@@ -46,10 +45,10 @@ fn stderr_fallback(report_file: Option<&Path>) {
 
 #[cfg(target_os = "windows")]
 fn show_crash_dialog(report_file: Option<&Path>) -> Result<(), String> {
-    use windows::core::PCWSTR;
     use windows::Win32::UI::WindowsAndMessaging::{
-        MessageBoxW, IDYES, MB_ICONERROR, MB_SETFOREGROUND, MB_TOPMOST, MB_YESNO,
+        IDYES, MB_ICONERROR, MB_SETFOREGROUND, MB_TOPMOST, MB_YESNO, MessageBoxW,
     };
+    use windows::core::PCWSTR;
 
     let message = wide(DIALOG_MESSAGE);
     let title = wide(DIALOG_TITLE);
@@ -153,9 +152,9 @@ fn wide(text: &str) -> Vec<u16> {
 
 #[cfg(target_os = "windows")]
 fn open_report(path: &Path) -> Result<(), String> {
-    use windows::core::PCWSTR;
     use windows::Win32::UI::Shell::ShellExecuteW;
     use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+    use windows::core::PCWSTR;
 
     let file = wide(&path.as_os_str().to_string_lossy());
     let operation = wide("open");
@@ -175,7 +174,10 @@ fn open_report(path: &Path) -> Result<(), String> {
     if result.0 as usize > 32 {
         Ok(())
     } else {
-        Err(format!("failed to open the crash report {}", path.display()))
+        Err(format!(
+            "failed to open the crash report {}",
+            path.display()
+        ))
     }
 }
 
@@ -199,6 +201,9 @@ fn open_report(path: &Path) -> Result<(), String> {
     if status.success() {
         Ok(())
     } else {
-        Err(format!("failed to open the crash report {}", path.display()))
+        Err(format!(
+            "failed to open the crash report {}",
+            path.display()
+        ))
     }
 }

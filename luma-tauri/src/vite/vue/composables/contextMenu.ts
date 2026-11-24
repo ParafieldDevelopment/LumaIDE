@@ -1,82 +1,139 @@
+/**
+ * Delegated context menus for the whole IDE.
+ *
+ * Elements register either a builder function (legacy) or the name of a menu
+ * contributed to `menus.ts`. Right-clicks are handled once at document level,
+ * so Monaco, the explorer, tabs and custom UI all use the same popup renderer.
+ */
 import type { App, Directive } from "vue";
+import { getActionContext, type ActionContext } from "./actions";
+import { getMenuItems, type MenuItem } from "./menus";
 
-export interface ContextMenuItem {
-  label?: string;
-  shortcut?: string;
-  disabled?: boolean;
-  danger?: boolean;
-  separator?: boolean;
-  action?: () => void | Promise<void>;
-}
+export type { MenuItem as ContextMenuItem };
 
 export type ContextMenuBuilder = (
   event: MouseEvent,
   target: HTMLElement,
-) => ContextMenuItem[] | null | undefined | Promise<ContextMenuItem[] | null | undefined>;
+) => MenuItem[] | null | undefined | Promise<MenuItem[] | null | undefined>;
 
-export interface ContextMenuRequest {
-  event: MouseEvent;
-  target: HTMLElement;
-  items: ContextMenuItem[];
+/** A menu location string resolves through the menu registry. */
+export type ContextMenuBinding = ContextMenuBuilder | string;
+
+export interface MenuAnchor {
+  left: number;
+  top: number;
 }
 
-const builders = new WeakMap<Element, ContextMenuBuilder>();
-let requestListener: ((request: ContextMenuRequest) => void) | undefined;
+export interface ContextMenuRequest {
+  event?: MouseEvent;
+  target: HTMLElement;
+  items: MenuItem[];
+  anchor?: MenuAnchor;
+  context?: ActionContext;
+}
+
+const builders = new WeakMap<Element, ContextMenuBinding>();
+const listeners = new Set<(request: ContextMenuRequest) => void>();
 let installed = false;
 let latestRequest = 0;
 
-/**
- * Register a context-menu builder for an element.
- * The closest registered element in the event path handles each right-click.
- */
-export function registerContextMenu(element: Element, builder: ContextMenuBuilder) {
-  builders.set(element, builder);
+/** Register a context menu for an element. The closest registered element wins. */
+export function registerContextMenu(element: Element, binding: ContextMenuBinding): () => void {
+  builders.set(element, binding);
   return (): void => {
-    if (builders.get(element) === builder) builders.delete(element);
+    if (builders.get(element) === binding) builders.delete(element);
   };
 }
 
-function findBuilder(event: MouseEvent): [HTMLElement, ContextMenuBuilder] | undefined {
+function findBinding(event: MouseEvent): [HTMLElement, ContextMenuBinding] | undefined {
   for (const node of event.composedPath()) {
     if (!(node instanceof HTMLElement)) continue;
-    const builder = builders.get(node);
-    if (builder) return [node, builder];
+    const binding = builders.get(node);
+    if (binding) return [node, binding];
   }
   return undefined;
 }
 
-async function handleContextMenu(event: MouseEvent) {
-  const match = findBuilder(event);
-  const listener = requestListener;
-  if (!match || !listener) return;
+export function notifyContextMenu(request: ContextMenuRequest): void {
+  if (!request.items.length) return;
+  for (const listener of [...listeners]) listener(request);
+}
 
+/** Open a menu programmatically, anchored to an element (e.g. a toolbar button). */
+export function showContextMenu(
+  source: MouseEvent | HTMLElement,
+  items: MenuItem[],
+  contextOverrides: Partial<ActionContext> = {},
+): void {
+  if (!items.length) return;
+  let event: MouseEvent | undefined;
+  let target: HTMLElement;
+  let anchor: MenuAnchor | undefined;
+
+  if (source instanceof HTMLElement) {
+    target = source;
+    const rect = source.getBoundingClientRect();
+    anchor = { left: rect.left, top: rect.bottom };
+  } else {
+    event = source;
+    target = source.target instanceof HTMLElement ? source.target : document.body;
+    anchor = { left: source.clientX, top: source.clientY };
+  }
+
+  notifyContextMenu({
+    event,
+    target,
+    items,
+    anchor,
+    context: getActionContext({
+      ...contextOverrides,
+      event: event ?? null,
+      target,
+    }),
+  });
+}
+
+async function handleContextMenu(event: MouseEvent): Promise<void> {
+  const match = findBinding(event);
+  if (!match || listeners.size === 0) return;
+
+  // Stop Monaco (or any other widget) from showing its own native menu.
   event.preventDefault();
   event.stopPropagation();
 
   const requestId = ++latestRequest;
-  const [target, builder] = match;
-  const items = await builder(event, target);
-  if (items?.length && requestId === latestRequest && requestListener === listener) {
-    listener({ event, target, items });
+  const [target, binding] = match;
+  const context = getActionContext({ event, target });
+  const items = typeof binding === "string"
+    ? getMenuItems(binding, { event, target })
+    : await binding(event, target);
+
+  if (items?.length && requestId === latestRequest) {
+    notifyContextMenu({ event, target, items, context });
   }
 }
 
-/** Use as `v-context-menu="(event, element) => items"` on the target element. */
-export const contextMenuDirective: Directive<HTMLElement, ContextMenuBuilder> = {
+/** Use as `v-context-menu="menuLocationOrBuilder"` on the target element. */
+export const contextMenuDirective: Directive<HTMLElement, ContextMenuBinding> = {
   mounted(element, binding) {
-    if (typeof binding.value === "function") registerContextMenu(element, binding.value);
+    if (typeof binding.value === "function" || typeof binding.value === "string") {
+      registerContextMenu(element, binding.value);
+    }
   },
   updated(element, binding) {
-    if (typeof binding.value === "function") registerContextMenu(element, binding.value);
-    else builders.delete(element);
+    if (typeof binding.value === "function" || typeof binding.value === "string") {
+      registerContextMenu(element, binding.value);
+    } else {
+      builders.delete(element);
+    }
   },
   unmounted(element) {
     builders.delete(element);
   },
 };
 
-/** Install once per Vue app to enable `v-context-menu` and delegated event handling. */
-export function installContextMenu(app: App) {
+/** Install once per Vue app to enable `v-context-menu` and delegated handling. */
+export function installContextMenu(app: App): void {
   app.directive("context-menu", contextMenuDirective);
   if (!installed && typeof document !== "undefined") {
     document.addEventListener("contextmenu", handleContextMenu, true);
@@ -84,9 +141,8 @@ export function installContextMenu(app: App) {
   }
 }
 
-export function onContextMenuRequest(listener: (request: ContextMenuRequest) => void) {
-  requestListener = listener;
-  return () => {
-    if (requestListener === listener) requestListener = undefined;
-  };
+/** Subscribe to menu requests. Multiple renderers can listen at once. */
+export function onContextMenuRequest(listener: (request: ContextMenuRequest) => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }
