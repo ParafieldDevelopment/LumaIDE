@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, computed, watch } from "vue";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { confirmExit } from "~/vue/composables/useConfirm";
 import { LumContextMenu, LumModals, LumFileTabs, LumEditor, LumCommandPalette } from "./components";
 import TitleBar from "~/vue/window/TitleBar.vue";
 import IdeTitlebarNav from "~/vue/window/IdeTitlebarNav.vue";
-import { useEditor } from "~/vue/composables/useEditor.ts";
+import { useEditor, handleExternalChange } from "~/vue/composables/useEditor.ts";
+import { FILES_CHANGED_EVENT, type FilesChangedPayload } from "~/vue/composables/fileWatcher";
 import { useToasts } from "~/vue/components/toasts";
 import LumToolStripe from "./components/LumToolStripe.vue";
 import { useToolWindows, registerToolWindow, setToolWindowWorkspace, type ToolPosition, type ToolSide } from "~/vue/composables/useToolWindows";
@@ -83,6 +84,33 @@ actionDisposers.push(registerActions([
     keys: "Ctrl+Shift+F12",
     run: () => tools.hideAll(),
   },
+  {
+    id: "git.commit",
+    label: "Git: Commit...",
+    category: "Version Control",
+    when: (context) => !!context.workspace,
+    run: () => open("git-commit"),
+  },
+  {
+    id: "git.push",
+    label: "Git: Push...",
+    category: "Version Control",
+    when: (context) => !!context.workspace,
+    run: () => {
+      open("git-commit");
+      void emit("git-panel-action", { action: "push" });
+    },
+  },
+  {
+    id: "git.update",
+    label: "Git: Update Project",
+    category: "Version Control",
+    when: (context) => !!context.workspace,
+    run: () => {
+      open("git-commit");
+      void emit("git-panel-action", { action: "pull" });
+    },
+  },
 ]));
 
 const toolWindowEntries = tools.allTools.value.map((tool, index) => {
@@ -115,7 +143,7 @@ menuDisposers.push(
 
 const {
   leftTopTools, leftBottomTools, rightTopTools, rightBottomTools,
-  leftTool, rightTool, bottomLeftTool, bottomRightTool, activeIds, sizes, toggle, close, setSize, move,
+  leftTool, rightTool, bottomLeftTool, bottomRightTool, activeIds, sizes, toggle, open, close, setSize, move,
 } = tools;
 
 const activeWorkspace = ref<ActiveWorkspace | null>(null);
@@ -318,26 +346,34 @@ function cleanupToolDrag() {
 }
 
 const unlistenWorkspace = ref<UnlistenFn | null>(null);
+let unlistenFiles: UnlistenFn | null = null;
+let unlistenGitBranch: UnlistenFn | null = null;
+const AUTOSAVE_MS = 1000;
 let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
 
-function triggerAutosave() {
+/** JetBrains-style autosave: 1 second after the last content/keyboard activity. */
+function scheduleAutosave() {
   if (autosaveTimer) {
     clearTimeout(autosaveTimer);
     autosaveTimer = null;
   }
-  if (openFiles.value.some((file) => file.dirty)) void saveAll();
-}
-
-watch(openFiles, () => {
-  if (autosaveTimer) clearTimeout(autosaveTimer);
   if (!openFiles.value.some((file) => file.dirty)) return;
   autosaveTimer = setTimeout(() => {
     autosaveTimer = null;
-    void saveAll();
-  }, 1500);
-}, { deep: true });
+    void saveAll(true); // never pop a conflict dialog in the background
+  }, AUTOSAVE_MS);
+}
 
-watch(activeFileId, triggerAutosave);
+function flushAutosave() {
+  if (autosaveTimer) {
+    clearTimeout(autosaveTimer);
+    autosaveTimer = null;
+  }
+  void saveAll(true);
+}
+
+watch(openFiles, scheduleAutosave, { deep: true });
+watch(activeFileId, flushAutosave);
 const tabFiles = computed(() => openFiles.value.map((file) => ({ id: file.id, name: file.name, dirty: file.dirty })));
 const saveTooltip = computed(() => activeFile.value ? `Save ${activeFile.value.name}` : "Save file");
 const editorValue = computed({
@@ -389,6 +425,8 @@ async function handleSaveAll() {
 function handleKeydown(event: KeyboardEvent) {
   // All keybindings come from the action registry now.
   handleActionKeydown(event);
+  // Keep pushing the autosave deadline while the user is typing.
+  if (activeFile.value?.dirty) scheduleAutosave();
 }
 
 // X button and Alt+F4 both arrive here. Ask first, then really close the window.
@@ -410,15 +448,21 @@ async function handleCloseRequested(event: { preventDefault: () => void }) {
 
 onMounted(async () => {
   unlistenWorkspace.value = await listen<ActiveWorkspace>("workspace-opened", (event) => { void syncWorkspace(event.payload); });
+  unlistenFiles = await listen<FilesChangedPayload>(FILES_CHANGED_EVENT, (event) => {
+    for (const change of event.payload.changes) void handleExternalChange(change.path);
+  });
+  unlistenGitBranch = await listen<{ branch: string }>("workspace-git-branch-changed", (event) => {
+    if (activeWorkspace.value) activeWorkspace.value.git_branch = event.payload.branch;
+  });
   unlistenClose = await getCurrentWindow().onCloseRequested(handleCloseRequested);
   await loadActiveWorkspace();
   window.addEventListener("keydown", handleKeydown, true);
-  window.addEventListener("blur", triggerAutosave);
+  window.addEventListener("blur", flushAutosave);
   document.addEventListener("visibilitychange", onVisibilityChange);
 });
 
 function onVisibilityChange() {
-  if (document.hidden) triggerAutosave();
+  if (document.hidden) flushAutosave();
 }
 
 onBeforeUnmount(() => {
@@ -430,9 +474,11 @@ onBeforeUnmount(() => {
   if (autosaveTimer) clearTimeout(autosaveTimer);
   autosaveTimer = null;
   unlistenWorkspace.value?.();
+  unlistenFiles?.();
+  unlistenGitBranch?.();
   unlistenClose?.();
   window.removeEventListener("keydown", handleKeydown, true);
-  window.removeEventListener("blur", triggerAutosave);
+  window.removeEventListener("blur", flushAutosave);
   document.removeEventListener("visibilitychange", onVisibilityChange);
 });
 </script>

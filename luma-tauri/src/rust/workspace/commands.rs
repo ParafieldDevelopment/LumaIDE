@@ -249,6 +249,10 @@ pub(crate) async fn open_workspace_with_label(
         .context("Failed to open IDE window")
         .map_err(InvokeError::from_anyhow)?;
 
+    // Watch this workspace for this window only. Starting again replaces any
+    // watcher left over from a previously opened workspace in the same window.
+    crate::filesystem::watch::start(app.clone(), label.to_string(), root.clone());
+
     if let Err(error) = app.emit_to(label, "workspace-opened", workspace.face()) {
         log::warn!("Failed to emit workspace-opened to {label}: {error}");
     }

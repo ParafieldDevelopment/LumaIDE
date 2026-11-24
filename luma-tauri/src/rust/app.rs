@@ -75,8 +75,8 @@ pub fn build_tauri_app() -> Result<tauri::App> {
             crate::workspace::layout::save_tool_window_layout,
             crate::workspace::commands::remove_recent_workspace,
             crate::workspace::commands::reveal_workspace,
-
             crate::filesystem::read_file,
+            crate::filesystem::read_file_snapshot,
             crate::filesystem::write_file,
             crate::filesystem::read_directory,
             crate::filesystem::read_directory_tree,
@@ -84,7 +84,6 @@ pub fn build_tauri_app() -> Result<tauri::App> {
             crate::filesystem::create_directory,
             crate::filesystem::delete_entry,
             crate::terminal::git::git_command,
-
             crate::terminal::sessions::terminal_open_session,
             crate::terminal::sessions::terminal_list_sessions,
             crate::terminal::sessions::terminal_write,

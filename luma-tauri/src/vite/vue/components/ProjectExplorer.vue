@@ -1,15 +1,18 @@
 <script setup lang="ts">
 /**
  * ProjectExplorer — workspace file tree (.lum-project-explorer).
- * Loads the recursive directory tree for the active workspace and lets the
- * user create, delete and open files with auto-updating and manual refresh.
+ * Directories are loaded on demand; filesystem watcher events refresh only the
+ * affected directories instead of rebuilding the whole tree.
  */
-import { ref, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { useEditor } from "~/vue/composables/useEditor";
 import { registerContextMenu } from "~/vue/composables/contextMenu";
 import { registerActions } from "~/vue/composables/actions";
 import { Menus, registerMenu } from "~/vue/composables/menus";
+import { FILES_CHANGED_EVENT, type FilesChangedPayload } from "~/vue/composables/fileWatcher";
+import { pathKey, parentPath } from "~/vue/composables/paths";
 import type { TreeNode } from "~/vue/components/types";
 import LumTree from "~/vue/components/LumTree.vue";
 import { useToasts } from "~/vue/components/toasts";
@@ -21,12 +24,22 @@ const props = defineProps<{
 const { openFile } = useEditor();
 const { toast } = useToasts();
 
-interface TreeNodeWithPath extends TreeNode {
+interface FileEntry {
+  name: string;
+  path: string;
+  is_dir: boolean;
+}
+
+interface ExplorerNode extends TreeNode {
   path?: string;
   is_dir?: boolean;
 }
 
-const treeNodes = ref<TreeNodeWithPath[]>([]);
+const rootNode = ref<ExplorerNode | null>(null);
+const treeNodes = computed<ExplorerNode[]>(() => (rootNode.value ? [rootNode.value] : []));
+const expanded = ref<Set<string>>(new Set<string>());
+const nodeIndex = new Map<string, ExplorerNode>();
+
 const loading = ref(false);
 const error = ref<string | null>(null);
 const explorerRef = ref<HTMLElement | null>(null);
@@ -36,49 +49,141 @@ const newItemName = ref("");
 const creationInputRef = ref<HTMLInputElement | null>(null);
 const creationError = ref("");
 
-let pollInterval: ReturnType<typeof setInterval> | null = null;
+let unlistenFiles: UnlistenFn | null = null;
 let unregisterMenu: (() => void) | null = null;
 let unregisterActions: (() => void) | null = null;
 let unregisterMenuEntries: (() => void) | null = null;
 
-function toNode(entry: any): TreeNodeWithPath {
-  const node: TreeNodeWithPath = {
+function reindex() {
+  nodeIndex.clear();
+  const visit = (node: ExplorerNode) => {
+    if (node.path) nodeIndex.set(pathKey(node.path), node);
+    for (const child of (node.children ?? []) as ExplorerNode[]) visit(child);
+  };
+  if (rootNode.value) visit(rootNode.value);
+}
+
+function toNode(entry: FileEntry): ExplorerNode {
+  const node: ExplorerNode = {
     label: entry.name,
     path: entry.path,
     is_dir: entry.is_dir,
   };
   if (entry.is_dir) {
-    node.children = (entry.children ?? []).map(toNode);
+    node.children = [];
+    node.loaded = false;
   }
   return node;
 }
 
-async function loadTree() {
+/** Reuse existing nodes so reloading a folder keeps its expanded descendants. */
+function nodesFor(entries: FileEntry[]): ExplorerNode[] {
+  return entries.map((entry) => {
+    const existing = nodeIndex.get(pathKey(entry.path));
+    if (existing && !!existing.is_dir === entry.is_dir) {
+      existing.label = entry.name;
+      existing.path = entry.path;
+      return existing;
+    }
+    return toNode(entry);
+  });
+}
+
+function readDir(path: string) {
+  return invoke<FileEntry[]>("read_directory", { path });
+}
+
+async function loadRoot(initial = false) {
   if (!props.workspacePath) {
-    treeNodes.value = [];
+    rootNode.value = null;
+    nodeIndex.clear();
+    expanded.value = new Set<string>();
     return;
   }
+  if (initial) loading.value = true;
   error.value = null;
   try {
-    const root = await invoke<any>("read_directory_tree", {
+    const entries = await readDir(props.workspacePath);
+    const root: ExplorerNode = rootNode.value ?? {
+      label: props.workspacePath.split(/[/\\]/).pop() || "Workspace",
       path: props.workspacePath,
-    });
-    treeNodes.value = root ? [toNode(root)] : [];
-  } catch (e) {
-    error.value = `Unable to load project files: ${String(e)}`;
-    treeNodes.value = [];
+      is_dir: true,
+    };
+    root.path = props.workspacePath;
+    root.children = nodesFor(entries);
+    root.loaded = true;
+    rootNode.value = root;
+    reindex();
+  } catch (cause) {
+    error.value = `Unable to load project files: ${String(cause)}`;
+    rootNode.value = null;
+    nodeIndex.clear();
   } finally {
-    loading.value = false;
+    if (initial) loading.value = false;
+  }
+}
+
+/** Load (or reload) one directory's immediate children. */
+async function loadDirectory(node: ExplorerNode) {
+  if (!node.is_dir || !node.path || node.loading) return;
+  node.loading = true;
+  try {
+    const entries = await readDir(node.path);
+    node.children = nodesFor(entries);
+    node.loaded = true;
+    reindex();
+  } catch {
+    // The folder may have been removed externally; its parent will drop it.
+    node.children = [];
+  } finally {
+    node.loading = false;
+  }
+}
+
+async function toggleNode(node: ExplorerNode) {
+  if (!node.path) return;
+  const key = pathKey(node.path);
+  const next = new Set(expanded.value);
+  if (next.has(key)) next.delete(key);
+  else next.add(key);
+  expanded.value = next;
+
+  if (next.has(key) && node.is_dir && !node.loaded) {
+    await loadDirectory(node);
   }
 }
 
 async function handleSelect(node: TreeNode) {
-  const explorerNode = node as TreeNodeWithPath;
-  if (explorerNode.is_dir || (explorerNode.children && explorerNode.children.length > 0)) {
-    return; // Directory: expansion is handled by LumTreeNode
+  const explorerNode = node as ExplorerNode;
+  if (explorerNode.is_dir) {
+    await toggleNode(explorerNode);
+    return;
   }
-  if (!explorerNode.path) return;
-  await openFile(explorerNode.path);
+  if (explorerNode.path) await openFile(explorerNode.path, explorerNode.label);
+}
+
+/** Refresh the root plus every currently expanded directory. */
+async function refreshLoaded() {
+  if (!props.workspacePath) return;
+  await loadRoot();
+  const openDirs = [...nodeIndex.values()].filter(
+    (node) => node.is_dir && node.loaded && node !== rootNode.value && expanded.value.has(pathKey(node.path!)),
+  );
+  await Promise.all(openDirs.map((node) => loadDirectory(node)));
+}
+
+/** Apply watcher events to just the directories that changed. */
+async function handleChanges(payload: FilesChangedPayload) {
+  const parents = new Set<string>();
+  for (const change of payload.changes) {
+    parents.add(pathKey(parentPath(change.path)));
+  }
+  await Promise.all(
+    [...parents].map(async (key) => {
+      const node = nodeIndex.get(key);
+      if (node?.is_dir && node.loaded) await loadDirectory(node);
+    }),
+  );
 }
 
 function startCreating(type: "file" | "folder") {
@@ -112,13 +217,13 @@ async function submitCreation() {
       await invoke("create_file", { path: targetPath });
       toast("success", "Created", name);
       cancelCreating();
-      await loadTree();
+      await refreshLoaded();
       await openFile(targetPath, name);
     } else if (creatingType.value === "folder") {
       await invoke("create_directory", { path: targetPath });
       toast("success", "Created", name);
       cancelCreating();
-      await loadTree();
+      await refreshLoaded();
     }
   } catch (cause) {
     creationError.value = String(cause);
@@ -148,7 +253,7 @@ function registerExplorerActions() {
       label: "Refresh Explorer",
       category: "Explorer",
       when: (context) => !!(context.workspace || props.workspacePath),
-      run: () => loadTree(),
+      run: () => refreshLoaded(),
     },
     {
       id: "explorer.reveal",
@@ -182,37 +287,39 @@ function registerExplorerActions() {
 
 registerExplorerActions();
 
-onMounted(() => {
+onMounted(async () => {
   loading.value = true;
-  void loadTree();
+  await loadRoot(true);
+  loading.value = false;
 
   if (explorerRef.value) {
     unregisterMenu = registerContextMenu(explorerRef.value, Menus.explorerContext);
   }
 
-  // Auto-refresh when user focuses window
-  window.addEventListener("focus", loadTree);
-
-  // Background poll every 4 seconds to sync external changes
-  pollInterval = setInterval(loadTree, 4000);
+  unlistenFiles = await listen<FilesChangedPayload>(FILES_CHANGED_EVENT, (event) => {
+    void handleChanges(event.payload);
+  });
+  // Watcher events are suppressed while unfocused; catch up on focus.
+  window.addEventListener("focus", refreshLoaded);
 });
 
 onBeforeUnmount(() => {
+  unlistenFiles?.();
   unregisterMenu?.();
   unregisterActions?.();
   unregisterMenuEntries?.();
-  window.removeEventListener("focus", loadTree);
-  if (pollInterval) clearInterval(pollInterval);
+  window.removeEventListener("focus", refreshLoaded);
 });
 
 watch(
   () => props.workspacePath,
-  (path) => {
-    if (path) {
-      loading.value = true;
-      void loadTree();
-    }
-  }
+  () => {
+    expanded.value = new Set<string>();
+    loading.value = true;
+    void loadRoot(true).finally(() => {
+      loading.value = false;
+    });
+  },
 );
 </script>
 
@@ -253,7 +360,7 @@ watch(
           class="lum-explorer-btn"
           title="Refresh Explorer"
           aria-label="Refresh Explorer"
-          @click="loadTree"
+          @click="refreshLoaded"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
             <polyline points="23 4 23 10 17 10" />
@@ -293,7 +400,7 @@ watch(
       {{ error }}
     </div>
     <div v-else class="lum-project-explorer-body">
-      <LumTree :nodes="treeNodes" @select="handleSelect" />
+      <LumTree :nodes="treeNodes" :expanded="expanded" @select="handleSelect" @toggle="toggleNode" />
     </div>
   </div>
 </template>

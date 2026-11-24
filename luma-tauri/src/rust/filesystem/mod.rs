@@ -3,8 +3,11 @@
 mod paths;
 mod tree;
 
+pub mod watch;
+
 use anyhow::{Context, Result as AnyResult};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use tauri::WebviewWindow;
 use tauri::ipc::InvokeError;
@@ -28,6 +31,31 @@ impl Sortable for FileEntry {
     }
 }
 
+/// Contents plus a content hash, used to detect edits made outside Luma.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileSnapshot {
+    pub contents: String,
+    pub hash: String,
+}
+
+/// Result of a save. `saved: false` means disk changed since `expectedHash`;
+/// `diskContents` is the text currently on disk so the UI can offer a reload.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WriteFileResult {
+    pub saved: bool,
+    pub hash: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub disk_contents: Option<String>,
+}
+
+fn hash_bytes(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    format!("{:x}", hasher.finalize())
+}
+
 #[tauri::command]
 pub async fn read_file(window: WebviewWindow, path: String) -> Result<String, InvokeError> {
     let canonical = scoped_path(window.label(), &path).map_err(InvokeError::from_anyhow)?;
@@ -40,11 +68,30 @@ pub async fn read_file(window: WebviewWindow, path: String) -> Result<String, In
 }
 
 #[tauri::command]
+pub async fn read_file_snapshot(
+    window: WebviewWindow,
+    path: String,
+) -> Result<FileSnapshot, InvokeError> {
+    let canonical = scoped_path(window.label(), &path).map_err(InvokeError::from_anyhow)?;
+    if !canonical.is_file() {
+        return Err(invoke_error(format!("Not a file: {path}")));
+    }
+    let bytes = std::fs::read(&canonical)
+        .with_context(|| format!("Failed to read {path}"))
+        .map_err(InvokeError::from_anyhow)?;
+    Ok(FileSnapshot {
+        contents: String::from_utf8_lossy(&bytes).into_owned(),
+        hash: hash_bytes(&bytes),
+    })
+}
+
+#[tauri::command]
 pub async fn write_file(
     window: WebviewWindow,
     path: String,
     contents: String,
-) -> Result<(), InvokeError> {
+    expected_hash: Option<String>,
+) -> Result<WriteFileResult, InvokeError> {
     let target = PathBuf::from(&path);
     let parent = target
         .parent()
@@ -52,12 +99,36 @@ pub async fn write_file(
         .unwrap_or(target.as_path());
     paths::resolve_within_workspace(window.label(), parent).map_err(InvokeError::from_anyhow)?;
 
+    // Compare with the bytes on disk before replacing anything.
+    let current_bytes = if target.exists() {
+        Some(
+            std::fs::read(&target)
+                .with_context(|| format!("Failed to read {path}"))
+                .map_err(InvokeError::from_anyhow)?,
+        )
+    } else {
+        None
+    };
+    let current_hash = current_bytes.as_deref().map(hash_bytes).unwrap_or_default();
+
+    if let Some(expected) = &expected_hash {
+        if expected != &current_hash {
+            return Ok(WriteFileResult {
+                saved: false,
+                hash: current_hash,
+                disk_contents: current_bytes
+                    .map(|bytes| String::from_utf8_lossy(&bytes).into_owned()),
+            });
+        }
+    }
+
     if let Some(parent) = target.parent() {
         std::fs::create_dir_all(parent)
             .context("Failed to create parent directory")
             .map_err(InvokeError::from_anyhow)?;
     }
 
+    watch::suppress_self_write(&target);
     let temporary = target.with_extension("tmp");
     std::fs::write(&temporary, &contents)
         .context("Failed to write temporary file")
@@ -68,7 +139,11 @@ pub async fn write_file(
             anyhow::Error::from(error).context(format!("Failed to replace {path}")),
         ));
     }
-    Ok(())
+    Ok(WriteFileResult {
+        saved: true,
+        hash: hash_bytes(contents.as_bytes()),
+        disk_contents: None,
+    })
 }
 
 #[tauri::command]
@@ -79,6 +154,7 @@ pub async fn create_file(window: WebviewWindow, path: String) -> Result<String, 
     if resolved.exists() {
         return Err(invoke_error(format!("File already exists: {path}")));
     }
+    watch::suppress_self_write(&resolved);
     std::fs::write(&resolved, "")
         .with_context(|| format!("Failed to create file {path}"))
         .map_err(InvokeError::from_anyhow)?;
@@ -93,6 +169,7 @@ pub async fn create_directory(window: WebviewWindow, path: String) -> Result<Str
     if resolved.exists() {
         return Err(invoke_error(format!("Directory already exists: {path}")));
     }
+    watch::suppress_self_write(&resolved);
     std::fs::create_dir_all(&resolved)
         .with_context(|| format!("Failed to create directory {path}"))
         .map_err(InvokeError::from_anyhow)?;
@@ -107,6 +184,7 @@ pub async fn delete_entry(window: WebviewWindow, path: String) -> Result<(), Inv
         return Err(invoke_error("Cannot delete the workspace root"));
     }
 
+    watch::suppress_self_write(&canonical);
     if canonical.is_dir() {
         std::fs::remove_dir_all(&canonical)
             .with_context(|| format!("Failed to delete directory {path}"))

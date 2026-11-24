@@ -9,22 +9,29 @@ withDefaults(
   defineProps<{
     nodes: TreeNode[];
     selected?: TreeNode | null;
+    /** Path keys of expanded directories. */
+    expanded?: Set<string>;
   }>(),
-  { selected: null },
+  { selected: null, expanded: () => new Set<string>() },
 );
 
-defineEmits<{ select: [node: TreeNode] }>();
+defineEmits<{
+  select: [node: TreeNode];
+  toggle: [node: TreeNode];
+}>();
 </script>
 
 <template>
   <div class="lum-tree" v-bind="$attrs">
     <LumTreeNode
       v-for="node in nodes"
-      :key="node.label"
+      :key="node.path ?? node.label"
       :node="node"
       :depth="0"
       :selected="selected"
+      :expanded="expanded"
       @select="$emit('select', $event)"
+      @toggle="$emit('toggle', $event)"
     />
   </div>
 </template>

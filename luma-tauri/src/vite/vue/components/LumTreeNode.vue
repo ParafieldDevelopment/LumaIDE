@@ -1,26 +1,33 @@
 <script setup lang="ts">
 /**
  * LumTreeNode — one node of a LumTree (recursive; styles .lum-tree-*).
- * Toggling the chevron opens/closes children. Emits `select` with the node.
+ * Expansion is controlled by the parent through `expanded` so directories can
+ * be loaded lazily and restored after incremental tree updates.
  */
-import { ref } from "vue";
+import { computed } from "vue";
 import type { TreeNode } from "./types";
 
 defineOptions({ name: "LumTreeNode" });
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     node: TreeNode;
     depth: number;
     selected?: TreeNode | null;
+    expanded?: Set<string>;
   }>(),
-  { depth: 0, selected: null },
+  { depth: 0, selected: null, expanded: () => new Set<string>() },
 );
 
-defineEmits<{ select: [node: TreeNode] }>();
+const emit = defineEmits<{
+  select: [node: TreeNode];
+  toggle: [node: TreeNode];
+}>();
 
-const open = ref(false);
-const hasChildren = (children?: TreeNode[]) => !!children?.length;
+const key = computed(() => props.node.path ?? props.node.label);
+const isDir = computed(() => props.node.is_dir !== false);
+const open = computed(() => props.expanded.has(key.value));
+const hasChildren = computed(() => (props.node.children?.length ?? 0) > 0);
 </script>
 
 <template>
@@ -28,25 +35,27 @@ const hasChildren = (children?: TreeNode[]) => !!children?.length;
     class="lum-tree-item"
     :class="{ open, selected: node === selected, cut: node.cut }"
     :style="{ '--lum-tree-depth': depth }"
-    @click="$emit('select', node)"
+    @click="emit('select', node)"
   >
     <span
       class="lum-tree-chevron"
-      :class="{ open, leaf: !hasChildren(node.children) }"
+      :class="{ open, leaf: !isDir, loading: node.loading }"
       :aria-label="open ? 'Collapse' : 'Expand'"
-      @click.stop="open = !open"
+      @click.stop="isDir && emit('toggle', node)"
     ></span>
     <span class="lum-tree-label" :class="{ italic: node.ignored }">{{ node.label }}</span>
   </button>
 
-  <div v-if="hasChildren(node.children)" class="lum-tree-children">
+  <div v-if="open && isDir && hasChildren" class="lum-tree-children">
     <LumTreeNode
       v-for="child in node.children"
-      :key="child.label"
+      :key="child.path ?? child.label"
       :node="child"
       :depth="depth + 1"
       :selected="selected"
-      @select="(n) => $emit('select', n)"
+      :expanded="expanded"
+      @select="(n) => emit('select', n)"
+      @toggle="(n) => emit('toggle', n)"
     />
   </div>
 </template>

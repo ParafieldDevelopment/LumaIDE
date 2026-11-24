@@ -419,17 +419,14 @@ onBeforeUnmount(() => {
       <div v-if="isVcsMenuOpen" class="lum-popover vcs-menu-dropdown">
         <template v-if="props.activeWorkspace?.git_branch">
           <div class="lum-menu-label">Git: {{ props.activeWorkspace.git_branch }}</div>
-          <button class="lum-menu-item" disabled>
+          <button class="lum-menu-item" @click="runCommand('git.commit')">
             Commit...
-            <span class="lum-menu-shortcut">Ctrl+K</span>
           </button>
-          <button class="lum-menu-item" disabled>
+          <button class="lum-menu-item" @click="runCommand('git.push')">
             Push...
-            <span class="lum-menu-shortcut">Ctrl+Shift+K</span>
           </button>
-          <button class="lum-menu-item" disabled>
+          <button class="lum-menu-item" @click="runCommand('git.update')">
             Update Project...
-            <span class="lum-menu-shortcut">Ctrl+T</span>
           </button>
           <div class="lum-menu-separator" />
         </template>

@@ -63,6 +63,7 @@ pub fn open_main_window(
         let owned_label = label.to_string();
         window.on_window_event(move |event| {
             if matches!(event, tauri::WindowEvent::Destroyed) {
+                crate::filesystem::watch::stop(&owned_label);
                 store::store().remove(&owned_label);
             }
         });
