@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { onMounted, ref, watch } from "vue";
 import { LumCard, LumField, LumSwitch, LumBadge } from "~/vue/components";
 import { invoke } from "@tauri-apps/api/core";
@@ -12,6 +12,8 @@ interface DiscordRpcConfig {
 }
 
 const loading = ref(true);
+/** Whether the card's detailed settings are expanded (gear button). */
+const showSettings = ref(false);
 
 const config = ref<DiscordRpcConfig>({
   enabled: true,
@@ -60,6 +62,20 @@ watch(config, saveConfig, { deep: true });
               {{ config.enabled ? "Enabled" : "Disabled" }}
             </LumBadge>
           </div>
+          <button
+            type="button"
+            class="settings-toggle"
+            :class="{ active: showSettings }"
+            title="Settings"
+            aria-label="Discord Rich Presence settings"
+            :aria-expanded="showSettings"
+            @click="showSettings = !showSettings"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </button>
         </div>
       </template>
 
@@ -71,42 +87,40 @@ watch(config, saveConfig, { deep: true });
           <LumSwitch v-model="config.enabled" />
         </LumField>
 
-        <div v-if="config.enabled" class="sub-settings">
-          <LumField
-            label="Show Active Workspace"
-            help="Displays the name of the project you are working on."
-          >
-            <LumSwitch v-model="config.show_workspace" />
-          </LumField>
+        <div v-if="showSettings" class="settings-panel">
+          <div v-if="config.enabled" class="sub-settings">
+            <LumField
+              label="Show Active Workspace"
+              help="Displays the name of the project you are working on."
+            >
+              <LumSwitch v-model="config.show_workspace" />
+            </LumField>
 
-          <LumField
-            label="Show Git Branch"
-            help="Displays your active git branch when inside a git repository."
-          >
-            <LumSwitch v-model="config.show_git_branch" />
-          </LumField>
+            <LumField
+              label="Show Git Branch"
+              help="Displays your active git branch when inside a git repository."
+            >
+              <LumSwitch v-model="config.show_git_branch" />
+            </LumField>
 
-          <LumField
-            label="Show Project Type"
-            help="Displays project environment details (such as Lua, Luau, or Roblox)."
-          >
-            <LumSwitch v-model="config.show_project_type" />
-          </LumField>
+            <LumField
+              label="Show Project Type"
+              help="Displays project environment details (such as Lua, Luau, or Roblox)."
+            >
+              <LumSwitch v-model="config.show_project_type" />
+            </LumField>
+          </div>
+
+          <div class="info-text">
+            <p class="info-title">Presence Behavior</p>
+            <p>
+              When in the <strong>Project Selection</strong> screen (or when no IDE editor is open), your Discord presence simply shows <strong>Idle</strong> with the Luma icon.
+            </p>
+            <p>
+              Once you open a project, your status automatically shows what project and file you are editing.
+            </p>
+          </div>
         </div>
-      </div>
-    </LumCard>
-
-    <LumCard class="settings-card info-card">
-      <template #header>
-        <p class="card-title">Presence Behavior</p>
-      </template>
-      <div class="card-body info-text">
-        <p>
-          When in the <strong>Project Selection</strong> screen (or when no IDE editor is open), your Discord presence simply shows <strong>Idle</strong> with the Luma icon.
-        </p>
-        <p>
-          Once you open a project, your status automatically shows what project and file you are editing.
-        </p>
       </div>
     </LumCard>
   </div>
@@ -160,8 +174,43 @@ watch(config, saveConfig, { deep: true });
   margin-top: 4px;
 }
 
-.info-card {
-  border-color: color-mix(in srgb, var(--lum-border), transparent 30%);
+.settings-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--lum-gray-300);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+
+  &:hover,
+  &.active {
+    background: color-mix(in srgb, var(--lum-gray-100), transparent 90%);
+    color: var(--lum-gray-100);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--lum-border);
+    outline-offset: 1px;
+  }
+}
+
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--lum-border);
+}
+
+.info-title {
+  font-weight: 600;
+  color: var(--lum-gray-100);
 }
 
 .info-text {
