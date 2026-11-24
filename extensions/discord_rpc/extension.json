@@ -1,0 +1,17 @@
+{
+  "name": "discord-rpc",
+  "description": "Discord Rich Presence for LumaIDE",
+  "version": "0.1.0",
+  "type": "native",
+  "entry": {
+    "x86_64-pc-windows-msvc": "native/x86_64-pc-windows-msvc/discord_rpc.dll",
+    "aarch64-pc-windows-msvc": "native/aarch64-pc-windows-msvc/discord_rpc.dll",
+    "x86_64-unknown-linux-gnu": "native/x86_64-unknown-linux-gnu/libdiscord_rpc.so",
+    "aarch64-unknown-linux-gnu": "native/aarch64-unknown-linux-gnu/libdiscord_rpc.so",
+    "x86_64-apple-darwin": "native/x86_64-apple-darwin/libdiscord_rpc.dylib",
+    "aarch64-apple-darwin": "native/aarch64-apple-darwin/libdiscord_rpc.dylib"
+  },
+  "dependencies": [],
+  "authors": ["Parafield Studios"],
+  "license": "MIT"
+}

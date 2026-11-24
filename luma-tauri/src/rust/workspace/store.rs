@@ -30,6 +30,14 @@ impl WorkspaceStore {
             workspaces.remove(label);
         }
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.workspaces.read().map(|w| w.is_empty()).unwrap_or(true)
+    }
+
+    pub fn first_workspace(&self) -> Option<Workspace> {
+        self.workspaces.read().ok()?.values().next().cloned()
+    }
 }
 
 pub fn workspace_for_window(label: &str) -> Option<Workspace> {

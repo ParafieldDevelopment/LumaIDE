@@ -2,6 +2,7 @@
 import TitleBar from "./window/TitleBar.vue";
 import { useWindow } from "~/vue/composables/useWindow.ts";
 import Workspaces from "~/vue/startup/Workspaces.vue";
+import Extensions from "~/vue/startup/Extensions.vue";
 import {LumButton, LumModals, LumToasts} from "~/vue/components";
 import {getAppVersion, loadTheme, openSettings, webviewReady} from "~/luma/LumaWindow.ts";
 import { onMounted, ref, computed } from "vue";
@@ -31,6 +32,13 @@ onMounted(async () => {
   appVersion.value = await getAppVersion();
 
   await webviewReady();
+
+  void invoke("report_editor_state", {
+    inEditor: false,
+    workspacePath: null,
+    workspaceTitle: null,
+    activeFile: null,
+  }).catch(() => {});
 });
 
 import { invoke } from "@tauri-apps/api/core";
@@ -96,10 +104,7 @@ window.addEventListener("keydown", async (event) => {
       <Transition :name="transitionName" mode="out-in">
         <div :key="selectedButton" class="page">
           <Workspaces v-if="selectedButton === 1" />
-
-          <div v-else-if="selectedButton === 2">
-            <h1>Coming Soon!</h1>
-          </div>
+          <Extensions v-else-if="selectedButton === 2" />
         </div>
       </Transition>
     </div>

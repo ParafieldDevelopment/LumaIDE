@@ -2,6 +2,7 @@
 
 mod app;
 mod constants;
+mod discord_rpc;
 mod error_report;
 mod filesystem;
 mod json;

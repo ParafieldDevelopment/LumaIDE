@@ -1,0 +1,20 @@
+[package]
+name = "discord-rpc"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "discord_rpc"
+crate-type = ["cdylib"]
+
+[dependencies]
+luma-api = { path = "../../luma-api" }
+anyhow = "1"
+serde_json = "1"
+discord-rich-presence = "1.1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+luma-extensions = { path = "../../luma-extensions", default-features = false }
+
+[profile.release]
+panic = "unwind"
