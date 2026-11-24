@@ -11,3 +11,7 @@ An Integrated Development Environment (IDE) for everything Lua/Luau related.
 ```sh
 git submodule update --init --recursive
 ```
+
+## Docs
+
+- [Event bus](EVENTS.md) — Bukkit-style priorities, cancellation and the extension API.

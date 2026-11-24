@@ -75,12 +75,12 @@ pub fn open_main_window(
         .set_focus()
         .context("Failed to focus the IDE window")?;
 
-    if let Some(startup) = app.get_webview_window(STARTUP_LABEL) {
-        if startup.label() != window.label() {
-            startup
-                .close()
-                .context("Failed to close workspace selection window")?;
-        }
+    if let Some(startup) = app.get_webview_window(STARTUP_LABEL)
+        && startup.label() != window.label()
+    {
+        startup
+            .close()
+            .context("Failed to close workspace selection window")?;
     }
 
     Ok(())

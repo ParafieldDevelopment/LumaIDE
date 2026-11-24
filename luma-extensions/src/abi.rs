@@ -27,16 +27,32 @@ use log::{debug, error, info, trace, warn};
 use luma_api::configuration::{
     ConfigurationManager, ConfigurationScope, ConfigurationValue, Identifier,
 };
-use luma_api::{CORE_API, CoreAPI, EXTENSIONS_API, ExtensionsCoreAPI, Shared};
+use luma_api::event::{EventBridge, EventBus, EventPriority, HandlerId};
+use luma_api::{
+    CORE_API, CoreAPI, EXTENSIONS_API, ExtensionsCoreAPI, Shared, event_bus as global_event_bus,
+};
 
 /// Current version of the native extension ABI. Bump on breaking changes.
-pub const ABI_VERSION: u32 = 2;
+/// v3 adds the event bus function pointers to [`LumaHostApiV1`].
+pub const ABI_VERSION: u32 = 3;
 
 pub const LOG_ERROR: u32 = 1;
 pub const LOG_WARN: u32 = 2;
 pub const LOG_INFO: u32 = 3;
 pub const LOG_DEBUG: u32 = 4;
 pub const LOG_TRACE: u32 = 5;
+
+/// Callback a native extension supplies when registering an event listener.
+/// `cancelled` points to a `u32` holding the current cancellation flag; the
+/// callback writes the final flag back. All strings are UTF-8 byte slices.
+pub type NativeEventCallback = unsafe extern "C" fn(
+    *const c_void,
+    *const u8,
+    usize,
+    *const u8,
+    usize,
+    *mut u32,
+) -> u32;
 
 /// Function table supplied by the host to `luma_extension_create`.
 ///
@@ -63,6 +79,21 @@ pub struct LumaHostApiV1 {
     pub loaded_extensions: unsafe extern "C" fn(*const c_void, *mut *mut c_char) -> usize,
     /// Write a JSON array of extension failures into `out`; returns its length.
     pub extension_failures: unsafe extern "C" fn(*const c_void, *mut *mut c_char) -> usize,
+    /// Register a listener for a named event; returns an id (0 on failure).
+    pub event_register: unsafe extern "C" fn(
+        *const c_void,
+        *const u8,
+        usize,
+        u32,
+        u32,
+        NativeEventCallback,
+        *const c_void,
+    ) -> u64,
+    /// Remove a listener registered with `event_register`.
+    pub event_unregister: unsafe extern "C" fn(*const c_void, u64) -> u32,
+    /// Fire a named event on the host bus. `cancelled` is an in/out `u32`.
+    pub event_fire:
+        unsafe extern "C" fn(*const c_void, *const u8, usize, *const u8, usize, *mut u32) -> u32,
     pub free_string: unsafe extern "C" fn(*const c_void, *mut c_char),
 }
 
@@ -82,6 +113,21 @@ pub type HostHandle = Arc<HostContext>;
 pub struct HostContext {
     core_api: Shared<dyn CoreAPI>,
     extension_state: ExtensionStateHandle,
+    event_bus: Shared<EventBus>,
+    /// Host handler ids registered on behalf of this extension. They are
+    /// released when the host handle drops, even if the guest forgets.
+    event_subscriptions: std::sync::Mutex<Vec<HandlerId>>,
+}
+
+impl Drop for HostContext {
+    fn drop(&mut self) {
+        let Ok(ids) = self.event_subscriptions.lock() else {
+            return;
+        };
+        for id in ids.iter().copied() {
+            self.event_bus.unregister(id);
+        }
+    }
 }
 
 /// Build a host function table for a loaded extension. Keep the returned
@@ -93,6 +139,8 @@ pub fn create_host_api(
     let handle = Arc::new(HostContext {
         core_api: Arc::clone(core_api),
         extension_state,
+        event_bus: global_event_bus(),
+        event_subscriptions: std::sync::Mutex::new(Vec::new()),
     });
     let api = LumaHostApiV1 {
         version: ABI_VERSION,
@@ -106,6 +154,9 @@ pub fn create_host_api(
         open_workspace: host_open_workspace,
         loaded_extensions: host_loaded_extensions,
         extension_failures: host_extension_failures,
+        event_register: host_event_register,
+        event_unregister: host_event_unregister,
+        event_fire: host_event_fire,
         free_string: host_free_string,
     };
     (api, handle)
@@ -228,11 +279,141 @@ impl LumaHostApiV1 {
         serde_json::from_str(&json).unwrap_or_default()
     }
 
+    /// Ask the host to register a listener for a named event.
+    ///
+    /// # Safety
+    /// See [`LumaHostApiV1::log_message`]. The callback and user data must stay
+    /// valid until the listener is unregistered or the extension unloads.
+    pub unsafe fn register_event(
+        &self,
+        name: &str,
+        priority: EventPriority,
+        ignore_cancelled: bool,
+    ) -> Option<u64> {
+        let id = unsafe {
+            (self.event_register)(
+                self.context,
+                name.as_ptr(),
+                name.len(),
+                u8::from(priority) as u32,
+                ignore_cancelled as u32,
+                native_event_dispatch_callback,
+                std::ptr::null(),
+            )
+        };
+        (id != 0).then_some(id)
+    }
+
+    /// # Safety
+    /// See [`LumaHostApiV1::register_event`].
+    pub unsafe fn unregister_event(&self, id: u64) {
+        unsafe { (self.event_unregister)(self.context, id) };
+    }
+
+    /// Fire a named event on the host bus and return the final cancelled flag.
+    ///
+    /// # Safety
+    /// See [`LumaHostApiV1::log_message`].
+    pub unsafe fn fire_event(
+        &self,
+        name: &str,
+        payload_json: &str,
+        cancelled: bool,
+    ) -> bool {
+        let mut cancelled = cancelled as u32;
+        let status = unsafe {
+            (self.event_fire)(
+                self.context,
+                name.as_ptr(),
+                name.len(),
+                payload_json.as_ptr(),
+                payload_json.len(),
+                &mut cancelled,
+            )
+        };
+        if status != 0 {
+            warn!("[extension] event_fire failed for '{name}' (status {status})");
+        }
+        cancelled != 0
+    }
+
     /// # Safety
     /// `ptr` must have been returned by one of this table's string functions.
     pub unsafe fn free_string(&self, ptr: *mut c_char) {
         if !ptr.is_null() {
             unsafe { (self.free_string)(self.context, ptr) };
+        }
+    }
+}
+
+/// Bridges a guest-side [`EventBus`] to the host event bus through the C ABI.
+struct NativeEventBridge(SharedHostApi);
+
+// The function table and context remain valid for the lifetime of the
+// extension instance that owns this bridge.
+unsafe impl Send for NativeEventBridge {}
+unsafe impl Sync for NativeEventBridge {}
+
+impl EventBridge for NativeEventBridge {
+    fn register(&self, name: &str, priority: EventPriority, ignore_cancelled: bool) -> Option<u64> {
+        unsafe { self.0 .0.register_event(name, priority, ignore_cancelled) }
+    }
+
+    fn unregister(&self, remote_id: u64) {
+        unsafe { self.0 .0.unregister_event(remote_id) };
+    }
+
+    fn fire(&self, name: &str, payload: &serde_json::Value, cancelled: bool) -> bool {
+        unsafe { self.0 .0.fire_event(name, &payload.to_string(), cancelled) }
+    }
+}
+
+/// Entry point used by [`NativeEventBridge`] when the host dispatches an event
+/// back into this extension. It converts the FFI payload to a local, seeded
+/// dispatch; panics are contained so they never unwind across the ABI.
+///
+/// # Safety
+///
+/// `name_ptr` and `payload_ptr` must either be null (reported as invalid input)
+/// or point to `name_len` and `payload_len` readable bytes respectively.
+/// `cancelled_ptr` must be null or point to a writable `u32`.
+pub unsafe extern "C" fn native_event_dispatch_callback(
+    _userdata: *const c_void,
+    name_ptr: *const u8,
+    name_len: usize,
+    payload_ptr: *const u8,
+    payload_len: usize,
+    cancelled_ptr: *mut u32,
+) -> u32 {
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let name = unsafe { read_str(name_ptr, name_len) }.ok_or("invalid event name")?;
+        let json = unsafe { read_str(payload_ptr, payload_len) }.ok_or("invalid event payload")?;
+        let payload: serde_json::Value =
+            serde_json::from_str(&json).map_err(|_| "invalid event JSON")?;
+        let initial_cancelled = !cancelled_ptr.is_null() && unsafe { *cancelled_ptr } != 0;
+        let bus = CORE_API
+            .get()
+            .map(|api| Arc::clone(api.event_bus()))
+            .unwrap_or_else(global_event_bus);
+        Ok::<bool, &str>(
+            bus.fire_named_seeded(&name, payload, initial_cancelled)
+                .cancelled,
+        )
+    }));
+    match result {
+        Ok(Ok(cancelled)) => {
+            if !cancelled_ptr.is_null() {
+                unsafe { *cancelled_ptr = cancelled as u32 };
+            }
+            0
+        }
+        Ok(Err(error)) => {
+            warn!("[extension] event dispatch failed: {error}");
+            1
+        }
+        Err(_) => {
+            warn!("[extension] event handler panicked while dispatching");
+            1
         }
     }
 }
@@ -274,6 +455,7 @@ pub struct NativeCoreApi {
     ide_configuration: Shared<RwLock<ConfigurationManager>>,
     workspace_configuration: Shared<RwLock<ConfigurationManager>>,
     workspace_callbacks: RwLock<Vec<Box<dyn Fn() + Send + Sync>>>,
+    event_bus: Shared<EventBus>,
 }
 
 impl NativeCoreApi {
@@ -296,6 +478,9 @@ impl NativeCoreApi {
             ide_configuration: Arc::new(RwLock::new(ConfigurationManager::new())),
             workspace_configuration: Arc::new(RwLock::new(ConfigurationManager::new())),
             workspace_callbacks: RwLock::new(Vec::new()),
+            event_bus: Arc::new(EventBus::with_bridge(Arc::new(NativeEventBridge(
+                SharedHostApi(host),
+            )))),
         })
     }
 }
@@ -349,6 +534,10 @@ impl CoreAPI for NativeCoreApi {
 
     fn get_workspace_configuration(&self) -> &Shared<RwLock<ConfigurationManager>> {
         &self.workspace_configuration
+    }
+
+    fn event_bus(&self) -> &Shared<EventBus> {
+        &self.event_bus
     }
 }
 
@@ -567,6 +756,111 @@ fn write_string_array(
         Err(error) => {
             warn!("[extension] extension state read failed: {error:#}");
             0
+        }
+    }
+}
+
+unsafe extern "C" fn host_event_register(
+    context: *const c_void,
+    name_ptr: *const u8,
+    name_len: usize,
+    priority: u32,
+    ignore_cancelled: u32,
+    callback: NativeEventCallback,
+    userdata: *const c_void,
+) -> u64 {
+    let result = (|| -> Result<HandlerId> {
+        let name = unsafe { read_str(name_ptr, name_len) }.context("Invalid event name")?;
+        let host_context = unsafe { context_cast(context) }.context("Invalid host context")?;
+        // Raw pointers cannot be captured by a Send + Sync closure; the usize
+        // round-trip keeps the guest's user data opaque to the host.
+        let userdata_addr = userdata as usize;
+        let callback_name = name.clone();
+        let id = host_context.event_bus.register_named(
+            name,
+            "extension",
+            EventPriority::from_u8(priority as u8),
+            ignore_cancelled != 0,
+            move |payload, state| {
+                let json = payload.to_string();
+                let mut cancelled = state.is_cancelled() as u32;
+                let status = unsafe {
+                    callback(
+                        userdata_addr as *const c_void,
+                        callback_name.as_ptr(),
+                        callback_name.len(),
+                        json.as_ptr(),
+                        json.len(),
+                        &mut cancelled,
+                    )
+                };
+                if status != 0 {
+                    warn!("[extension] event callback failed for '{callback_name}'");
+                } else {
+                    state.set_cancelled(cancelled != 0);
+                }
+            },
+        );
+        if let Ok(mut subscriptions) = host_context.event_subscriptions.lock() {
+            subscriptions.push(id);
+        }
+        Ok(id)
+    })();
+    match result {
+        Ok(id) => id.as_u64(),
+        Err(error) => {
+            warn!("[extension] event_register failed: {error:#}");
+            0
+        }
+    }
+}
+
+unsafe extern "C" fn host_event_unregister(context: *const c_void, id: u64) -> u32 {
+    let result = (|| -> Result<()> {
+        let host_context = unsafe { context_cast(context) }.context("Invalid host context")?;
+        host_context.event_bus.unregister(HandlerId::from(id));
+        if let Ok(mut subscriptions) = host_context.event_subscriptions.lock() {
+            subscriptions.retain(|registered| registered.as_u64() != id);
+        }
+        Ok(())
+    })();
+    match result {
+        Ok(()) => 0,
+        Err(error) => {
+            warn!("[extension] event_unregister failed: {error:#}");
+            1
+        }
+    }
+}
+
+unsafe extern "C" fn host_event_fire(
+    context: *const c_void,
+    name_ptr: *const u8,
+    name_len: usize,
+    payload_ptr: *const u8,
+    payload_len: usize,
+    cancelled: *mut u32,
+) -> u32 {
+    let result = (|| -> Result<()> {
+        let name = unsafe { read_str(name_ptr, name_len) }.context("Invalid event name")?;
+        let json = unsafe { read_str(payload_ptr, payload_len) }.context("Invalid event payload")?;
+        let payload: serde_json::Value =
+            serde_json::from_str(&json).context("Invalid event JSON payload")?;
+        let host_context = unsafe { context_cast(context) }.context("Invalid host context")?;
+        let initial = !cancelled.is_null() && unsafe { *cancelled } != 0;
+        let outcome = host_context
+            .event_bus
+            .fire_named_seeded(&name, payload, initial);
+        if !cancelled.is_null() {
+            unsafe { *cancelled = outcome.cancelled as u32 };
+        }
+        Ok(())
+    })();
+    match result {
+        Ok(()) => 0,
+        Err(error) => {
+            warn!("[extension] event_fire failed: {error:#}");
+            1
         }
     }
 }

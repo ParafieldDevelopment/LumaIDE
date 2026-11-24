@@ -111,6 +111,8 @@ pub struct ExtensionDescriptor {
 
 impl ExtensionManifest {
     /// Parse a manifest from a JSON string and validate it.
+    // Kept as an inherent method for compatibility with existing callers.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(json: &str) -> Result<Self> {
         let manifest: Self =
             serde_json::from_str(json).context("Failed to parse extension.json")?;

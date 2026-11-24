@@ -111,15 +111,15 @@ pub async fn write_file(
     };
     let current_hash = current_bytes.as_deref().map(hash_bytes).unwrap_or_default();
 
-    if let Some(expected) = &expected_hash {
-        if expected != &current_hash {
-            return Ok(WriteFileResult {
-                saved: false,
-                hash: current_hash,
-                disk_contents: current_bytes
-                    .map(|bytes| String::from_utf8_lossy(&bytes).into_owned()),
-            });
-        }
+    if let Some(expected) = &expected_hash
+        && expected != &current_hash
+    {
+        return Ok(WriteFileResult {
+            saved: false,
+            hash: current_hash,
+            disk_contents: current_bytes
+                .map(|bytes| String::from_utf8_lossy(&bytes).into_owned()),
+        });
     }
 
     if let Some(parent) = target.parent() {

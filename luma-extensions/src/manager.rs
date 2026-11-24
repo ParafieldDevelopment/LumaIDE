@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
 use anyhow::Result;
+use luma_api::events::{ExtensionLoadedEvent, ExtensionUnloadedEvent};
 #[cfg(feature = "host")]
 use log::info;
 use log::warn;
@@ -155,10 +156,17 @@ impl ExtensionManager {
                         "Loaded {} extension '{name}' v{}",
                         descriptor.manifest.kind, descriptor.manifest.version
                     );
+                    luma_api::event_bus().fire(ExtensionLoadedEvent {
+                        name: name.clone(),
+                        kind: descriptor.manifest.kind.to_string(),
+                        version: descriptor.manifest.version.to_string(),
+                    });
                     loaded_names.insert(name.clone());
                     self.loaded.push(extension);
                 }
                 Err(error) => {
+                    // A guest may have registered listeners before failing.
+                    luma_api::event_bus().unregister_owner(name);
                     warn!("Failed to load extension '{name}': {error:#}");
                     failed_names.insert(name.clone());
                     self.record_failure(name.clone(), &error);
@@ -228,6 +236,8 @@ impl ExtensionManager {
                     first_error = Some(error);
                 }
             }
+            luma_api::event_bus().unregister_owner(&name);
+            luma_api::event_bus().fire(ExtensionUnloadedEvent { name });
         }
         match first_error {
             Some(error) => Err(error),

@@ -4,6 +4,7 @@ use anyhow::{Context, Result};
 use dirs::home_dir;
 use log::info;
 use luma_api::configuration::ConfigurationManager;
+use luma_api::event::EventBus;
 use std::fs::create_dir_all;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
@@ -34,6 +35,7 @@ struct Core {
     // WorkspaceUi-specific configuration manager.
     workspace_configuration_manager: Shared<RwLock<ConfigurationManager>>,
     workspace_loaded_callbacks: RwLock<Vec<Box<dyn Fn() + Send + Sync>>>,
+    event_bus: Shared<EventBus>,
 }
 
 impl Core {
@@ -50,6 +52,7 @@ impl Core {
             ide_configuration_manager,
             workspace_configuration_manager,
             workspace_loaded_callbacks: RwLock::new(Vec::new()),
+            event_bus: luma_api::event_bus(),
         }
     }
 
@@ -146,6 +149,10 @@ impl CoreAPI for Core {
 
     fn get_workspace_configuration(&self) -> &Shared<RwLock<ConfigurationManager>> {
         &self.workspace_configuration_manager
+    }
+
+    fn event_bus(&self) -> &Shared<EventBus> {
+        &self.event_bus
     }
 }
 

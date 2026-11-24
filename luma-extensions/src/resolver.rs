@@ -128,10 +128,10 @@ pub fn resolve_load_order_with_failures(extensions: &[ExtensionDescriptor]) -> R
             Err(failure) => {
                 let mut changed = false;
                 for name in &failure.names {
-                    if let Some(&index) = by_name.get(name.as_str()) {
-                        if invalid.insert(index) {
-                            changed = true;
-                        }
+                    if let Some(&index) = by_name.get(name.as_str())
+                        && invalid.insert(index)
+                    {
+                        changed = true;
                     }
                     failures
                         .entry(name.clone())

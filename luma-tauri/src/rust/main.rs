@@ -35,7 +35,7 @@ fn run_setup() -> Result<()> {
         .get_ide_configuration()
         .write()
         .unwrap()
-        .load_global(&coreapi.get_configuration_dir())
+        .load_global(coreapi.get_configuration_dir())
         .context("Failed to load global configuration")?;
 
     Ok(())

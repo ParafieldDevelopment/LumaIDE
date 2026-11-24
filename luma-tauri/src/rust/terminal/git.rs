@@ -45,10 +45,10 @@ fn drain<R: Read + Send + 'static>(mut reader: R) -> (Arc<Mutex<Vec<u8>>>, threa
             match reader.read(&mut chunk) {
                 Ok(0) | Err(_) => break,
                 Ok(count) => {
-                    if let Ok(mut bytes) = sink.lock() {
-                        if bytes.len() < output::MAX_OUTPUT_BYTES {
-                            bytes.extend_from_slice(&chunk[..count]);
-                        }
+                    if let Ok(mut bytes) = sink.lock()
+                        && bytes.len() < output::MAX_OUTPUT_BYTES
+                    {
+                        bytes.extend_from_slice(&chunk[..count]);
                     }
                 }
             }

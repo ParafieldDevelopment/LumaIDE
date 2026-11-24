@@ -1,13 +1,24 @@
 use crate::configuration::ConfigurationManager;
+use crate::event::EventBus;
 use std::panic::{self, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock, RwLock};
 
 pub mod configuration;
+pub mod event;
+pub mod events;
 pub mod utils;
 pub mod workspaces;
 
 pub type Shared<T> = Arc<T>;
+
+/// Process-wide event bus used by the IDE core. Extension guests receive a
+/// bridged bus through their `CoreAPI` implementation instead.
+pub static EVENT_BUS: OnceLock<Shared<EventBus>> = OnceLock::new();
+
+pub fn event_bus() -> Shared<EventBus> {
+    Arc::clone(EVENT_BUS.get_or_init(|| Arc::new(EventBus::new())))
+}
 
 /// Fire registered lifecycle callbacks without letting one bad listener stop
 /// workspace loading.
@@ -18,7 +29,7 @@ pub fn notify_listeners(callbacks: &RwLock<Vec<Box<dyn Fn() + Send + Sync>>>) {
     };
 
     for listener in listeners.iter() {
-        if let Err(payload) = panic::catch_unwind(AssertUnwindSafe(|| listener())) {
+        if let Err(payload) = panic::catch_unwind(AssertUnwindSafe(listener)) {
             let message = payload
                 .downcast_ref::<String>()
                 .map(String::as_str)
@@ -50,6 +61,10 @@ pub trait CoreAPI: Send + Sync {
     fn get_ide_configuration(&self) -> &Shared<RwLock<ConfigurationManager>>;
 
     fn get_workspace_configuration(&self) -> &Shared<RwLock<ConfigurationManager>>;
+
+    /// The event bus visible to this API implementation. The host returns the
+    /// process-wide bus; guests return a bus bridged to the host.
+    fn event_bus(&self) -> &Shared<EventBus>;
 }
 
 pub trait ExtensionsCoreAPI: Send + Sync {

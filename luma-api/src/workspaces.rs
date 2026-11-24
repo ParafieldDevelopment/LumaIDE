@@ -1,5 +1,6 @@
 use crate::CoreAPI;
-use anyhow::{Context, Result};
+use crate::events::{WorkspaceLoadedEvent, WorkspaceOpenEvent};
+use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -121,11 +122,25 @@ impl Workspace {
         self.face.root()
     }
 
-    /// Run the operations associated with opening a workspace: load its
-    /// configuration through the core API, then notify registered listeners.
+    /// Run the operations associated with opening a workspace: fire the
+    /// cancellable open event, load its configuration through the core API,
+    /// then fire the loaded event and notify legacy listeners.
     pub fn load(&self, core: &dyn CoreAPI) -> Result<()> {
+        let bus = core.event_bus();
+        if bus.fire(WorkspaceOpenEvent {
+                workspace: self.clone(),
+            })
+            .cancelled
+        {
+            bail!("Opening workspace '{}' was cancelled by an event handler", self.root().display());
+        }
+
         core.open_workspace(self.root())
             .context("Failed to load workspace configuration")?;
+
+        bus.fire(WorkspaceLoadedEvent {
+            workspace: self.clone(),
+        });
         core.notify_workspace_loaded();
         Ok(())
     }

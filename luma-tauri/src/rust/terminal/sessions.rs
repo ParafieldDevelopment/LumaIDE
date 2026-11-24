@@ -273,7 +273,7 @@ pub async fn terminal_change_dir(cwd: String, target: String) -> Result<String, 
         let home = std::env::var_os("USERPROFILE")
             .or_else(|| std::env::var_os("HOME"))
             .ok_or_else(|| invoke_error("Home directory not found"))?;
-        PathBuf::from(home).join(target[1..].trim_start_matches(|ch| ch == '/' || ch == '\\'))
+        PathBuf::from(home).join(target[1..].trim_start_matches(['/', '\\']))
     } else {
         base.join(target)
     };

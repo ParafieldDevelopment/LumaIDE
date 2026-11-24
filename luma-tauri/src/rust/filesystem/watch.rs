@@ -4,6 +4,8 @@
 //! debounced, filtered (VCS/metadata/temp files are ignored), self-write
 //! suppressed, and only emitted to a window while it is focused.
 
+use luma_api::event_bus;
+use luma_api::events::{FileChangeEvent, FilesChangedEvent};
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use std::collections::HashMap;
@@ -113,6 +115,7 @@ pub fn start(app: AppHandle, label: String, root: PathBuf) {
     let buffer_for_events = Arc::clone(&buffer);
     let generation_for_events = Arc::clone(&generation);
     let root_for_filter = root.clone();
+    let root_for_bus = root.clone();
 
     let watcher = notify::recommended_watcher(move |result: notify::Result<Event>| {
         let Ok(event) = result else {
@@ -136,19 +139,11 @@ pub fn start(app: AppHandle, label: String, root: PathBuf) {
         let label = label_for_events.clone();
         let buffer = Arc::clone(&buffer_for_events);
         let generation = Arc::clone(&generation_for_events);
+        let root_for_bus = root_for_bus.clone();
         tauri::async_runtime::spawn(async move {
             tokio::time::sleep(Duration::from_millis(DEBOUNCE_MS)).await;
             // A newer event reset the timer; that task will flush the batch.
             if generation.load(Ordering::SeqCst) != current {
-                return;
-            }
-            // Only refresh the file tree of the window the user is looking at.
-            let focused = app
-                .get_webview_window(&label)
-                .and_then(|window| window.is_focused().ok())
-                .unwrap_or(false);
-            if !focused {
-                let _ = buffer.lock().map(|mut pending| pending.clear());
                 return;
             }
             let changes = buffer
@@ -156,6 +151,29 @@ pub fn start(app: AppHandle, label: String, root: PathBuf) {
                 .map(|mut pending| std::mem::take(&mut *pending))
                 .unwrap_or_default();
             if changes.is_empty() {
+                return;
+            }
+
+            // Extensions observe changes for every window, focused or not.
+            event_bus().fire(FilesChangedEvent {
+                window: label.clone(),
+                root: root_for_bus.to_string_lossy().into_owned(),
+                changes: changes
+                    .iter()
+                    .map(|change| FileChangeEvent {
+                        path: change.path.clone(),
+                        kind: change.kind.to_string(),
+                        is_dir: change.is_dir,
+                    })
+                    .collect(),
+            });
+
+            // Only refresh the file tree of the window the user is looking at.
+            let focused = app
+                .get_webview_window(&label)
+                .and_then(|window| window.is_focused().ok())
+                .unwrap_or(false);
+            if !focused {
                 return;
             }
             if let Err(error) = app.emit_to(

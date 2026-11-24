@@ -3,6 +3,8 @@ use std::{collections::HashMap, fs, path::Path, sync::Arc};
 use anyhow::{Context, Result, anyhow, bail};
 use serde::{Deserialize, Serialize};
 
+use crate::events::ConfigurationChangedEvent;
+
 // ============================================================
 // Configuration Values
 // ============================================================
@@ -563,6 +565,12 @@ impl From<String> for Identifier {
     }
 }
 
+impl From<&Identifier> for Identifier {
+    fn from(value: &Identifier) -> Self {
+        value.clone()
+    }
+}
+
 pub type ConfigurationId = Identifier;
 pub type ConfigurationIdentifier = Identifier;
 
@@ -577,6 +585,15 @@ pub enum ConfigurationScope {
     Workspace,
 }
 
+/// Stable string form used in [`ConfigurationChangedEvent`].
+pub fn configuration_scope_name(scope: ConfigurationScope) -> &'static str {
+    match scope {
+        ConfigurationScope::Global => "global",
+        ConfigurationScope::Project => "project",
+        ConfigurationScope::Workspace => "workspace",
+    }
+}
+
 // ============================================================
 // Callbacks
 // ============================================================
@@ -584,6 +601,8 @@ pub enum ConfigurationScope {
 pub type ConfigurationChangeCallback = Arc<dyn Fn(&str, ConfigurationValue) + Send + Sync>;
 
 pub type ConfigurationCallback = ConfigurationChangeCallback;
+
+type ProjectLoadedPathCallback = Arc<dyn Fn(&Path) + Send + Sync>;
 
 // ============================================================
 // Configuration Registries
@@ -693,7 +712,7 @@ pub struct ConfigurationManager {
 
     // WorkspaceUi-loaded listeners.
     project_loaded_callbacks: Vec<Arc<dyn Fn() + Send + Sync>>,
-    project_loaded_path_callbacks: Vec<Arc<dyn Fn(&Path) + Send + Sync>>,
+    project_loaded_path_callbacks: Vec<ProjectLoadedPathCallback>,
 }
 
 impl Default for ConfigurationManager {
@@ -862,10 +881,22 @@ impl ConfigurationManager {
         self.on_project_loaded_with_path(callback);
     }
 
-    fn notify_change(&self, identifier: &str, value: ConfigurationValue) {
+    fn notify_change(
+        &self,
+        identifier: &str,
+        value: &ConfigurationValue,
+        scope: ConfigurationScope,
+        old_value: Option<ConfigurationValue>,
+    ) {
         for callback in &self.callbacks {
             callback(identifier, value.clone());
         }
+        crate::event_bus().fire(ConfigurationChangedEvent {
+            id: identifier.to_string(),
+            scope: configuration_scope_name(scope).to_string(),
+            old_value,
+            new_value: Some(value.clone()),
+        });
     }
 
     // --------------------------------------------------------
@@ -879,17 +910,17 @@ impl ConfigurationManager {
         let id = id.into();
 
         // 1. WorkspaceUi/project override (current project)
-        if let Some(registry) = self.workspace_overrides.get(&id.namespace) {
-            if let Some(value) = registry.get_path(&id.path) {
-                return Ok(value.clone());
-            }
+        if let Some(registry) = self.workspace_overrides.get(&id.namespace)
+            && let Some(value) = registry.get_path(&id.path)
+        {
+            return Ok(value.clone());
         }
 
         // 2. Global override
-        if let Some(registry) = self.global_overrides.get(&id.namespace) {
-            if let Some(value) = registry.get_path(&id.path) {
-                return Ok(value.clone());
-            }
+        if let Some(registry) = self.global_overrides.get(&id.namespace)
+            && let Some(value) = registry.get_path(&id.path)
+        {
+            return Ok(value.clone());
         }
 
         // 3. Registered default
@@ -922,6 +953,7 @@ impl ConfigurationManager {
         I: Into<Identifier>,
     {
         let id = id.into();
+        let old_value = self.get(&id).ok();
 
         // Ensure the configuration exists and has the correct type.
         let default_registry = self
@@ -975,7 +1007,12 @@ impl ConfigurationManager {
             }
         }
 
-        self.notify_change(&format!("{}:{}", id.namespace, id.path.join("/")), value);
+        self.notify_change(
+            &format!("{}:{}", id.namespace, id.path.join("/")),
+            &value,
+            scope,
+            old_value,
+        );
 
         Ok(())
     }
@@ -985,6 +1022,13 @@ impl ConfigurationManager {
         I: Into<Identifier>,
     {
         let id = id.into();
+        let old_value = self.get(&id).ok();
+        let new_value = self
+            .registries
+            .defaults
+            .get(&id.namespace)
+            .and_then(|registry| registry.get_path(&id.path))
+            .cloned();
 
         let registry = match scope {
             ConfigurationScope::Global => self.global_overrides.get_mut(&id.namespace),
@@ -997,6 +1041,13 @@ impl ConfigurationManager {
         if let Some(registry) = registry {
             registry.remove_path(&id.path)?;
         }
+
+        crate::event_bus().fire(ConfigurationChangedEvent {
+            id: format!("{}:{}", id.namespace, id.path.join("/")),
+            scope: configuration_scope_name(scope).to_string(),
+            old_value,
+            new_value,
+        });
 
         Ok(())
     }
@@ -1137,7 +1188,7 @@ impl ConfigurationManager {
             let default_value = defaults
                 .values
                 .get(key)
-                .ok_or_else(|| anyhow!("Unknown configuration: {}", format!("{}/{}", path, key)))?;
+                .ok_or_else(|| anyhow!("Unknown configuration: {path}/{key}"))?;
 
             if !default_value.has_same_type(override_value) {
                 bail!("Incorrect value type for configuration: {}/{}", path, key);
