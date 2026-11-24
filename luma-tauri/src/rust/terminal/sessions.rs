@@ -8,6 +8,9 @@ use std::time::Instant;
 use tauri::ipc::InvokeError;
 use uuid::Uuid;
 
+use luma_api::event_bus;
+use luma_api::events::{TerminalClosedEvent, TerminalOpenedEvent};
+
 use super::{checked_dir, invoke_error, output};
 use crate::paths;
 
@@ -30,6 +33,7 @@ pub struct TerminalReadResult {
 
 struct TerminalSession {
     exited: bool,
+    closed_notified: bool,
     shell: String,
     cwd: String,
     created_at: Instant,
@@ -53,6 +57,32 @@ fn child_exited(session: &TerminalSession) -> Result<bool, InvokeError> {
         .try_wait()
         .map(|status| status.is_some())
         .map_err(|error| invoke_error(format!("Failed checking shell state: {error}")))
+}
+
+fn notify_opened(id: &str, shell: &str, cwd: &str) {
+    event_bus().fire(TerminalOpenedEvent {
+        id: id.to_string(),
+        shell: shell.to_string(),
+        cwd: cwd.to_string(),
+    });
+}
+
+/// Fire `TerminalClosedEvent` at most once per session.
+fn notify_closed(session: &mut TerminalSession, id: &str) {
+    if session.closed_notified {
+        return;
+    }
+    session.closed_notified = true;
+    event_bus().fire(TerminalClosedEvent {
+        id: id.to_string(),
+        shell: session.shell.clone(),
+        cwd: session.cwd.clone(),
+    });
+}
+
+fn mark_exited(session: &mut TerminalSession, id: &str) {
+    session.exited = true;
+    notify_closed(session, id);
 }
 
 #[tauri::command]
@@ -112,9 +142,10 @@ pub async fn terminal_open_session(cwd: String) -> Result<TerminalSessionInfo, I
     };
 
     sessions().lock().map_err(invoke_error)?.insert(
-        id,
+        id.clone(),
         TerminalSession {
             exited: false,
+            closed_notified: false,
             shell: shell_name,
             cwd: cwd_string,
             created_at: Instant::now(),
@@ -124,6 +155,7 @@ pub async fn terminal_open_session(cwd: String) -> Result<TerminalSessionInfo, I
             master: pair.master,
         },
     );
+    notify_opened(&info.id, &info.shell, &info.cwd);
 
     Ok(info)
 }
@@ -138,7 +170,7 @@ pub async fn terminal_write(session_id: String, input: String) -> Result<(), Inv
         return Err(invoke_error("Terminal session has exited"));
     }
     if child_exited(session)? {
-        session.exited = true;
+        mark_exited(session, &session_id);
         return Err(invoke_error("Terminal session has exited"));
     }
 
@@ -149,7 +181,7 @@ pub async fn terminal_write(session_id: String, input: String) -> Result<(), Inv
     {
         // ConPTY can invalidate the writer when an interactive child exits.
         if child_exited(session)? {
-            session.exited = true;
+            mark_exited(session, &session_id);
             return Err(invoke_error("Terminal session has exited"));
         }
 
@@ -162,7 +194,7 @@ pub async fn terminal_write(session_id: String, input: String) -> Result<(), Inv
             .and_then(|_| session.writer.flush())
         {
             if child_exited(session)? {
-                session.exited = true;
+                mark_exited(session, &session_id);
                 return Err(invoke_error("Terminal session has exited"));
             }
             return Err(invoke_error(format!(
@@ -181,6 +213,9 @@ pub async fn terminal_list_sessions() -> Result<Vec<TerminalSessionInfo>, Invoke
     for (id, session) in map.iter_mut() {
         if !session.exited {
             session.exited = child_exited(session)?;
+            if session.exited {
+                notify_closed(session, id);
+            }
         }
         ordered.push((
             session.created_at,
@@ -236,6 +271,9 @@ pub async fn terminal_read(
     };
 
     let exited = session.exited || child_exited(session)?;
+    if exited && !session.exited {
+        notify_closed(session, &session_id);
+    }
     session.exited = exited;
     Ok(TerminalReadResult {
         output,
@@ -247,7 +285,8 @@ pub async fn terminal_read(
 #[tauri::command]
 pub async fn terminal_close_session(session_id: String) -> Result<(), InvokeError> {
     let mut map = sessions().lock().map_err(invoke_error)?;
-    if let Some(session) = map.remove(&session_id) {
+    if let Some(mut session) = map.remove(&session_id) {
+        notify_closed(&mut session, &session_id);
         terminate(session);
     }
     Ok(())
@@ -259,7 +298,8 @@ pub fn terminal_close_all_sessions() {
     };
     let active = std::mem::take(&mut *map);
     drop(map);
-    for (_, session) in active {
+    for (id, mut session) in active {
+        notify_closed(&mut session, &id);
         terminate(session);
     }
 }

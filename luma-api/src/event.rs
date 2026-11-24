@@ -182,6 +182,10 @@ struct Handler {
     owner: String,
     priority: EventPriority,
     ignore_cancelled: bool,
+    /// True when the listener is also registered on the other side of a bridge.
+    /// These handlers run only when the host dispatches back into the guest, so
+    /// guest-originated fires are not delivered twice.
+    bridged: bool,
     kind: HandlerKind,
 }
 
@@ -309,24 +313,28 @@ impl EventBus {
     ) -> HandlerId {
         let id = HandlerId(self.next_id.fetch_add(1, Ordering::Relaxed));
 
-        // A bridged guest registers its listener once on the host bus. The
-        // guest's local bus only invokes it when the host dispatches back into
-        // the guest, so events fired by the guest are not delivered twice.
+        // A bridged guest registers its listener once on the host bus *and*
+        // keeps a local copy. The local copy is skipped while the guest is
+        // firing the event (the host dispatches back into the guest instead),
+        // but runs when the host delivers an event with `fire_named_seeded`.
+        let owner = owner.into();
+        let mut bridged = false;
         if let Some(bridge) = &self.bridge
             && let Some(remote_id) = bridge.register(&name, priority, ignore_cancelled)
         {
             if let Ok(mut ids) = self.bridge_ids.write() {
-                ids.insert(id, (remote_id, owner.into()));
+                ids.insert(id, (remote_id, owner.clone()));
             }
-            return id;
+            bridged = true;
         }
 
         if let Ok(mut handlers) = self.handlers.write() {
             handlers.entry(name).or_default().insert(Handler {
                 id,
-                owner: owner.into(),
+                owner,
                 priority,
                 ignore_cancelled,
+                bridged,
                 kind,
             });
         } else {
@@ -467,6 +475,11 @@ impl EventBus {
         for handler in handlers {
             if context.is_propagation_stopped() {
                 break;
+            }
+            // Guest-originated fires travel through the bridge and come back as
+            // a seeded dispatch; do not invoke the local copy on the first pass.
+            if allow_bridge && handler.bridged {
+                continue;
             }
             if handler.ignore_cancelled && context.is_cancelled() {
                 continue;
@@ -684,10 +697,14 @@ mod tests {
         let bridge = Arc::new(MockBridge::default());
         let bus = EventBus::with_bridge(Arc::clone(&bridge) as Arc<dyn EventBridge>);
 
-        let id = bus.register::<TestEvent, _>("guest", EventPriority::High, false, |_, _| {});
-        // The guest listener lives on the host bus so events fired by the guest
-        // are not delivered twice.
-        assert_eq!(bus.handler_count("test:event"), 0);
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let seen_by_handler = Arc::clone(&seen);
+        let id = bus.register::<TestEvent, _>("guest", EventPriority::High, false, move |_, _| {
+            seen_by_handler.lock().unwrap().push("guest");
+        });
+        // The guest keeps a local copy (used for host-delivered events) and a
+        // remote copy on the host bus (used for guest-originated events).
+        assert_eq!(bus.handler_count("test:event"), 1);
         assert_eq!(*bridge.registrations.lock().unwrap(), vec!["test:event"]);
 
         let outcome = bus.fire(TestEvent {
@@ -696,12 +713,18 @@ mod tests {
         assert!(outcome.cancelled);
         assert_eq!(bridge.fires.lock().unwrap().len(), 1);
 
-        // Host events delivered into the guest must not bounce back.
-        bus.fire_named_seeded(
+        // Guest-originated fires are not delivered twice.
+        assert!(seen.lock().unwrap().is_empty());
+
+        // Host events delivered into the guest run the local listener and must
+        // not bounce back through the bridge.
+        let seeded = bus.fire_named_seeded(
             "test:event",
             serde_json::json!({ "value": "hello" }),
             false,
         );
+        assert_eq!(seeded.handlers_called, 1);
+        assert_eq!(*seen.lock().unwrap(), vec!["guest"]);
         assert_eq!(bridge.fires.lock().unwrap().len(), 1);
 
         assert!(bus.unregister(id));

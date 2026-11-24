@@ -86,6 +86,114 @@ impl Event for ConfigurationChangedEvent {
     }
 }
 
+pub const FILE_OPENED_EVENT: &str = "luma:file-opened";
+pub const FILE_CLOSED_EVENT: &str = "luma:file-closed";
+pub const FILE_ACTIVATED_EVENT: &str = "luma:file-activated";
+pub const FILE_SAVED_EVENT: &str = "luma:file-saved";
+pub const FILE_CREATED_EVENT: &str = "luma:file-created";
+pub const FILE_DELETED_EVENT: &str = "luma:file-deleted";
+pub const DIRECTORY_OPENED_EVENT: &str = "luma:directory-opened";
+pub const WORKSPACE_CLOSED_EVENT: &str = "luma:workspace-closed";
+pub const TERMINAL_OPENED_EVENT: &str = "luma:terminal-opened";
+pub const TERMINAL_CLOSED_EVENT: &str = "luma:terminal-closed";
+
+/// Fired when the editor opens a file in a tab.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileOpenedEvent {
+    pub path: String,
+    pub window: String,
+}
+
+impl Event for FileOpenedEvent {
+    fn name() -> &'static str {
+        FILE_OPENED_EVENT
+    }
+}
+
+/// Fired when the editor closes a file tab.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileClosedEvent {
+    pub path: String,
+    pub window: String,
+}
+
+impl Event for FileClosedEvent {
+    fn name() -> &'static str {
+        FILE_CLOSED_EVENT
+    }
+}
+
+/// Fired when the active editor tab changes. `path` is `None` when no file is
+/// active.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileActivatedEvent {
+    pub path: Option<String>,
+    pub window: String,
+}
+
+impl Event for FileActivatedEvent {
+    fn name() -> &'static str {
+        FILE_ACTIVATED_EVENT
+    }
+}
+
+/// Fired after a file is saved through the IDE. `hash` is the SHA-256 of the
+/// bytes written to disk.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileSavedEvent {
+    pub path: String,
+    pub hash: String,
+    pub window: String,
+}
+
+impl Event for FileSavedEvent {
+    fn name() -> &'static str {
+        FILE_SAVED_EVENT
+    }
+}
+
+/// Fired after Luma creates a file or directory. `is_dir` distinguishes them.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileCreatedEvent {
+    pub path: String,
+    pub is_dir: bool,
+    pub window: String,
+}
+
+impl Event for FileCreatedEvent {
+    fn name() -> &'static str {
+        FILE_CREATED_EVENT
+    }
+}
+
+/// Fired after Luma deletes a file or directory. `is_dir` distinguishes them.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileDeletedEvent {
+    pub path: String,
+    pub is_dir: bool,
+    pub window: String,
+}
+
+impl Event for FileDeletedEvent {
+    fn name() -> &'static str {
+        FILE_DELETED_EVENT
+    }
+}
+
+/// Fired when the project explorer reads a directory. This also covers
+/// expanding a node in the explorer tree.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirectoryOpenedEvent {
+    pub path: String,
+    pub window: String,
+}
+
+impl Event for DirectoryOpenedEvent {
+    fn name() -> &'static str {
+        DIRECTORY_OPENED_EVENT
+    }
+}
+
 /// One change reported by a filesystem watcher. `kind` is `"create"`,
 /// `"modify"`, `"remove"` or `"other"`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -107,5 +215,47 @@ pub struct FilesChangedEvent {
 impl Event for FilesChangedEvent {
     fn name() -> &'static str {
         FILES_CHANGED_EVENT
+    }
+}
+
+/// Fired when an IDE window for a workspace is destroyed, after the watcher is
+/// stopped and before the workspace is removed from the store.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkspaceClosedEvent {
+    pub workspace: Workspace,
+    pub window: String,
+}
+
+impl Event for WorkspaceClosedEvent {
+    fn name() -> &'static str {
+        WORKSPACE_CLOSED_EVENT
+    }
+}
+
+/// Fired after a terminal PTY session is created.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TerminalOpenedEvent {
+    pub id: String,
+    pub shell: String,
+    pub cwd: String,
+}
+
+impl Event for TerminalOpenedEvent {
+    fn name() -> &'static str {
+        TERMINAL_OPENED_EVENT
+    }
+}
+
+/// Fired when a terminal PTY session is closed or terminated.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TerminalClosedEvent {
+    pub id: String,
+    pub shell: String,
+    pub cwd: String,
+}
+
+impl Event for TerminalClosedEvent {
+    fn name() -> &'static str {
+        TERMINAL_CLOSED_EVENT
     }
 }

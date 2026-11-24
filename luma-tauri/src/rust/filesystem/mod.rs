@@ -12,6 +12,11 @@ use std::path::PathBuf;
 use tauri::WebviewWindow;
 use tauri::ipc::InvokeError;
 
+use luma_api::event_bus;
+use luma_api::events::{
+    DirectoryOpenedEvent, FileCreatedEvent, FileDeletedEvent, FileSavedEvent,
+};
+
 use self::tree::Sortable;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -139,9 +144,15 @@ pub async fn write_file(
             anyhow::Error::from(error).context(format!("Failed to replace {path}")),
         ));
     }
+    let hash = hash_bytes(contents.as_bytes());
+    event_bus().fire(FileSavedEvent {
+        path: path.clone(),
+        hash: hash.clone(),
+        window: window.label().to_string(),
+    });
     Ok(WriteFileResult {
         saved: true,
-        hash: hash_bytes(contents.as_bytes()),
+        hash,
         disk_contents: None,
     })
 }
@@ -158,7 +169,13 @@ pub async fn create_file(window: WebviewWindow, path: String) -> Result<String, 
     std::fs::write(&resolved, "")
         .with_context(|| format!("Failed to create file {path}"))
         .map_err(InvokeError::from_anyhow)?;
-    Ok(resolved.to_string_lossy().into_owned())
+    let created = resolved.to_string_lossy().into_owned();
+    event_bus().fire(FileCreatedEvent {
+        path: created.clone(),
+        is_dir: false,
+        window: window.label().to_string(),
+    });
+    Ok(created)
 }
 
 #[tauri::command]
@@ -173,7 +190,13 @@ pub async fn create_directory(window: WebviewWindow, path: String) -> Result<Str
     std::fs::create_dir_all(&resolved)
         .with_context(|| format!("Failed to create directory {path}"))
         .map_err(InvokeError::from_anyhow)?;
-    Ok(resolved.to_string_lossy().into_owned())
+    let created = resolved.to_string_lossy().into_owned();
+    event_bus().fire(FileCreatedEvent {
+        path: created.clone(),
+        is_dir: true,
+        window: window.label().to_string(),
+    });
+    Ok(created)
 }
 
 #[tauri::command]
@@ -185,15 +208,23 @@ pub async fn delete_entry(window: WebviewWindow, path: String) -> Result<(), Inv
     }
 
     watch::suppress_self_write(&canonical);
-    if canonical.is_dir() {
+    let is_dir = canonical.is_dir();
+    let deleted = canonical.to_string_lossy().into_owned();
+    if is_dir {
         std::fs::remove_dir_all(&canonical)
             .with_context(|| format!("Failed to delete directory {path}"))
-            .map_err(InvokeError::from_anyhow)
+            .map_err(InvokeError::from_anyhow)?;
     } else {
         std::fs::remove_file(&canonical)
             .with_context(|| format!("Failed to delete file {path}"))
-            .map_err(InvokeError::from_anyhow)
+            .map_err(InvokeError::from_anyhow)?;
     }
+    event_bus().fire(FileDeletedEvent {
+        path: deleted,
+        is_dir,
+        window: window.label().to_string(),
+    });
+    Ok(())
 }
 
 #[tauri::command]
@@ -222,6 +253,10 @@ pub async fn read_directory(
         });
     }
     tree::sort(&mut entries);
+    event_bus().fire(DirectoryOpenedEvent {
+        path: canonical.to_string_lossy().into_owned(),
+        window: window.label().to_string(),
+    });
     Ok(entries)
 }
 

@@ -3,6 +3,7 @@
 mod app;
 mod constants;
 mod error_report;
+mod events;
 mod filesystem;
 mod json;
 mod paths;

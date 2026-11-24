@@ -1,6 +1,7 @@
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { confirmDialog } from "./useConfirm";
+import { notifyFileActivated, notifyFileClosed, notifyFileOpened } from "./useEvents";
 import { pathKey } from "./paths";
 
 export interface OpenFile {
@@ -36,6 +37,13 @@ const activeFileId = ref<number>(0);
 const workspacePath = ref<string | null>(null);
 const loadError = ref<string | null>(null);
 const conflictPrompts = new Set<number>();
+
+// Tab selection changes can come from openFile, closeFile or a direct click on
+// the tabs component, so report activation from one central place.
+watch(activeFileId, (id) => {
+  const file = openFiles.value.find((item) => item.id === id);
+  void notifyFileActivated(file?.path ?? null);
+});
 
 export function useEditor() {
   const activeFile = computed<OpenFile | null>(() => {
@@ -114,6 +122,7 @@ export function useEditor() {
     };
     openFiles.value.push(file);
     activeFileId.value = file.id;
+    void notifyFileOpened(path);
     return file;
   }
 
@@ -215,6 +224,7 @@ export function useEditor() {
     if (index === -1) return;
     const file = openFiles.value[index];
     openFiles.value.splice(index, 1);
+    void notifyFileClosed(file.path);
     if (activeFileId.value === id) {
       activeFileId.value = openFiles.value.length > 0 ? openFiles.value[0].id : 0;
     }

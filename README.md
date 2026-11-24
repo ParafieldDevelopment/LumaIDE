@@ -14,4 +14,4 @@ git submodule update --init --recursive
 
 ## Docs
 
-- [Event bus](EVENTS.md) — Bukkit-style priorities, cancellation and the extension API.
+- [Event bus](EVENTS.md) — Bukkit-style priorities, cancellation, extension API and frontend bridge.

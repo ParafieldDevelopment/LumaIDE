@@ -1,4 +1,6 @@
 use anyhow::Context;
+use luma_api::event_bus;
+use luma_api::events::WorkspaceClosedEvent;
 use luma_api::workspaces::Workspace;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
@@ -64,6 +66,13 @@ pub fn open_main_window(
         window.on_window_event(move |event| {
             if matches!(event, tauri::WindowEvent::Destroyed) {
                 crate::filesystem::watch::stop(&owned_label);
+                if let Some(workspace) = store::workspace_for_window(&owned_label) {
+                    event_bus().fire(WorkspaceClosedEvent {
+                        workspace,
+                        window: owned_label.clone(),
+                    });
+                }
+                crate::events::cleanup_window(&owned_label);
                 store::store().remove(&owned_label);
             }
         });
