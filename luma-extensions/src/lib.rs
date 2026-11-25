@@ -30,7 +30,11 @@ use log::info;
 use luma_api::{CoreAPI, EXTENSIONS_API, ExtensionsCoreAPI, Shared};
 
 pub use extension::LumaExtension;
-pub use manifest::{ExtensionDescriptor, ExtensionEntry, ExtensionKind, ExtensionManifest};
+pub use manifest::{
+    ExtensionDescriptor, ExtensionEntry, ExtensionKind, ExtensionManifest, FrontendCommand,
+    FrontendContribution, FrontendContributions, FrontendManifest, FrontendMenu,
+    FrontendToolWindow,
+};
 
 #[cfg(any(feature = "host", feature = "native", feature = "wasm"))]
 pub use manager::LoadedExtension;
@@ -118,6 +122,22 @@ impl ExtensionsCoreAPI for ExtensionsCore {
                     .collect()
             })
             .unwrap_or_default()
+    }
+
+    fn frontend_contributions_json(&self) -> String {
+        self.manager
+            .lock()
+            .map(|manager| manager.frontend_contributions())
+            .ok()
+            .and_then(|contributions| serde_json::to_string(&contributions).ok())
+            .unwrap_or_else(|| "[]".to_string())
+    }
+
+    fn extension_asset_path(&self, extension: &str, relative: &str) -> Option<std::path::PathBuf> {
+        self.manager
+            .lock()
+            .ok()
+            .and_then(|manager| manager.extension_asset_path(extension, relative))
     }
 }
 

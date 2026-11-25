@@ -97,6 +97,12 @@ pub const WORKSPACE_CLOSED_EVENT: &str = "luma:workspace-closed";
 pub const TERMINAL_OPENED_EVENT: &str = "luma:terminal-opened";
 pub const TERMINAL_CLOSED_EVENT: &str = "luma:terminal-closed";
 
+/// Prefix for the bus event fired by frontend commands declared in an
+/// extension manifest. The full name is
+/// `{prefix}{extension}.{command-id}` and the payload contains
+/// `{ extension, command, workspace }`.
+pub const EXTENSION_UI_COMMAND_EVENT_PREFIX: &str = "luma:extension-command:";
+
 /// Fired when the editor opens a file in a tab.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileOpenedEvent {

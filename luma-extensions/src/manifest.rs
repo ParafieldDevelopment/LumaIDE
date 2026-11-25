@@ -28,6 +28,7 @@ use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
+use luma_api::events::EXTENSION_UI_COMMAND_EVENT_PREFIX;
 use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
 
@@ -81,6 +82,127 @@ fn any_version() -> VersionReq {
     VersionReq::STAR
 }
 
+/// Optional frontend UI shipped by an extension.
+///
+/// The entry is an HTML file loaded into a sandboxed iframe. Native and WASM
+/// extensions do not need to know about it: the host reads these declarations
+/// directly from `extension.json` and the Vue app registers them on mount.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FrontendManifest {
+    /// HTML file, relative to the extension root.
+    pub entry: Option<PathBuf>,
+    #[serde(default, alias = "contributes")]
+    pub contributions: FrontendContributions,
+}
+
+/// UI items an extension contributes to the IDE shell.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FrontendContributions {
+    #[serde(default)]
+    pub commands: Vec<FrontendCommandSpec>,
+    #[serde(default)]
+    pub menus: Vec<FrontendMenuSpec>,
+    #[serde(default)]
+    pub tool_windows: Vec<FrontendToolWindowSpec>,
+    /// Bus event names the iframe is allowed to receive and send.
+    #[serde(default)]
+    pub events: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FrontendCommandSpec {
+    /// Short id, e.g. `openPanel`. The host namespaces it with the extension name.
+    pub id: String,
+    pub label: String,
+    #[serde(default)]
+    pub category: Option<String>,
+    #[serde(default)]
+    pub keys: Option<String>,
+    /// SVG path data for a 16px icon.
+    #[serde(default)]
+    pub icon: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FrontendMenuSpec {
+    /// Menu location, e.g. `titlebar/main`.
+    pub location: String,
+    pub command_id: String,
+    #[serde(default)]
+    pub group: Option<String>,
+    #[serde(default)]
+    pub order: Option<i32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FrontendToolWindowSpec {
+    /// Short id, e.g. `panel`. The host namespaces it with the extension name.
+    pub id: String,
+    pub title: String,
+    /// One of `left-top`, `left-bottom`, `right-top`, `right-bottom`.
+    pub position: String,
+    /// Optional icon asset path, relative to the extension root.
+    #[serde(default)]
+    pub icon: Option<String>,
+    #[serde(default)]
+    pub order: Option<u32>,
+    #[serde(default)]
+    pub hotkey: Option<String>,
+    #[serde(default)]
+    pub default_open: bool,
+}
+
+/// A resolved command sent to the frontend. `event` is fired on the bus when
+/// the action/menu item is invoked, so native/WASM code can handle it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FrontendCommand {
+    pub id: String,
+    pub label: String,
+    pub category: Option<String>,
+    pub keys: Option<String>,
+    pub icon: Option<String>,
+    pub event: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FrontendMenu {
+    pub location: String,
+    pub command_id: String,
+    pub group: Option<String>,
+    pub order: Option<i32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FrontendToolWindow {
+    pub id: String,
+    pub title: String,
+    pub position: String,
+    pub icon: Option<String>,
+    pub order: Option<u32>,
+    pub hotkey: Option<String>,
+    pub default_open: bool,
+}
+
+/// Validated UI contribution for one loaded extension.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FrontendContribution {
+    pub extension: String,
+    /// Path of the iframe entry relative to the extension root.
+    pub entry: Option<String>,
+    pub commands: Vec<FrontendCommand>,
+    pub menus: Vec<FrontendMenu>,
+    pub tool_windows: Vec<FrontendToolWindow>,
+    pub events: Vec<String>,
+}
+
 /// Parsed and validated contents of `extension.json`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExtensionManifest {
@@ -97,6 +219,8 @@ pub struct ExtensionManifest {
     #[serde(default)]
     pub authors: Vec<String>,
     pub license: Option<String>,
+    #[serde(default)]
+    pub frontend: Option<FrontendManifest>,
 }
 
 /// A manifest together with the directory it was discovered in.
@@ -182,6 +306,87 @@ impl ExtensionManifest {
             }
         }
 
+        self.validate_frontend()?;
+        Ok(())
+    }
+
+    fn validate_frontend(&self) -> Result<()> {
+        let Some(frontend) = &self.frontend else {
+            return Ok(());
+        };
+        if let Some(entry) = &frontend.entry {
+            validate_relative_path(entry, "frontend entry")?;
+        }
+
+        let mut command_ids = std::collections::HashSet::new();
+        for command in &frontend.contributions.commands {
+            if !is_valid_name(&command.id) {
+                bail!(
+                    "Invalid frontend command id '{}' in extension '{}'",
+                    command.id,
+                    self.name
+                );
+            }
+            if command.label.trim().is_empty() {
+                bail!(
+                    "Frontend command '{}' has an empty label",
+                    command.id
+                );
+            }
+            command_ids.insert(command.id.clone());
+        }
+
+        for menu in &frontend.contributions.menus {
+            if menu.location.trim().is_empty() {
+                bail!(
+                    "Frontend menu in extension '{}' has an empty location",
+                    self.name
+                );
+            }
+            if !command_ids.contains(&menu.command_id) {
+                bail!(
+                    "Frontend menu '{}' references unknown command '{}'",
+                    menu.location,
+                    menu.command_id
+                );
+            }
+        }
+
+        for tool in &frontend.contributions.tool_windows {
+            if !is_valid_name(&tool.id) {
+                bail!(
+                    "Invalid tool window id '{}' in extension '{}'",
+                    tool.id,
+                    self.name
+                );
+            }
+            if tool.title.trim().is_empty() {
+                bail!("Tool window '{}' has an empty title", tool.id);
+            }
+            if !matches!(
+                tool.position.as_str(),
+                "left-top" | "left-bottom" | "right-top" | "right-bottom"
+            ) {
+                bail!(
+                    "Tool window '{}' has invalid position '{}'",
+                    tool.id,
+                    tool.position
+                );
+            }
+            if let Some(icon) = &tool.icon {
+                validate_relative_path(Path::new(&icon.replace('\\', "/")), "tool window icon")?;
+            }
+        }
+
+        for event in &frontend.contributions.events {
+            if event.trim().is_empty() {
+                bail!(
+                    "Extension '{}' declared an empty frontend event name",
+                    self.name
+                );
+            }
+        }
+
         Ok(())
     }
 
@@ -242,6 +447,102 @@ impl ExtensionDescriptor {
             ExtensionEntry::Wasm(_) => None,
         }
     }
+
+    /// Resolve and validate a frontend asset path inside this extension.
+    pub fn asset_path(&self, relative: &str) -> Result<PathBuf> {
+        let normalized = relative.replace('\\', "/");
+        let path = Path::new(&normalized);
+        validate_relative_path(path, "extension asset")?;
+        let root = self
+            .root
+            .canonicalize()
+            .with_context(|| format!("Failed to resolve extension root {}", self.root.display()))?;
+        let canonical = path_canonical(&root, path)?;
+        if !canonical.starts_with(&root) {
+            bail!(
+                "Extension asset '{relative}' points outside the extension root"
+            );
+        }
+        Ok(canonical)
+    }
+
+    /// Build the frontend contribution for this extension, if it declares one.
+    ///
+    /// The manifest has already been validated; this only resolves asset
+    /// paths and namespaces ids so extensions cannot collide with each other.
+    pub fn frontend_contribution(&self) -> Option<FrontendContribution> {
+        let frontend = self.manifest.frontend.as_ref()?;
+        let entry = frontend
+            .entry
+            .as_ref()
+            .and_then(|path| path.to_str())
+            .filter(|path| self.asset_path(path).is_ok())
+            .map(str::to_owned);
+
+        let mut events = frontend.contributions.events.clone();
+        let commands = frontend
+            .contributions
+            .commands
+            .iter()
+            .map(|command| {
+                let id = format!("{}.{}", self.manifest.name, command.id);
+                let event = format!("{EXTENSION_UI_COMMAND_EVENT_PREFIX}{id}");
+                if !events.contains(&event) {
+                    events.push(event.clone());
+                }
+                FrontendCommand {
+                    id,
+                    label: command.label.clone(),
+                    category: command.category.clone(),
+                    keys: command.keys.clone(),
+                    icon: command.icon.clone(),
+                    event,
+                }
+            })
+            .collect();
+
+        let menus = frontend
+            .contributions
+            .menus
+            .iter()
+            .map(|menu| FrontendMenu {
+                location: menu.location.clone(),
+                command_id: format!("{}.{}", self.manifest.name, menu.command_id),
+                group: menu.group.clone(),
+                order: menu.order,
+            })
+            .collect();
+
+        let tool_windows = frontend
+            .contributions
+            .tool_windows
+            .iter()
+            .map(|tool| FrontendToolWindow {
+                id: format!("{}.{}", self.manifest.name, tool.id),
+                title: tool.title.clone(),
+                position: tool.position.clone(),
+                icon: tool.icon.clone(),
+                order: tool.order,
+                hotkey: tool.hotkey.clone(),
+                default_open: tool.default_open,
+            })
+            .collect();
+
+        Some(FrontendContribution {
+            extension: self.manifest.name.clone(),
+            entry,
+            commands,
+            menus,
+            tool_windows,
+            events,
+        })
+    }
+}
+
+fn path_canonical(root: &Path, relative: &Path) -> Result<PathBuf> {
+    root.join(relative)
+        .canonicalize()
+        .with_context(|| format!("Extension asset '{}' does not exist", relative.display()))
 }
 
 /// Entry files (and the directories leading to them) must not be symlinks that
@@ -383,5 +684,64 @@ mod tests {
             dir.path().join("liba.so")
         );
         assert!(descriptor.native_library("aarch64-apple-darwin").is_none());
+    }
+
+    #[test]
+    fn parses_and_resolves_frontend_contributions() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("frontend")).unwrap();
+        std::fs::write(dir.path().join("frontend/index.html"), "<html></html>").unwrap();
+        std::fs::write(dir.path().join("frontend/icon.svg"), "<svg></svg>").unwrap();
+        let manifest_path = dir.path().join(MANIFEST_FILE_NAME);
+        std::fs::write(
+            &manifest_path,
+            r#"{
+                "name": "my-ext",
+                "version": "1.0.0",
+                "type": "wasm",
+                "entry": "my-ext.wasm",
+                "frontend": {
+                    "entry": "frontend/index.html",
+                    "contributions": {
+                        "commands": [{ "id": "openPanel", "label": "Open Panel", "keys": "Alt+P" }],
+                        "menus": [{ "location": "titlebar/main", "commandId": "openPanel" }],
+                        "toolWindows": [{
+                            "id": "panel",
+                            "title": "My Panel",
+                            "position": "right-bottom",
+                            "icon": "frontend/icon.svg"
+                        }],
+                        "events": ["luma:file-opened"]
+                    }
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let descriptor = ExtensionDescriptor::from_manifest_path(&manifest_path).unwrap();
+        let contribution = descriptor.frontend_contribution().unwrap();
+        assert_eq!(contribution.extension, "my-ext");
+        assert_eq!(contribution.entry.as_deref(), Some("frontend/index.html"));
+        assert_eq!(contribution.commands[0].id, "my-ext.openPanel");
+        assert_eq!(
+            contribution.commands[0].event,
+            "luma:extension-command:my-ext.openPanel"
+        );
+        assert_eq!(contribution.menus[0].command_id, "my-ext.openPanel");
+        assert_eq!(contribution.tool_windows[0].id, "my-ext.panel");
+        assert!(contribution.events.contains(&contribution.commands[0].event));
+        assert_eq!(
+            descriptor.asset_path("frontend/index.html").unwrap(),
+            dir.path().join("frontend/index.html").canonicalize().unwrap()
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_frontend_contributions() {
+        let base = r#"{"name":"a","version":"1.0.0","type":"wasm","entry":"a.wasm","frontend":{"entry":"frontend/index.html","contributions":"#;
+        assert!(manifest(&(base.to_owned() + r#"{"commands":[{"id":"../bad","label":"Bad"}]}}}"#)).is_err());
+        assert!(manifest(&(base.to_owned() + r#"{"menus":[{"location":"titlebar/main","commandId":"missing"}]}}}"#)).is_err());
+        assert!(manifest(&(base.to_owned() + r#"{"toolWindows":[{"id":"p","title":"Panel","position":"top"}]}}}"#)).is_err());
+        assert!(manifest(&(base.to_owned() + r#"{"events":[""]}}}"#)).is_err());
     }
 }

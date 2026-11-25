@@ -88,6 +88,7 @@ All names are namespaced with `luma:` and defined in `luma-api/src/events.rs`.
 | `WorkspaceClosedEvent` | `luma:workspace-closed` | no | IDE window `Destroyed`, after the watcher stops |
 | `TerminalOpenedEvent` | `luma:terminal-opened` | no | `terminal_open_session` |
 | `TerminalClosedEvent` | `luma:terminal-closed` | no | Terminal close, shell exit or app shutdown (once per session) |
+| Extension UI command | `luma:extension-command:<extension>.<command-id>` | no | Frontend command/menu invocation declared in `extension.json` |
 
 File/tab/terminal events carry `window` (the Tauri window label) where the
 action happened. `WorkspaceClosedEvent` carries the full `Workspace` that was
@@ -136,6 +137,10 @@ and the final flag is returned to the caller.
 
 Use `useLumaEvents()` inside a component to dispose its subscriptions
 automatically on unmount.
+
+Extension HTML panels use the same bus through a restricted `postMessage`
+bridge. See [Extension frontend UI](EXTENSION_UI.md) for manifest declarations,
+the generated `luma:extension-command:*` events and the sandboxing rules.
 
 ## Extension ABI
 

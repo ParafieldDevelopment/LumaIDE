@@ -79,6 +79,19 @@ pub trait ExtensionsCoreAPI: Send + Sync {
     fn extension_failures(&self) -> Vec<String> {
         Vec::new()
     }
+
+    /// JSON array of validated frontend UI contributions from loaded
+    /// extensions. The frontend pulls this on mount because extensions boot
+    /// before any webview exists.
+    fn frontend_contributions_json(&self) -> String {
+        "[]".to_string()
+    }
+
+    /// Absolute path of an asset inside a loaded extension, when the file
+    /// exists and stays within the extension root.
+    fn extension_asset_path(&self, _extension: &str, _relative: &str) -> Option<PathBuf> {
+        None
+    }
 }
 
 pub static CORE_API: OnceLock<Shared<dyn CoreAPI>> = OnceLock::new();

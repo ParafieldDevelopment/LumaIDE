@@ -4,6 +4,7 @@ mod app;
 mod constants;
 mod error_report;
 mod events;
+mod extensions_ui;
 mod filesystem;
 mod json;
 mod paths;

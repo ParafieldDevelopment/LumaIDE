@@ -86,6 +86,8 @@ pub fn build_tauri_app() -> Result<tauri::App> {
             crate::events::event_register,
             crate::events::event_unregister,
             crate::events::event_fire,
+            crate::extensions_ui::list_extension_ui,
+            crate::extensions_ui::extension_asset_path,
             crate::events::notify_file_opened,
             crate::events::notify_file_closed,
             crate::events::notify_file_activated,

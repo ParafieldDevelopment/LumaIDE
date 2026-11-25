@@ -21,7 +21,7 @@ use crate::abi::{ExtensionState, ExtensionStateHandle};
 #[cfg(feature = "host")]
 use crate::discovery::discover_extensions_with_failures;
 #[cfg(feature = "host")]
-use crate::manifest::ExtensionDescriptor;
+use crate::manifest::{ExtensionDescriptor, FrontendContribution};
 use crate::manifest::ExtensionKind;
 #[cfg(feature = "host")]
 use crate::resolver::resolve_load_order_with_failures;
@@ -51,6 +51,9 @@ pub struct ExtensionLoadFailure {
 pub struct ExtensionManager {
     loaded: Vec<Box<dyn LoadedExtension>>,
     failures: Vec<ExtensionLoadFailure>,
+    /// Descriptors of successfully loaded extensions, used for UI contributions.
+    #[cfg(feature = "host")]
+    frontend_descriptors: Vec<ExtensionDescriptor>,
     /// Snapshot exposed to extensions through the host ABI/imports.
     #[cfg(feature = "host")]
     extension_state: ExtensionStateHandle,
@@ -63,6 +66,8 @@ impl Default for ExtensionManager {
         Self {
             loaded: Vec::new(),
             failures: Vec::new(),
+            #[cfg(feature = "host")]
+            frontend_descriptors: Vec::new(),
             #[cfg(feature = "host")]
             extension_state: Arc::new(RwLock::new(ExtensionState::default())),
             #[cfg(all(feature = "host", feature = "wasm"))]
@@ -87,6 +92,8 @@ impl ExtensionManager {
         roots: impl IntoIterator<Item = PathBuf>,
         cache_dir: &Path,
     ) -> Result<()> {
+        self.frontend_descriptors.clear();
+
         // Discovery and dependency resolution problems are recorded as extension
         // failures instead of aborting IDE startup. One broken archive or
         // manifest must not prevent every other extension from loading.
@@ -163,6 +170,7 @@ impl ExtensionManager {
                     });
                     loaded_names.insert(name.clone());
                     self.loaded.push(extension);
+                    self.frontend_descriptors.push(descriptor.clone());
                 }
                 Err(error) => {
                     // A guest may have registered listeners before failing.
@@ -227,6 +235,8 @@ impl ExtensionManager {
 
     /// Shut down extensions in reverse load order.
     pub fn unload_all(&mut self) -> Result<()> {
+        #[cfg(feature = "host")]
+        self.frontend_descriptors.clear();
         let mut first_error = None;
         while let Some(mut extension) = self.loaded.pop() {
             let name = extension.name().to_string();
@@ -278,6 +288,25 @@ impl ExtensionManager {
 
     pub fn failures(&self) -> &[ExtensionLoadFailure] {
         &self.failures
+    }
+
+    /// Validated frontend contributions from successfully loaded extensions.
+    #[cfg(feature = "host")]
+    pub fn frontend_contributions(&self) -> Vec<FrontendContribution> {
+        self.frontend_descriptors
+            .iter()
+            .filter_map(ExtensionDescriptor::frontend_contribution)
+            .collect()
+    }
+
+    /// Resolve a frontend asset for a loaded extension, if it exists.
+    #[cfg(feature = "host")]
+    pub fn extension_asset_path(&self, extension: &str, relative: &str) -> Option<PathBuf> {
+        self.frontend_descriptors
+            .iter()
+            .find(|descriptor| descriptor.manifest.name == extension)
+            .and_then(|descriptor| descriptor.asset_path(relative).ok())
+            .filter(|path| path.is_file())
     }
 }
 

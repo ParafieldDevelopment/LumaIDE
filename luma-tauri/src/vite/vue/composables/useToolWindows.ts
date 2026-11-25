@@ -190,6 +190,17 @@ export function registerToolWindow(def: ToolWindowDef) {
   if (def.defaultOpen && state.active[side] === null) state.active[side] = def.id;
 }
 
+/** Remove a tool window registration (used for extension-provided panels). */
+export function unregisterToolWindow(id: string) {
+  registry.value = registry.value.filter((tool) => tool.id !== id);
+  const position = state.positions[id];
+  if (position) state.order[position] = state.order[position].filter((tool) => tool !== id);
+  delete state.positions[id];
+  for (const side of sides) {
+    if (state.active[side] === id) state.active[side] = null;
+  }
+}
+
 function ordered(position: ToolPosition) {
   return state.order[position]
     .map((id) => registry.value.find((tool) => tool.id === id))

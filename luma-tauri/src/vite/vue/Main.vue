@@ -25,6 +25,7 @@ import {
 } from "~/vue/composables/actions";
 import { Menus, registerMenu } from "~/vue/composables/menus";
 import { commandPaletteOpen } from "~/vue/composables/commandPalette";
+import { loadExtensionUI } from "~/vue/composables/useExtensionUI";
 
 interface ActiveWorkspace { project_uuid: string; title: string; path: string; git_branch?: string; icon_path?: string }
 
@@ -432,6 +433,7 @@ function handleKeydown(event: KeyboardEvent) {
 // X button and Alt+F4 both arrive here. Ask first, then really close the window.
 let confirmingExit = false;
 let unlistenClose: UnlistenFn | null = null;
+let disposeExtensionUI: (() => void) | undefined;
 
 async function handleCloseRequested(event: { preventDefault: () => void }) {
   event.preventDefault();
@@ -455,6 +457,13 @@ onMounted(async () => {
     if (activeWorkspace.value) activeWorkspace.value.git_branch = event.payload.branch;
   });
   unlistenClose = await getCurrentWindow().onCloseRequested(handleCloseRequested);
+  // Extensions boot before this window exists, so pull their UI contributions
+  // before hydrating the workspace's tool-window layout.
+  try {
+    disposeExtensionUI = await loadExtensionUI();
+  } catch (error) {
+    console.warn("Unable to load extension UI contributions", error);
+  }
   await loadActiveWorkspace();
   window.addEventListener("keydown", handleKeydown, true);
   window.addEventListener("blur", flushAutosave);
@@ -468,6 +477,7 @@ function onVisibilityChange() {
 onBeforeUnmount(() => {
   actionDisposers.forEach((dispose) => dispose());
   menuDisposers.forEach((dispose) => dispose());
+  disposeExtensionUI?.();
   stopDockResize();
   stopBottomSplitResize();
   cleanupToolDrag();
